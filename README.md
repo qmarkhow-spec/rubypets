@@ -18,7 +18,10 @@ npm run migrate:local # apply D1 migrations locally
 npm run deploy        # deploy to Cloudflare Worker
 ```
 
-Add your `account_id` to `backend/wrangler.toml` or login via `wrangler login`.
+Add your `account_id` to `wrangler.toml` (repo root) or login via `wrangler login`.
+For Cloudflare Git builds, keep root directory `/` and set commands to use the root package:
+- Build: `npm install`
+- Deploy: `npm run deploy`
 
 ## API surface (initial)
 - `GET /health` — checks D1 + R2 bindings.

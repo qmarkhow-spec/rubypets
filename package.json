@@ -1,0 +1,15 @@
+{
+  "name": "rubypets",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm --workspace backend run dev",
+    "build": "npm --workspace backend run build",
+    "deploy": "npm --workspace backend run deploy",
+    "migrate": "npm --workspace backend run migrate",
+    "migrate:local": "npm --workspace backend run migrate:local"
+  }
+}

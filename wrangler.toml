@@ -1,7 +1,7 @@
 name = "rubypets-backend"
-main = "src/index.ts"
+main = "backend/src/index.ts"
 compatibility_date = "2025-12-08"
-migrations_dir = "migrations"
+migrations_dir = "backend/migrations"
 workers_dev = true
 
 route = { pattern = "api.rubypets.com/*", custom_domain = true }
