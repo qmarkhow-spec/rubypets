@@ -1,7 +1,8 @@
+import { DBClient } from "../db";
 import { Env } from "../types";
 
-export async function checkHealth(env: Env) {
-  const dbRow = await env.DB.prepare("select 1 as ok").first<{ ok: number }>();
+export async function checkHealth(env: Env, db: DBClient) {
+  const d1Ok = await db.ping();
 
   let r2Ok = true;
   try {
@@ -11,11 +12,12 @@ export async function checkHealth(env: Env) {
     r2Ok = false;
   }
 
+  const ok = d1Ok && r2Ok;
   return {
-    status: "ok",
+    ok,
     environment: env.ENVIRONMENT ?? "development",
-    d1: dbRow?.ok === 1,
+    d1: d1Ok,
     r2: r2Ok,
-    timestamp: new Date().toISOString()
+    ts: new Date().toISOString()
   };
 }
