@@ -2,7 +2,7 @@ name = "rubypets-backend"
 main = "backend/src/index.ts"
 compatibility_date = "2025-12-08"
 workers_dev = true
-route = { pattern = "api.rubypets.com", custom_domain = true }
+route = { pattern = "api.rubypets.com", custom_domain = true}
 
 vars = { ENVIRONMENT = "development" }
 
