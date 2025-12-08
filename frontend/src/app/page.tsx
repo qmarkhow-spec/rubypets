@@ -176,7 +176,7 @@ export default function Home() {
                 <span>{post.authorDisplayName || post.authorHandle || post.authorId}</span>
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
-              <p className="mt-1 text-sm text-slate-800">{post.content || post.body}</p>
+              <p className="mt-1 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
               {post.mediaKey && <p className="text-xs text-slate-500">mediaKey: {post.mediaKey}</p>}
             </div>
           ))}
