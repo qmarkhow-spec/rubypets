@@ -8,4 +8,5 @@ export interface HandlerContext {
   request: Request;
   env: Env;
   ctx: ExecutionContext;
+  db: import("./db").DBClient;
 }

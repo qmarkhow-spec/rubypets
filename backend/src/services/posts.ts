@@ -1,50 +1,24 @@
-import { Env } from "../types";
+import { DBClient } from "../db";
+import { Post } from "../db/models";
 
-interface CreatePostInput {
-  author_id: string;
-  body: string;
-  media_key?: string | null;
+export interface CreatePostInput {
+  authorId: string;
+  content: string;
+  mediaKey?: string | null;
 }
 
-export async function listPosts(env: Env, limit = 20) {
-  const stmt = env.DB.prepare(
-    `
-      select
-        p.id,
-        p.body,
-        p.media_key as mediaKey,
-        p.created_at as createdAt,
-        u.display_name as authorDisplayName,
-        u.handle as authorHandle
-      from posts p
-      left join users u on u.id = p.author_id
-      order by p.created_at desc
-      limit ?
-    `
-  ).bind(limit);
-
-  const { results } = await stmt.all();
-  return results ?? [];
+export async function listRecentPosts(db: DBClient, limit = 20): Promise<Post[]> {
+  return db.listRecentPosts(limit);
 }
 
-export async function createPost(env: Env, input: CreatePostInput) {
-  const id = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+export async function getPostsByUser(db: DBClient, userId: string, limit = 20): Promise<Post[]> {
+  return db.getPostsByUser(userId, limit);
+}
 
-  await env.DB.prepare(
-    `
-      insert into posts (id, author_id, body, media_key, created_at)
-      values (?, ?, ?, ?, ?)
-    `
-  )
-    .bind(id, input.author_id, input.body, input.media_key ?? null, createdAt)
-    .run();
-
-  return {
-    id,
-    body: input.body,
-    mediaKey: input.media_key ?? null,
-    createdAt,
-    authorId: input.author_id
-  };
+export async function createPost(db: DBClient, input: CreatePostInput): Promise<Post> {
+  return db.createPost({
+    authorId: input.authorId,
+    body: input.content,
+    mediaKey: input.mediaKey ?? null
+  });
 }
