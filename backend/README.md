@@ -8,7 +8,7 @@ Current target: **Plan A (all-in Cloudflare)** with D1 + R2 + custom domain `api
 - `src/services/` — Business logic (timeline/posts, health).
 - `src/db/` — Reserved for future data mappers / repository adapters (Cloud SQL later).
 - `migrations/` — D1 schema (kept close to Postgres layout).
-- `wrangler.toml` — bindings (D1, R2), routes, vars.
+- `wrangler.toml` (repo root) — bindings (D1, R2), routes, vars.
 
 ## Local dev
 ```bash
@@ -23,7 +23,10 @@ cd backend
 npm run deploy
 ```
 
-Make sure `wrangler.toml` has your `account_id` or configure it via `wrangler login`.
+Make sure `wrangler.toml` (root) has your `account_id` or configure it via `wrangler login`.
+For Cloudflare Git builds, keep root directory `/` and set:
+- Build: `npm install`
+- Deploy: `npm run deploy`
 
 ## Database
 Apply migrations:
