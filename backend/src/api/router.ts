@@ -13,7 +13,8 @@ interface Route {
 const routes: Route[] = [
   { method: "GET", path: "/health", handler: healthRoute },
   { method: "GET", path: "/posts", handler: postsListRoute },
-  { method: "POST", path: "/posts", handler: createPostRoute }
+  { method: "POST", path: "/posts", handler: createPostRoute },
+  { method: "GET", path: "/", handler: rootRoute }
 ];
 
 export async function handleRequest(request: Request, env: HandlerContext["env"], ctx: ExecutionContext): Promise<Response> {
@@ -79,6 +80,19 @@ async function createPostRoute(ctx: HandlerContext): Promise<Response> {
     status: 201,
     headers: { "content-type": "application/json; charset=utf-8" }
   });
+}
+
+async function rootRoute(): Promise<Response> {
+  return new Response(
+    JSON.stringify({
+      message: "Rubypets API",
+      endpoints: ["/api/health", "/api/posts", "/api/posts?userId=..."]
+    }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json; charset=utf-8" }
+    }
+  );
 }
 
 function normalizePath(path: string): string {
