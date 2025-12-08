@@ -1,0 +1,24 @@
+name = "rubypets-backend"
+main = "src/index.ts"
+compatibility_date = "2025-12-08"
+migrations_dir = "migrations"
+workers_dev = true
+
+route = { pattern = "api.rubypets.com/*", custom_domain = true }
+
+vars = { ENVIRONMENT = "development" }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rubypets_dev"
+database_id = "43b862e1-e59a-45ac-b9e3-78841a6f7696"
+
+[[r2_buckets]]
+binding = "R2_MEDIA"
+bucket_name = "rubypets-media-dev"
+
+[build]
+command = "npm install && npm run build"
+
+[observability]
+enabled = true
