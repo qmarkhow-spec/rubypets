@@ -111,9 +111,9 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-sm text-slate-600">Base URL：{apiBase}</p>
-        <p className="text-sm text-slate-600">
+      <header className="flex flex-col gap-2 text-white">
+        <p className="text-sm text-white/80">Base URL：{apiBase}</p>
+        <p className="text-sm text-white/80">
           {user ? (
             <>
               目前登入：<span className="font-semibold">{user.displayName || user.handle}</span>
@@ -124,7 +124,7 @@ export default function Home() {
         </p>
       </header>
 
-      <section className="rounded-xl border bg-white p-4 shadow-sm">
+      <section className="card rounded-xl border border-white/10 bg-white p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">健康檢查</h2>
           <button
@@ -144,7 +144,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="rounded-xl border bg-white p-4 shadow-sm">
+      <section className="card rounded-xl border border-white/10 bg-white p-4">
         <h2 className="text-lg font-semibold">新增貼文（暫用 demo-user）</h2>
         <form className="mt-3 space-y-3" onSubmit={submitPost}>
           <div className="space-y-1">
@@ -182,7 +182,7 @@ export default function Home() {
         )}
       </section>
 
-      <section className="rounded-xl border bg-white p-4 shadow-sm">
+      <section className="card rounded-xl border border-white/10 bg-white p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold">註冊 / 登入 測試</h2>
           <p className="text-xs text-slate-500">後端需實作 /api/auth/register、/api/auth/login</p>
@@ -262,7 +262,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="rounded-xl border bg-white p-4 shadow-sm">
+      <section className="card rounded-xl border border-white/10 bg-white p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">查詢貼文</h2>
           <button
