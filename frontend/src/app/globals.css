@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0d1117;
+  --surface: #111827;
+  --surface-2: #0b1324;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --text: #0f172a;
+  --text-contrast: #ffffff;
+  --accent: #2563eb;
+  --accent-2: #0ea5e9;
+  --success: #0f9d58;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-foreground: var(--text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.hero-shell {
+  background: linear-gradient(135deg, #0f172a 0%, #0b1324 50%, #0f172a 100%);
+}
+
+.card {
+  background: var(--card);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+}
+
+.card h2,
+.card h3,
+.card h4 {
+  color: #0f172a;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-contrast);
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-dark {
+  background: #0f172a;
+  color: var(--text-contrast);
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--text-contrast);
 }

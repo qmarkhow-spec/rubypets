@@ -27,25 +27,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--background)] text-[var(--text)]`}>
         <AuthProvider>
-          <div className="min-h-screen">
-            <header className="border-b bg-white/80 backdrop-blur">
-              <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-                <Link href="/" className="text-lg font-semibold">
+          <div className="min-h-screen hero-shell">
+            <header className="border-b border-white/10 bg-white/5 backdrop-blur">
+              <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
+                <Link href="/" className="text-lg font-semibold text-white drop-shadow">
                   Rubypets 控制台
                 </Link>
-                <div className="flex items-center gap-6">
-                  <nav className="flex items-center gap-4 text-sm text-slate-600">
-                    <Link href="/">首頁</Link>
-                    <Link href="/login">登入</Link>
-                    <Link href="/debug">Debug</Link>
+                <div className="flex items-center gap-6 text-white">
+                  <nav className="flex items-center gap-4 text-sm text-white/80">
+                    <Link href="/" className="hover:text-white">
+                      首頁
+                    </Link>
+                    <Link href="/login" className="hover:text-white">
+                      登入
+                    </Link>
+                    <Link href="/debug" className="hover:text-white">
+                      Debug
+                    </Link>
                   </nav>
                   <UserStatus />
                 </div>
               </div>
             </header>
-            <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+            <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
           </div>
         </AuthProvider>
       </body>
