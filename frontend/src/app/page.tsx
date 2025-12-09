@@ -24,6 +24,19 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsError, setPostsError] = useState<string | null>(null);
 
+  // Auth test
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regHandle, setRegHandle] = useState("");
+  const [regDisplay, setRegDisplay] = useState("");
+  const [regResult, setRegResult] = useState<Json | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
+
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginResult, setLoginResult] = useState<Json | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   async function runHealth() {
     setHealthError(null);
     try {
@@ -58,6 +71,41 @@ export default function Home() {
       setPosts(data.data);
     } catch (err) {
       setPostsError(readError(err));
+    }
+  }
+
+  async function handleRegister(e: FormEvent) {
+    e.preventDefault();
+    setRegError(null);
+    setRegResult(null);
+    try {
+      const { data } = await apiFetch("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          email: regEmail,
+          password: regPassword,
+          handle: regHandle || regEmail.split("@")[0] || "user",
+          displayName: regDisplay || regHandle || regEmail.split("@")[0] || "user"
+        })
+      });
+      setRegResult(data as Json);
+    } catch (err) {
+      setRegError(readError(err));
+    }
+  }
+
+  async function handleLogin(e: FormEvent) {
+    e.preventDefault();
+    setLoginError(null);
+    setLoginResult(null);
+    try {
+      const { data } = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      });
+      setLoginResult(data as Json);
+    } catch (err) {
+      setLoginError(readError(err));
     }
   }
 
@@ -132,6 +180,86 @@ export default function Home() {
         {postResult && (
           <pre className="mt-3 rounded bg-slate-50 p-3 text-xs text-slate-800">{JSON.stringify(postResult, null, 2)}</pre>
         )}
+      </section>
+
+      <section className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold">註冊 / 登入 測試</h2>
+          <p className="text-xs text-slate-500">後端需實作 /api/auth/register、/api/auth/login</p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <form className="space-y-3 rounded border border-slate-200 p-3" onSubmit={handleRegister}>
+            <div className="text-sm font-medium">註冊</div>
+            <input
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              placeholder="Email"
+              type="email"
+              required
+              value={regEmail}
+              onChange={(e) => setRegEmail(e.target.value)}
+            />
+            <input
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              placeholder="Password"
+              type="password"
+              required
+              value={regPassword}
+              onChange={(e) => setRegPassword(e.target.value)}
+            />
+            <input
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              placeholder="Handle (可留空自動套用 email 前綴)"
+              value={regHandle}
+              onChange={(e) => setRegHandle(e.target.value)}
+            />
+            <input
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              placeholder="Display name (可留空)"
+              value={regDisplay}
+              onChange={(e) => setRegDisplay(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="w-full rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+            >
+              送出 /api/auth/register
+            </button>
+            {regError && <p className="text-sm text-red-600">{regError}</p>}
+            {regResult && (
+              <pre className="rounded bg-slate-50 p-2 text-xs text-slate-800">{JSON.stringify(regResult, null, 2)}</pre>
+            )}
+          </form>
+
+          <form className="space-y-3 rounded border border-slate-200 p-3" onSubmit={handleLogin}>
+            <div className="text-sm font-medium">登入</div>
+            <input
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              placeholder="Email"
+              type="email"
+              required
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+            />
+            <input
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              placeholder="Password"
+              type="password"
+              required
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="w-full rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              送出 /api/auth/login
+            </button>
+            {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+            {loginResult && (
+              <pre className="rounded bg-slate-50 p-2 text-xs text-slate-800">{JSON.stringify(loginResult, null, 2)}</pre>
+            )}
+          </form>
+        </div>
       </section>
 
       <section className="rounded-xl border bg-white p-4 shadow-sm">
