@@ -1,10 +1,9 @@
-import { DBClient, User } from "../db";
+import { DBClient, Owner } from "../db";
 import { readJson } from "../api/utils";
 
 export interface RegisterPayload {
   email: string;
   password: string;
-  handle?: string;
   displayName?: string;
 }
 
@@ -24,36 +23,29 @@ export async function parseLoginPayload(request: Request): Promise<LoginPayload>
 export async function registerUser(db: DBClient, payload: RegisterPayload) {
   const email = (payload.email ?? "").trim().toLowerCase();
   const password = payload.password ?? "";
-  const handle = (payload.handle ?? email.split("@")[0] ?? "user").trim();
-  const displayName = (payload.displayName ?? handle).trim();
+  const displayName = (payload.displayName ?? email.split("@")[0] ?? "user").trim();
 
   if (!email || !password) {
     throw new Error("email and password are required");
   }
-  if (!handle) {
-    throw new Error("handle is required");
-  }
 
-  const existingEmail = await db.getUserByEmail(email);
+  const existingEmail = await db.getOwnerByEmail(email);
   if (existingEmail) {
     throw new Error("email already registered");
   }
-  const existingHandle = await db.getUserByHandle(handle);
-  if (existingHandle) {
-    throw new Error("handle already taken");
-  }
 
   const passwordHash = await hashPassword(password);
+  const uuid = crypto.randomUUID();
 
-  const user = await db.createUser({
-    handle,
+  const owner = await db.createOwner({
+    uuid,
     displayName,
     email,
     passwordHash
   });
 
-  const tokens = issueTokens(user.id);
-  return { user: toPublicUser(user), tokens };
+  const tokens = issueTokens(owner.uuid);
+  return { owner: toPublicOwner(owner), tokens };
 }
 
 export async function loginUser(db: DBClient, payload: LoginPayload) {
@@ -62,46 +54,50 @@ export async function loginUser(db: DBClient, payload: LoginPayload) {
   if (!email || !password) {
     throw new Error("email and password are required");
   }
-  const user = await db.getUserByEmail(email);
-  if (!user || !user.passwordHash) {
+  const owner = await db.getOwnerByEmail(email);
+  if (!owner || !owner.passwordHash) {
     throw new Error("invalid credentials");
   }
-  const ok = await verifyPassword(password, user.passwordHash);
+  const ok = await verifyPassword(password, owner.passwordHash);
   if (!ok) throw new Error("invalid credentials");
 
-  const tokens = issueTokens(user.id);
-  return { user: toPublicUser(user), tokens };
+  const tokens = issueTokens(owner.uuid);
+  return { owner: toPublicOwner(owner), tokens };
 }
 
-export async function getUserFromAuthHeader(db: DBClient, request: Request): Promise<User | null> {
+export async function getUserFromAuthHeader(db: DBClient, request: Request): Promise<Owner | null> {
   const header = request.headers.get("authorization");
   if (!header?.toLowerCase().startsWith("bearer ")) return null;
   const token = header.slice("bearer ".length).trim();
-  const userId = parseUserIdFromToken(token);
-  if (!userId) return null;
-  return db.getUserById(userId);
+  const ownerUuid = parseUserIdFromToken(token);
+  if (!ownerUuid) return null;
+  return db.getOwnerByUuid(ownerUuid);
 }
 
-export function toPublicUser(user: User) {
+export function toPublicOwner(owner: Owner) {
   return {
-    id: user.id,
-    handle: user.handle,
-    displayName: user.displayName,
-    email: user.email ?? null,
-    avatarUrl: user.avatarUrl ?? null
+    id: owner.uuid,
+    handle: owner.displayName || owner.email.split("@")[0] || owner.uuid,
+    displayName: owner.displayName,
+    email: owner.email ?? null,
+    avatarUrl: owner.avatarUrl ?? null,
+    maxPets: owner.maxPets,
+    createdAt: owner.createdAt,
+    updatedAt: owner.updatedAt,
+    isActive: owner.isActive
   };
 }
 
-export function issueTokens(userId: string) {
+export function issueTokens(ownerUuid: string) {
   return {
-    accessToken: `uid:${userId}`,
+    accessToken: `owner:${ownerUuid}`,
     expiresIn: 60 * 60 * 24 * 30
   };
 }
 
 export function parseUserIdFromToken(token: string): string | null {
-  if (!token.startsWith("uid:")) return null;
-  return token.slice("uid:".length);
+  if (!token.startsWith("owner:")) return null;
+  return token.slice("owner:".length);
 }
 
 async function hashPassword(password: string): Promise<string> {

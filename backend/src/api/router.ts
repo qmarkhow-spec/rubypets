@@ -1,9 +1,16 @@
 import { RouteHandler, asNumber, errorJson, isOptions, okResponse, withCors } from "./utils";
 import { HandlerContext } from "../types";
 import { checkHealth } from "../services/health";
-import { createPost, getPostsByUser, listRecentPosts } from "../services/posts";
+import { createPost, getPostsByOwner, listRecentPosts } from "../services/posts";
 import { createDB } from "../db";
-import { getUserFromAuthHeader, loginUser, parseLoginPayload, parseRegisterPayload, registerUser, toPublicUser } from "../services/auth";
+import {
+  getUserFromAuthHeader,
+  loginUser,
+  parseLoginPayload,
+  parseRegisterPayload,
+  registerUser,
+  toPublicOwner
+} from "../services/auth";
 
 interface Route {
   method: string;
@@ -26,6 +33,19 @@ export async function handleRequest(request: Request, env: HandlerContext["env"]
 
   const url = new URL(request.url);
   const pathname = normalizePath(stripApiPrefix(url.pathname));
+  const dynamic = matchDynamicRoute(pathname);
+
+  if (dynamic) {
+    const db = createDB(env);
+    try {
+      const response = await dynamic.handler({ request, env, ctx, db }, dynamic.params);
+      return withCors(response);
+    } catch (err) {
+      console.error("Request failed", err);
+      return withCors(errorJson("Unexpected error", 500));
+    }
+  }
+
   const route = routes.find((entry) => entry.method === request.method && entry.path === pathname);
 
   if (!route) {
@@ -56,7 +76,7 @@ async function postsListRoute(ctx: HandlerContext): Promise<Response> {
   const limit = asNumber(url.searchParams.get("limit"), 20);
   const userId = url.searchParams.get("userId");
 
-  const posts = userId ? await getPostsByUser(ctx.db, userId, limit) : await listRecentPosts(ctx.db, limit);
+  const posts = userId ? await getPostsByOwner(ctx.db, userId, limit) : await listRecentPosts(ctx.db, limit);
   return new Response(JSON.stringify({ data: posts }), {
     status: 200,
     headers: { "content-type": "application/json; charset=utf-8" }
@@ -89,7 +109,15 @@ async function rootRoute(): Promise<Response> {
   return new Response(
     JSON.stringify({
       message: "Rubypets API",
-      endpoints: ["/api/health", "/api/posts", "/api/posts?userId=...", "/api/auth/register", "/api/auth/login", "/api/me"]
+      endpoints: [
+        "/api/health",
+        "/api/posts",
+        "/api/posts?userId=...",
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/me",
+        "/api/owners/:uuid"
+      ]
     }),
     {
       status: 200,
@@ -101,8 +129,8 @@ async function rootRoute(): Promise<Response> {
 async function registerRoute(ctx: HandlerContext): Promise<Response> {
   try {
     const payload = await parseRegisterPayload(ctx.request);
-    const { user, tokens } = await registerUser(ctx.db, payload);
-    return okJson({ user, ...tokens }, 201);
+    const { owner, tokens } = await registerUser(ctx.db, payload);
+    return okJson({ user: owner, ...tokens }, 201);
   } catch (err) {
     return errorJson((err as Error).message, 400);
   }
@@ -111,8 +139,8 @@ async function registerRoute(ctx: HandlerContext): Promise<Response> {
 async function loginRoute(ctx: HandlerContext): Promise<Response> {
   try {
     const payload = await parseLoginPayload(ctx.request);
-    const { user, tokens } = await loginUser(ctx.db, payload);
-    return okJson({ user, ...tokens }, 200);
+    const { owner, tokens } = await loginUser(ctx.db, payload);
+    return okJson({ user: owner, ...tokens }, 200);
   } catch (err) {
     const message = (err as Error).message;
     const status = message === "invalid credentials" ? 401 : 400;
@@ -123,7 +151,7 @@ async function loginRoute(ctx: HandlerContext): Promise<Response> {
 async function meRoute(ctx: HandlerContext): Promise<Response> {
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
   if (!user) return errorJson("Unauthorized", 401);
-  return okJson(toPublicUser(user), 200);
+  return okJson(toPublicOwner(user), 200);
 }
 
 function okJson(data: unknown, status = 200): Response {
@@ -143,4 +171,40 @@ function stripApiPrefix(path: string): string {
   if (!path.startsWith("/api")) return path;
   const next = path.slice("/api".length);
   return next.startsWith("/") ? next : `/${next}`;
+}
+
+type DynamicRoute =
+  | {
+      method: "GET";
+      pattern: RegExp;
+      handler: (ctx: HandlerContext, params: Record<string, string>) => Promise<Response>;
+    };
+
+const dynamicRoutes: DynamicRoute[] = [{ method: "GET", pattern: /^\/owners\/([^/]+)$/, handler: ownerDetailRoute }];
+
+function matchDynamicRoute(pathname: string):
+  | { handler: (ctx: HandlerContext, params: Record<string, string>) => Promise<Response>; params: Record<string, string> }
+  | null {
+  for (const route of dynamicRoutes) {
+    const m = pathname.match(route.pattern);
+    if (m) {
+      return { handler: route.handler, params: { id: m[1] } };
+    }
+  }
+  return null;
+}
+
+async function ownerDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const owner = await ctx.db.getOwnerByUuid(params.id);
+  if (!owner) return errorJson("Not found", 404);
+  return okJson({
+    uuid: owner.uuid,
+    email: owner.email,
+    displayName: owner.displayName,
+    avatarUrl: owner.avatarUrl,
+    maxPets: owner.maxPets,
+    createdAt: owner.createdAt,
+    updatedAt: owner.updatedAt,
+    isActive: owner.isActive
+  });
 }

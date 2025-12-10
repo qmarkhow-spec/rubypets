@@ -18,6 +18,10 @@ export interface User {
   displayName: string;
   email?: string | null;
   avatarUrl?: string | null;
+  maxPets?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  isActive?: number;
 }
 
 export interface Post {
@@ -39,4 +43,15 @@ export interface ApiResult<T> {
 export interface ApiError extends Error {
   status?: number;
   details?: unknown;
+}
+
+export interface OwnerDetail {
+  uuid: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string | null;
+  maxPets: number;
+  createdAt: string;
+  updatedAt: string;
+  isActive: number;
 }

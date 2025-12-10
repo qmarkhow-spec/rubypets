@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Post, User } from "./models";
+import { Owner, Post } from "./models";
 
 type PostRow = {
   id: string;
@@ -11,14 +11,17 @@ type PostRow = {
   author_display_name?: string | null;
 };
 
-type UserRow = {
-  id: string;
-  handle: string;
-  display_name: string;
-  email: string | null;
-  avatar_url: string | null;
+type OwnerRow = {
+  id: number;
+  uuid: string;
+  email: string;
   password_hash: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  max_pets: number;
   created_at: string;
+  updated_at: string;
+  is_active: number;
 };
 
 export class D1Client implements DBClient {
@@ -57,7 +60,7 @@ export class D1Client implements DBClient {
     };
   }
 
-  async getPostsByUser(userId: string, limit = 20): Promise<Post[]> {
+  async getPostsByOwner(ownerUuid: string, limit = 20): Promise<Post[]> {
     const { results } = await this.db
       .prepare(
         `
@@ -67,16 +70,15 @@ export class D1Client implements DBClient {
             p.body,
             p.media_key,
             p.created_at,
-            u.handle as author_handle,
-            u.display_name as author_display_name
+            o.display_name as author_display_name
           from posts p
-          left join users u on u.id = p.author_id
+          left join owners o on o.uuid = p.author_id
           where p.author_id = ?
           order by p.created_at desc
           limit ?
         `
       )
-      .bind(userId, limit)
+      .bind(ownerUuid, limit)
       .all<PostRow>();
 
     return (results ?? []).map(mapPostRow);
@@ -92,10 +94,9 @@ export class D1Client implements DBClient {
             p.body,
             p.media_key,
             p.created_at,
-            u.handle as author_handle,
-            u.display_name as author_display_name
+            o.display_name as author_display_name
           from posts p
-          left join users u on u.id = p.author_id
+          left join owners o on o.uuid = p.author_id
           order by p.created_at desc
           limit ?
         `
@@ -106,78 +107,59 @@ export class D1Client implements DBClient {
     return (results ?? []).map(mapPostRow);
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  async getOwnerByEmail(email: string): Promise<Owner | null> {
     const row = await this.db
       .prepare(
         `
-          select id, handle, display_name, email, avatar_url, password_hash, created_at
-          from users
+          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, created_at, updated_at, is_active
+          from owners
           where email = ?
         `
       )
       .bind(email)
-      .first<UserRow>();
+      .first<OwnerRow>();
 
-    return row ? mapUserRow(row) : null;
+    return row ? mapOwnerRow(row) : null;
   }
 
-  async getUserByHandle(handle: string): Promise<User | null> {
+  async getOwnerByUuid(uuid: string): Promise<Owner | null> {
     const row = await this.db
       .prepare(
         `
-          select id, handle, display_name, email, avatar_url, password_hash, created_at
-          from users
-          where handle = ?
+          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, created_at, updated_at, is_active
+          from owners
+          where uuid = ?
         `
       )
-      .bind(handle)
-      .first<UserRow>();
+      .bind(uuid)
+      .first<OwnerRow>();
 
-    return row ? mapUserRow(row) : null;
+    return row ? mapOwnerRow(row) : null;
   }
 
-  async getUserById(id: string): Promise<User | null> {
-    const row = await this.db
-      .prepare(
-        `
-          select id, handle, display_name, email, avatar_url, password_hash, created_at
-          from users
-          where id = ?
-        `
-      )
-      .bind(id)
-      .first<UserRow>();
-
-    return row ? mapUserRow(row) : null;
-  }
-
-  async createUser(input: {
-    handle: string;
+  async createOwner(input: {
+    uuid: string;
     displayName: string;
-    email?: string | null;
-    passwordHash?: string | null;
-  }): Promise<User> {
-    const id = crypto.randomUUID();
+    email: string;
+    passwordHash: string;
+    avatarUrl?: string | null;
+  }): Promise<Owner> {
     const createdAt = new Date().toISOString();
     await this.db
       .prepare(
         `
-          insert into users (id, handle, display_name, email, password_hash, created_at)
-          values (?, ?, ?, ?, ?, ?)
+          insert into owners (uuid, email, password_hash, display_name, avatar_url, created_at, updated_at)
+          values (?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .bind(id, input.handle, input.displayName, input.email ?? null, input.passwordHash ?? null, createdAt)
+      .bind(input.uuid, input.email, input.passwordHash, input.displayName, input.avatarUrl ?? null, createdAt, createdAt)
       .run();
 
-    return {
-      id,
-      handle: input.handle,
-      displayName: input.displayName,
-      email: input.email ?? null,
-      avatarUrl: null,
-      passwordHash: input.passwordHash ?? null,
-      createdAt
-    };
+    const row = await this.getOwnerByUuid(input.uuid);
+    if (!row) {
+      throw new Error("Failed to create owner");
+    }
+    return row;
   }
 }
 
@@ -188,19 +170,21 @@ function mapPostRow(row: PostRow): Post {
     body: row.body,
     mediaKey: row.media_key,
     createdAt: row.created_at,
-    authorHandle: row.author_handle ?? null,
     authorDisplayName: row.author_display_name ?? null
   };
 }
 
-function mapUserRow(row: UserRow): User {
+function mapOwnerRow(row: OwnerRow): Owner {
   return {
     id: row.id,
-    handle: row.handle,
+    uuid: row.uuid,
     displayName: row.display_name,
     email: row.email,
-    avatarUrl: row.avatar_url,
+    avatarUrl: row.avatar_url ?? null,
     passwordHash: row.password_hash,
-    createdAt: row.created_at
+    maxPets: row.max_pets,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    isActive: row.is_active
   };
 }

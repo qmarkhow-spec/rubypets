@@ -11,8 +11,8 @@ export async function listRecentPosts(db: DBClient, limit = 20): Promise<Post[]>
   return db.listRecentPosts(limit);
 }
 
-export async function getPostsByUser(db: DBClient, userId: string, limit = 20): Promise<Post[]> {
-  return db.getPostsByUser(userId, limit);
+export async function getPostsByOwner(db: DBClient, ownerUuid: string, limit = 20): Promise<Post[]> {
+  return db.getPostsByOwner(ownerUuid, limit);
 }
 
 export async function createPost(db: DBClient, input: CreatePostInput): Promise<Post> {
