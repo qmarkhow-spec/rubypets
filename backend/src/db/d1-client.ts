@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Post } from "./models";
+import { Post, User } from "./models";
 
 type PostRow = {
   id: string;
@@ -9,6 +9,16 @@ type PostRow = {
   created_at: string;
   author_handle?: string | null;
   author_display_name?: string | null;
+};
+
+type UserRow = {
+  id: string;
+  handle: string;
+  display_name: string;
+  email: string | null;
+  avatar_url: string | null;
+  password_hash: string | null;
+  created_at: string;
 };
 
 export class D1Client implements DBClient {
@@ -95,6 +105,80 @@ export class D1Client implements DBClient {
 
     return (results ?? []).map(mapPostRow);
   }
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select id, handle, display_name, email, avatar_url, password_hash, created_at
+          from users
+          where email = ?
+        `
+      )
+      .bind(email)
+      .first<UserRow>();
+
+    return row ? mapUserRow(row) : null;
+  }
+
+  async getUserByHandle(handle: string): Promise<User | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select id, handle, display_name, email, avatar_url, password_hash, created_at
+          from users
+          where handle = ?
+        `
+      )
+      .bind(handle)
+      .first<UserRow>();
+
+    return row ? mapUserRow(row) : null;
+  }
+
+  async getUserById(id: string): Promise<User | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select id, handle, display_name, email, avatar_url, password_hash, created_at
+          from users
+          where id = ?
+        `
+      )
+      .bind(id)
+      .first<UserRow>();
+
+    return row ? mapUserRow(row) : null;
+  }
+
+  async createUser(input: {
+    handle: string;
+    displayName: string;
+    email?: string | null;
+    passwordHash?: string | null;
+  }): Promise<User> {
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into users (id, handle, display_name, email, password_hash, created_at)
+          values (?, ?, ?, ?, ?, ?)
+        `
+      )
+      .bind(id, input.handle, input.displayName, input.email ?? null, input.passwordHash ?? null, createdAt)
+      .run();
+
+    return {
+      id,
+      handle: input.handle,
+      displayName: input.displayName,
+      email: input.email ?? null,
+      avatarUrl: null,
+      passwordHash: input.passwordHash ?? null,
+      createdAt
+    };
+  }
 }
 
 function mapPostRow(row: PostRow): Post {
@@ -106,5 +190,17 @@ function mapPostRow(row: PostRow): Post {
     createdAt: row.created_at,
     authorHandle: row.author_handle ?? null,
     authorDisplayName: row.author_display_name ?? null
+  };
+}
+
+function mapUserRow(row: UserRow): User {
+  return {
+    id: row.id,
+    handle: row.handle,
+    displayName: row.display_name,
+    email: row.email,
+    avatarUrl: row.avatar_url,
+    passwordHash: row.password_hash,
+    createdAt: row.created_at
   };
 }
