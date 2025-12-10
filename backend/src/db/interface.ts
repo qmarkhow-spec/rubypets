@@ -1,7 +1,7 @@
 import { Post } from "./models";
 
 export interface CreatePostInput {
-  authorId: string;
+  authorId: string; // owner uuid
   body: string;
   mediaKey?: string | null;
 }
@@ -9,15 +9,15 @@ export interface CreatePostInput {
 export interface DBClient {
   ping(): Promise<boolean>;
   createPost(input: CreatePostInput): Promise<Post>;
-  getPostsByUser(userId: string, limit?: number): Promise<Post[]>;
+  getPostsByOwner(ownerUuid: string, limit?: number): Promise<Post[]>;
   listRecentPosts(limit?: number): Promise<Post[]>;
-  getUserByEmail(email: string): Promise<import("./models").User | null>;
-  getUserByHandle(handle: string): Promise<import("./models").User | null>;
-  getUserById(id: string): Promise<import("./models").User | null>;
-  createUser(input: {
-    handle: string;
+  getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
+  getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
+  createOwner(input: {
+    uuid: string;
     displayName: string;
-    email?: string | null;
-    passwordHash?: string | null;
-  }): Promise<import("./models").User>;
+    email: string;
+    passwordHash: string;
+    avatarUrl?: string | null;
+  }): Promise<import("./models").Owner>;
 }
