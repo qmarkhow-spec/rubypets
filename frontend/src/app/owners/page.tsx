@@ -3,9 +3,11 @@ import type { OwnerDetail } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
 
-export default async function OwnerPage({ params }: { params: { id: string } }) {
-  const ownerId = params.id;
-  const { owner, error } = await fetchOwner(ownerId);
+export const dynamic = "force-static";
+
+export default async function OwnerPage({ searchParams }: { searchParams: { id?: string } }) {
+  const ownerId = searchParams.id;
+  const { owner, error } = ownerId ? await fetchOwner(ownerId) : { owner: null, error: "缺少 id 參數" };
 
   return (
     <div className="space-y-6">
@@ -62,7 +64,7 @@ export default async function OwnerPage({ params }: { params: { id: string } }) 
 
 async function fetchOwner(id: string): Promise<{ owner: OwnerDetail | null; error: string | null }> {
   try {
-    const res = await fetch(`${API_BASE}/api/owners/${id}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}/api/owners/${id}`);
     if (!res.ok) {
       const text = await res.text();
       return { owner: null, error: `載入失敗（${res.status}）：${text || res.statusText}` };
@@ -72,9 +74,4 @@ async function fetchOwner(id: string): Promise<{ owner: OwnerDetail | null; erro
   } catch (err) {
     return { owner: null, error: `載入失敗：${String(err)}` };
   }
-}
-
-// output: export 需要靜態參數函式；回傳空陣列代表不預先產生任何飼主頁。
-export async function generateStaticParams() {
-  return [];
 }

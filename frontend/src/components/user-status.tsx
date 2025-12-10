@@ -22,7 +22,7 @@ export function UserStatus() {
     <div className="flex items-center gap-2 text-sm">
       <div className="flex flex-col leading-tight">
         <Link
-          href={`/owners/${user.id}`}
+          href={`/owners?id=${encodeURIComponent(user.id)}`}
           className="font-medium text-blue-100 underline-offset-4 hover:text-white hover:underline"
         >
           {user.displayName || user.handle}
