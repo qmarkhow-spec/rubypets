@@ -12,7 +12,7 @@ type PostRow = {
 };
 
 type OwnerRow = {
-  id: number;
+  id: string;
   uuid: string;
   email: string;
   password_hash: string | null;
@@ -138,6 +138,7 @@ export class D1Client implements DBClient {
   }
 
   async createOwner(input: {
+    id: string;
     uuid: string;
     displayName: string;
     email: string;
@@ -148,11 +149,11 @@ export class D1Client implements DBClient {
     await this.db
       .prepare(
         `
-          insert into owners (uuid, email, password_hash, display_name, avatar_url, created_at, updated_at)
-          values (?, ?, ?, ?, ?, ?, ?)
+          insert into owners (id, uuid, email, password_hash, display_name, avatar_url, created_at, updated_at)
+          values (?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .bind(input.uuid, input.email, input.passwordHash, input.displayName, input.avatarUrl ?? null, createdAt, createdAt)
+      .bind(input.id, input.uuid, input.email, input.passwordHash, input.displayName, input.avatarUrl ?? null, createdAt, createdAt)
       .run();
 
     const row = await this.getOwnerByUuid(input.uuid);

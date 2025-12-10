@@ -14,6 +14,7 @@ export interface DBClient {
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   createOwner(input: {
+    id: string;
     uuid: string;
     displayName: string;
     email: string;

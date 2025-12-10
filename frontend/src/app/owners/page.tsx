@@ -1,14 +1,48 @@
+'use client';
+
 import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { OwnerDetail } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
 
-export const dynamic = "force-static";
+export default function OwnerPage() {
+  return (
+    <Suspense fallback={<PageShell loading />}>
+      <OwnerContent />
+    </Suspense>
+  );
+}
 
-export default async function OwnerPage({ searchParams }: { searchParams: { id?: string } }) {
-  const ownerId = searchParams.id;
-  const { owner, error } = ownerId ? await fetchOwner(ownerId) : { owner: null, error: "缺少 id 參數" };
+function OwnerContent() {
+  const searchParams = useSearchParams();
+  const ownerId = useMemo(() => searchParams.get("id") || "", [searchParams]);
 
+  const [owner, setOwner] = useState<OwnerDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!ownerId) {
+      setOwner(null);
+      setError("缺少 id 參數");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    fetchOwner(ownerId)
+      .then(({ owner, error }) => {
+        setOwner(owner);
+        setError(error);
+      })
+      .finally(() => setLoading(false));
+  }, [ownerId]);
+
+  return <PageShell loading={loading} error={error} owner={owner} />;
+}
+
+function PageShell({ loading, error, owner }: { loading?: boolean; error?: string | null; owner?: OwnerDetail | null }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -19,8 +53,9 @@ export default async function OwnerPage({ searchParams }: { searchParams: { id?:
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+        {loading && <p className="text-sm text-slate-600">載入中...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {!error && !owner && <p className="text-sm text-slate-600">找不到飼主資料。</p>}
+        {!error && !owner && !loading && <p className="text-sm text-slate-600">找不到飼主資料。</p>}
         {owner && (
           <div className="space-y-2 text-sm text-slate-800">
             <p>

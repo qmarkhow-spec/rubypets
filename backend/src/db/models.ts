@@ -19,7 +19,7 @@ export interface Post {
 }
 
 export interface Owner {
-  id: number;
+  id: string;
   uuid: string;
   email: string;
   passwordHash: string | null;
