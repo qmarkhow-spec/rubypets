@@ -1,35 +1,11 @@
-'use client';
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api-client";
 import type { OwnerDetail } from "@/lib/types";
 
-export default function OwnerPage({ params }: { params: { id: string } }) {
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
+
+export default async function OwnerPage({ params }: { params: { id: string } }) {
   const ownerId = params.id;
-  const [owner, setOwner] = useState<OwnerDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    void loadOwner();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerId]);
-
-  async function loadOwner() {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data } = await apiFetch<OwnerDetail>(`/api/owners/${ownerId}`);
-      setOwner(data);
-    } catch (err) {
-      const status = (err as { status?: number }).status;
-      const details = (err as { details?: unknown }).details;
-      setError(`無法載入飼主資料（${status ?? "?"}）：${JSON.stringify(details ?? err)}`);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { owner, error } = await fetchOwner(ownerId);
 
   return (
     <div className="space-y-6">
@@ -41,13 +17,13 @@ export default function OwnerPage({ params }: { params: { id: string } }) {
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
-        {loading && <p className="text-sm text-slate-600">載入中...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {!error && !owner && <p className="text-sm text-slate-600">找不到飼主資料。</p>}
         {owner && (
           <div className="space-y-2 text-sm text-slate-800">
             <p>
               <span className="font-medium text-slate-600">UUID：</span>
-              <span className="font-mono text-slate-900">{owner.uuid}</span>
+              <span className="font-mono text-slate-900 break-all">{owner.uuid}</span>
             </p>
             <p>
               <span className="font-medium text-slate-600">Email：</span>
@@ -84,7 +60,21 @@ export default function OwnerPage({ params }: { params: { id: string } }) {
   );
 }
 
-// 讓 Next.js 在 output: "export" 時接受動態路由，預設不產出任何靜態路徑。
+async function fetchOwner(id: string): Promise<{ owner: OwnerDetail | null; error: string | null }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/owners/${id}`, { cache: "no-store" });
+    if (!res.ok) {
+      const text = await res.text();
+      return { owner: null, error: `載入失敗（${res.status}）：${text || res.statusText}` };
+    }
+    const data = (await res.json()) as OwnerDetail;
+    return { owner: data, error: null };
+  } catch (err) {
+    return { owner: null, error: `載入失敗：${String(err)}` };
+  }
+}
+
+// output: export 需要靜態參數函式；回傳空陣列代表不預先產生任何飼主頁。
 export async function generateStaticParams() {
   return [];
 }
