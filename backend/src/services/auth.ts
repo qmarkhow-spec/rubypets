@@ -36,8 +36,10 @@ export async function registerUser(db: DBClient, payload: RegisterPayload) {
 
   const passwordHash = await hashPassword(password);
   const uuid = crypto.randomUUID();
+  const id = randomId(8);
 
   const owner = await db.createOwner({
+    id,
     uuid,
     displayName,
     email,
@@ -118,4 +120,14 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
 
 function bufferToHex(buf: ArrayBuffer): string {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function randomId(len = 8): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let out = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  for (let i = 0; i < len; i++) {
+    out += chars[bytes[i] % chars.length];
+  }
+  return out;
 }
