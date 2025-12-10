@@ -83,3 +83,8 @@ export default function OwnerPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+// 讓 Next.js 在 output: "export" 時接受動態路由，預設不產出任何靜態路徑。
+export async function generateStaticParams() {
+  return [];
+}
