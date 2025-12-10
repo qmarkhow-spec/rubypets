@@ -1,312 +1,80 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { HealthStatus, Post } from "@/lib/types";
+import { Post } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
-
-type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
 
 export default function Home() {
   const { user } = useAuth();
-  const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com", []);
 
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [healthError, setHealthError] = useState<string | null>(null);
-
-  const [newPostContent, setNewPostContent] = useState("");
-  const [newPostMediaKey, setNewPostMediaKey] = useState("");
-  const [postResult, setPostResult] = useState<Json | null>(null);
-  const [postError, setPostError] = useState<string | null>(null);
-
-  const [postsUserId, setPostsUserId] = useState("demo-user");
-  const [postsLimit, setPostsLimit] = useState(10);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [postsError, setPostsError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Auth test
-  const [regEmail, setRegEmail] = useState("");
-  const [regPassword, setRegPassword] = useState("");
-  const [regHandle, setRegHandle] = useState("");
-  const [regDisplay, setRegDisplay] = useState("");
-  const [regResult, setRegResult] = useState<Json | null>(null);
-  const [regError, setRegError] = useState<string | null>(null);
-
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginResult, setLoginResult] = useState<Json | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  async function runHealth() {
-    setHealthError(null);
-    try {
-      const { data } = await apiFetch<HealthStatus>("/api/health");
-      setHealth(data);
-    } catch (err) {
-      setHealthError(readError(err));
-    }
-  }
-
-  async function submitPost(e: FormEvent) {
-    e.preventDefault();
-    setPostError(null);
-    try {
-      const { data } = await apiFetch("/api/posts", {
-        method: "POST",
-        body: JSON.stringify({
-          content: newPostContent,
-          mediaKey: newPostMediaKey || undefined,
-        }),
-      });
-      setPostResult(data as Json);
-    } catch (err) {
-      setPostError(readError(err));
-    }
-  }
+  useEffect(() => {
+    loadPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function loadPosts() {
-    setPostsError(null);
+    setLoading(true);
+    setError(null);
     try {
-      const { data } = await apiFetch<{ data: Post[] }>(`/api/posts?userId=${encodeURIComponent(postsUserId)}&limit=${postsLimit}`);
+      const { data } = await apiFetch<{ data: Post[] }>("/api/posts?limit=20");
       setPosts(data.data);
     } catch (err) {
-      setPostsError(readError(err));
-    }
-  }
-
-  async function handleRegister(e: FormEvent) {
-    e.preventDefault();
-    setRegError(null);
-    setRegResult(null);
-    try {
-      const { data } = await apiFetch("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          email: regEmail,
-          password: regPassword,
-          handle: regHandle || regEmail.split("@")[0] || "user",
-          displayName: regDisplay || regHandle || regEmail.split("@")[0] || "user"
-        })
-      });
-      setRegResult(data as Json);
-    } catch (err) {
-      setRegError(readError(err));
-    }
-  }
-
-  async function handleLogin(e: FormEvent) {
-    e.preventDefault();
-    setLoginError(null);
-    setLoginResult(null);
-    try {
-      const { data } = await apiFetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
-      });
-      setLoginResult(data as Json);
-    } catch (err) {
-      setLoginError(readError(err));
+      setError(readError(err));
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-2 text-white">
-        <p className="text-sm text-white/80">Base URL：{apiBase}</p>
-        <p className="text-sm text-white/80">
-          {user ? (
-            <>
-              目前登入：<span className="font-semibold">{user.displayName || user.handle}</span>
-            </>
-          ) : (
-            "尚未登入（部分 API 需登入才能成功）"
-          )}
-        </p>
-      </header>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/posts/new"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-semibold text-slate-900 shadow hover:bg-slate-100"
+          aria-label="新增貼文"
+        >
+          +
+        </Link>
+        <div>
+          <h1 className="text-xl font-semibold text-white">貼文</h1>
+          <p className="text-sm text-white/80">
+            {user ? `已登入：${user.displayName || user.handle}` : "未登入，僅瀏覽公開貼文"}
+          </p>
+        </div>
+      </div>
 
-      <section className="card rounded-xl border border-white/10 bg-white p-4">
+      <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">健康檢查</h2>
-          <button
-            type="button"
-            onClick={runHealth}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
-          >
-            送出 /api/health
-          </button>
-        </div>
-        <div className="mt-3 text-sm">
-          {health && (
-            <pre className="rounded bg-slate-50 p-3 text-xs text-slate-800">{JSON.stringify(health, null, 2)}</pre>
-          )}
-          {healthError && <p className="text-sm text-red-600">{healthError}</p>}
-          {!health && !healthError && <p className="text-slate-500">尚未測試</p>}
-        </div>
-      </section>
-
-      <section className="card rounded-xl border border-white/10 bg-white p-4">
-        <h2 className="text-lg font-semibold">新增貼文（暫用 demo-user）</h2>
-        <form className="mt-3 space-y-3" onSubmit={submitPost}>
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">內容</label>
-            <textarea
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              value={newPostContent}
-              onChange={(e) => setNewPostContent(e.target.value)}
-              rows={3}
-              placeholder="寫點什麼吧"
-              required
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">媒體 key（可留空）</label>
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              value={newPostMediaKey}
-              onChange={(e) => setNewPostMediaKey(e.target.value)}
-              placeholder="ex: owner/uuid.jpg"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500"
-            >
-              送出 /api/posts
-            </button>
-            {postError && <span className="text-sm text-red-600">{postError}</span>}
-          </div>
-        </form>
-        {postResult && (
-          <pre className="mt-3 rounded bg-slate-50 p-3 text-xs text-slate-800">{JSON.stringify(postResult, null, 2)}</pre>
-        )}
-      </section>
-
-      <section className="card rounded-xl border border-white/10 bg-white p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold">註冊 / 登入 測試</h2>
-          <p className="text-xs text-slate-500">後端需實作 /api/auth/register、/api/auth/login</p>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <form className="space-y-3 rounded border border-slate-200 p-3" onSubmit={handleRegister}>
-            <div className="text-sm font-medium">註冊</div>
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              placeholder="Email"
-              type="email"
-              required
-              value={regEmail}
-              onChange={(e) => setRegEmail(e.target.value)}
-            />
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              placeholder="Password"
-              type="password"
-              required
-              value={regPassword}
-              onChange={(e) => setRegPassword(e.target.value)}
-            />
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              placeholder="Handle (可留空自動套用 email 前綴)"
-              value={regHandle}
-              onChange={(e) => setRegHandle(e.target.value)}
-            />
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              placeholder="Display name (可留空)"
-              value={regDisplay}
-              onChange={(e) => setRegDisplay(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="w-full rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-            >
-              送出 /api/auth/register
-            </button>
-            {regError && <p className="text-sm text-red-600">{regError}</p>}
-            {regResult && (
-              <pre className="rounded bg-slate-50 p-2 text-xs text-slate-800">{JSON.stringify(regResult, null, 2)}</pre>
-            )}
-          </form>
-
-          <form className="space-y-3 rounded border border-slate-200 p-3" onSubmit={handleLogin}>
-            <div className="text-sm font-medium">登入</div>
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              placeholder="Email"
-              type="email"
-              required
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-            />
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              placeholder="Password"
-              type="password"
-              required
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="w-full rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              送出 /api/auth/login
-            </button>
-            {loginError && <p className="text-sm text-red-600">{loginError}</p>}
-            {loginResult && (
-              <pre className="rounded bg-slate-50 p-2 text-xs text-slate-800">{JSON.stringify(loginResult, null, 2)}</pre>
-            )}
-          </form>
-        </div>
-      </section>
-
-      <section className="card rounded-xl border border-white/10 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">查詢貼文</h2>
+          <h2 className="text-base font-semibold text-slate-900">已發佈的貼文</h2>
           <button
             type="button"
             onClick={loadPosts}
             className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
           >
-            查詢 /api/posts
+            重新整理
           </button>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">userId</label>
-            <input
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              value={postsUserId}
-              onChange={(e) => setPostsUserId(e.target.value)}
-              placeholder="demo-user"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">limit</label>
-            <input
-              type="number"
-              min={1}
-              max={100}
-              className="w-full rounded border border-slate-200 p-2 text-sm"
-              value={postsLimit}
-              onChange={(e) => setPostsLimit(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        {postsError && <p className="mt-2 text-sm text-red-600">{postsError}</p>}
-        <div className="mt-3 space-y-2">
-          {posts.length === 0 && !postsError && <p className="text-sm text-slate-500">尚未查詢或沒有資料</p>}
+        {loading && <p className="mt-3 text-sm text-slate-500">載入中...</p>}
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {!loading && !error && posts.length === 0 && (
+          <p className="mt-3 text-sm text-slate-500">目前還沒有貼文。</p>
+        )}
+        <div className="mt-3 space-y-3">
           {posts.map((post) => (
-            <div key={post.id} className="rounded border border-slate-200 bg-slate-50 p-3">
+            <article key={post.id} className="rounded border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>{post.authorDisplayName || post.authorHandle || post.authorId}</span>
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
-              <p className="mt-1 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
-              {post.mediaKey && <p className="text-xs text-slate-500">mediaKey: {post.mediaKey}</p>}
-            </div>
+              <p className="mt-2 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
+              {post.mediaKey && <p className="mt-1 text-xs text-slate-500">mediaKey: {post.mediaKey}</p>}
+            </article>
           ))}
         </div>
       </section>
