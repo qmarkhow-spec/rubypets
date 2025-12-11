@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { OwnerDetail } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
-import { TAIWAN_DISTRICTS } from "@/data/taiwan-districts";
+import { TAIWAN_CITIES } from "@/data/taiwan-districts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
 
@@ -66,11 +66,16 @@ function PageShell({
 
   useEffect(() => {
     if (!showForm || csvData.length > 0) return;
-    setCsvData(TAIWAN_DISTRICTS.map((r) => ({ city: r.city, region: r.region })));
+    setCsvData(
+      TAIWAN_CITIES.flatMap((c) => c.regions.map((r) => ({ city: c.code, region: r.code })))
+    );
   }, [showForm, csvData.length]);
 
-  const cities = useMemo(() => Array.from(new Set(csvData.map((r) => r.city))), [csvData]);
-  const regions = useMemo(() => csvData.filter((r) => r.city === city).map((r) => r.region), [csvData, city]);
+  const cities = useMemo(() => TAIWAN_CITIES, []);
+  const regions = useMemo(
+    () => (city ? cities.find((c) => c.code === city)?.regions ?? [] : []),
+    [city, cities]
+  );
 
   async function saveLocation() {
     if (!city || !region || !ownerId) {
@@ -171,8 +176,8 @@ function PageShell({
               >
                 <option value="">請選擇</option>
                 {cities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                  <option key={c.code} value={c.code}>
+                    {c.label}
                   </option>
                 ))}
               </select>
@@ -187,8 +192,8 @@ function PageShell({
               >
                 <option value="">請先選縣市</option>
                 {regions.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
+                  <option key={r.code} value={r.code}>
+                    {r.label}
                   </option>
                 ))}
               </select>
