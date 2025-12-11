@@ -58,6 +58,7 @@ function PageShell({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [csvData, setCsvData] = useState<Array<{ city: string; region: string }>>([]);
+  const [csvError, setCsvError] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [region, setRegion] = useState("");
   const [saving, setSaving] = useState(false);
@@ -76,15 +77,16 @@ function PageShell({
       const res = await fetch("/data_taiwan_districts.csv");
       const text = await res.text();
       const rows = text
-        .split("\n")
+        .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => line.split(","))
         .filter((cols) => cols.length >= 2)
         .map((cols) => ({ city: cols[0].trim(), region: cols[1].trim() }));
       setCsvData(rows);
+      setCsvError(null);
     } catch (err) {
-      setSaveError(`無法載入行政區資料：${String(err)}`);
+      setCsvError(`無法載入行政區資料：${String(err)}`);
     }
   }
 
@@ -175,6 +177,7 @@ function PageShell({
         </div>
         {showForm && (
           <div className="mt-4 space-y-3">
+            {csvError && <p className="text-sm text-red-600">{csvError}</p>}
             <div className="space-y-1">
               <label className="text-sm text-slate-700">縣市</label>
               <select
