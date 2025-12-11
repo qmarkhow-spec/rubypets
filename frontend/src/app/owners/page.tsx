@@ -1,13 +1,52 @@
 'use client';
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState, useId, type CSSProperties } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useId,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent
+} from "react";
 import { useSearchParams } from "next/navigation";
 import type { OwnerDetail } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
 import { TAIWAN_CITIES } from "@/data/taiwan-districts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
+
+type CropTarget = "front" | "back";
+
+type CropState = {
+  target: CropTarget | null;
+  imageUrl: string | null;
+  file: File | null;
+  scale: number;
+  baseScale: number;
+  offset: { x: number; y: number };
+  naturalWidth: number;
+  naturalHeight: number;
+};
+
+const CROP_CANVAS_WIDTH = 857;
+const CROP_CANVAS_HEIGHT = 540;
+
+function createInitialCropState(): CropState {
+  return {
+    target: null,
+    imageUrl: null,
+    file: null,
+    scale: 1,
+    baseScale: 1,
+    offset: { x: 0, y: 0 },
+    naturalWidth: 0,
+    naturalHeight: 0
+  };
+}
 
 export default function OwnerPage() {
   return (
@@ -63,9 +102,26 @@ function PageShell({
   const [region, setRegion] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [idFrontPreview, setIdFrontPreview] = useState<string | null>(null);
+  const [idBackPreview, setIdBackPreview] = useState<string | null>(null);
+  const [idSelfiePreview, setIdSelfiePreview] = useState<string | null>(null);
+  const [selfieAspectRatio, setSelfieAspectRatio] = useState<number | null>(null);
   const [idFrontFile, setIdFrontFile] = useState<File | null>(null);
   const [idBackFile, setIdBackFile] = useState<File | null>(null);
   const [idSelfieFile, setIdSelfieFile] = useState<File | null>(null);
+  const [cropState, setCropState] = useState<CropState>(createInitialCropState);
+  const [cropBoxSize, setCropBoxSize] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0
+  });
+  const cropBoxRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<{
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (!showForm || csvData.length > 0) return;
@@ -79,6 +135,225 @@ function PageShell({
     () => (city ? cities.find((c) => c.code === city)?.regions ?? [] : []),
     [city, cities]
   );
+  const isCropping = Boolean(cropState.target && cropState.imageUrl);
+  const minScale = cropState.baseScale || 1;
+  const maxScale = minScale * 3;
+  const clampedScale = Math.min(Math.max(cropState.scale, minScale), maxScale);
+  const selfieBoxStyle: CSSProperties =
+    selfieAspectRatio && selfieAspectRatio > 0
+      ? {
+          width: "100%",
+          maxWidth: "100%",
+          aspectRatio: selfieAspectRatio,
+          maxHeight: "500px"
+        }
+      : { minHeight: "200px" };
+
+  useEffect(() => {
+    if (!isCropping) return;
+    const updateSize = () => {
+      if (!cropBoxRef.current) return;
+      const rect = cropBoxRef.current.getBoundingClientRect();
+      setCropBoxSize({ width: rect.width, height: rect.height });
+    };
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, [isCropping]);
+
+  useEffect(() => {
+    if (!isCropping || !cropBoxSize.width || !cropState.naturalWidth || !cropState.naturalHeight) return;
+    const nextBaseScale = Math.max(
+      cropBoxSize.width / cropState.naturalWidth,
+      cropBoxSize.height / cropState.naturalHeight
+    );
+    setCropState((prev) => {
+      const hasSameBase = Math.abs(prev.baseScale - nextBaseScale) < 0.0001;
+      const nextScale = Math.max(nextBaseScale, prev.scale);
+      if (hasSameBase && prev.scale === nextScale && prev.offset.x === 0 && prev.offset.y === 0) {
+        return prev;
+      }
+      return {
+        ...prev,
+        baseScale: nextBaseScale,
+        scale: nextScale,
+        offset: { x: 0, y: 0 }
+      };
+    });
+  }, [
+    cropBoxSize.height,
+    cropBoxSize.width,
+    cropState.naturalHeight,
+    cropState.naturalWidth,
+    isCropping
+  ]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const handleMove = (e: PointerEvent) => {
+      if (!dragStartRef.current) return;
+      const deltaX = e.clientX - dragStartRef.current.startX;
+      const deltaY = e.clientY - dragStartRef.current.startY;
+      setCropState((prev) => ({
+        ...prev,
+        offset: {
+          x: dragStartRef.current!.originX + deltaX,
+          y: dragStartRef.current!.originY + deltaY
+        }
+      }));
+    };
+    const stopDrag = () => {
+      setDragging(false);
+      dragStartRef.current = null;
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", stopDrag);
+    window.addEventListener("pointercancel", stopDrag);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", stopDrag);
+      window.removeEventListener("pointercancel", stopDrag);
+    };
+  }, [dragging]);
+
+  function startCrop(target: CropTarget, file: File | null) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropState({
+        target,
+        imageUrl: reader.result as string,
+        file,
+        scale: 1,
+        baseScale: 1,
+        offset: { x: 0, y: 0 },
+        naturalWidth: 0,
+        naturalHeight: 0
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleSelfieChange(file: File | null) {
+    setIdSelfieFile(file);
+    if (!file) {
+      setIdSelfiePreview(null);
+      setSelfieAspectRatio(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setIdSelfiePreview(dataUrl);
+      const img = new Image();
+      img.onload = () => {
+        if (!img.naturalWidth || !img.naturalHeight) {
+          setSelfieAspectRatio(null);
+          return;
+        }
+        setSelfieAspectRatio(img.naturalWidth / img.naturalHeight);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function closeCropper() {
+    setCropState(createInitialCropState());
+    setDragging(false);
+    dragStartRef.current = null;
+  }
+
+  function handleCropPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: cropState.offset.x,
+      originY: cropState.offset.y
+    };
+    setDragging(true);
+  }
+
+  function handleCropImageLoad(e: SyntheticEvent<HTMLImageElement>) {
+    const imgEl = e.currentTarget;
+    if (!imgEl.naturalWidth || !imgEl.naturalHeight) return;
+    setCropState((prev) => {
+      if (prev.naturalWidth === imgEl.naturalWidth && prev.naturalHeight === imgEl.naturalHeight) {
+        return prev;
+      }
+      return {
+        ...prev,
+        naturalWidth: imgEl.naturalWidth,
+        naturalHeight: imgEl.naturalHeight
+      };
+    });
+  }
+
+  function handleZoomChange(nextScale: number) {
+    setCropState((prev) => ({
+      ...prev,
+      scale: Math.min(Math.max(nextScale, minScale), maxScale)
+    }));
+  }
+
+  async function confirmCrop() {
+    if (!cropState.target || !cropState.imageUrl || !cropBoxRef.current) {
+      closeCropper();
+      return;
+    }
+    const img = new Image();
+    img.src = cropState.imageUrl;
+    if (!img.complete) {
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    }
+    if (!img.naturalWidth || !img.naturalHeight) {
+      closeCropper();
+      return;
+    }
+
+    const rect = cropBoxRef.current.getBoundingClientRect();
+    const imgLeft = rect.width / 2 - (img.naturalWidth * cropState.scale) / 2 + cropState.offset.x;
+    const imgTop = rect.height / 2 - (img.naturalHeight * cropState.scale) / 2 + cropState.offset.y;
+    const sourceX = (0 - imgLeft) / cropState.scale;
+    const sourceY = (0 - imgTop) / cropState.scale;
+    const sourceW = rect.width / cropState.scale;
+    const sourceH = rect.height / cropState.scale;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = CROP_CANVAS_WIDTH;
+    canvas.height = CROP_CANVAS_HEIGHT;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      closeCropper();
+      return;
+    }
+
+    ctx.drawImage(
+      img,
+      sourceX,
+      sourceY,
+      sourceW,
+      sourceH,
+      0,
+      0,
+      CROP_CANVAS_WIDTH,
+      CROP_CANVAS_HEIGHT
+    );
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    if (cropState.target === "front") {
+      setIdFrontPreview(dataUrl);
+      setIdFrontFile(cropState.file);
+    } else {
+      setIdBackPreview(dataUrl);
+      setIdBackFile(cropState.file);
+    }
+    closeCropper();
+  }
 
   async function saveLocation() {
     if (!city || !region || !ownerId) {
@@ -226,28 +501,119 @@ function PageShell({
             label="上傳身分證正面"
             helper="點擊下方 85.7mm x 54mm 的方塊上傳"
             file={idFrontFile}
-            onChange={setIdFrontFile}
+            onChange={(file) => startCrop("front", file)}
             boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
             sizeHint="85.7mm x 54mm"
+            previewUrl={idFrontPreview}
           />
           <FileUploadField
             label="上傳身分證背面"
             helper="點擊下方 85.7mm x 54mm 的方塊上傳"
             file={idBackFile}
-            onChange={setIdBackFile}
+            onChange={(file) => startCrop("back", file)}
             boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
             sizeHint="85.7mm x 54mm"
+            previewUrl={idBackPreview}
           />
           <FileUploadField
             label="上傳手持身分證正面並和自己拍照"
             helper="尺寸不拘，請確保證件與本人清晰可辨"
             file={idSelfieFile}
-            onChange={setIdSelfieFile}
-            boxStyle={{ minHeight: "200px" }}
+            onChange={handleSelfieChange}
+            boxStyle={selfieBoxStyle}
             spanCols
+            previewUrl={idSelfiePreview}
+            previewFit="contain"
           />
         </div>
       </section>
+      {isCropping && cropState.imageUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-4xl space-y-4 rounded-xl bg-white p-4 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">調整圖片位置</h3>
+                <p className="text-sm text-slate-600">
+                  拖曳移動，使用滑桿縮放，讓身分證填滿固定方框。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCropper}
+                className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
+              >
+                關閉
+              </button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
+              <div className="flex flex-col items-center gap-3">
+                <div
+                  ref={cropBoxRef}
+                  className={`relative overflow-hidden rounded-md border border-slate-200 bg-slate-100 ${
+                    dragging ? "cursor-grabbing" : "cursor-grab"
+                  }`}
+                  style={{ width: "85.7mm", maxWidth: "100%", height: "54mm", maxHeight: "60vh" }}
+                  onPointerDown={handleCropPointerDown}
+                >
+                  <img
+                    src={cropState.imageUrl}
+                    alt="裁切預覽"
+                    className="pointer-events-none select-none"
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: "50%",
+                      width: cropState.naturalWidth || "auto",
+                      height: cropState.naturalHeight || "auto",
+                      transform: `translate(-50%, -50%) translate(${cropState.offset.x}px, ${cropState.offset.y}px) scale(${clampedScale})`,
+                      transformOrigin: "center center"
+                    }}
+                    onLoad={handleCropImageLoad}
+                    draggable={false}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  方框尺寸固定 85.7mm x 54mm，請把身分證完整填滿框線。
+                </p>
+              </div>
+              <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>縮放</span>
+                    <span>{clampedScale.toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={minScale}
+                    max={maxScale}
+                    step={0.01}
+                    value={clampedScale}
+                    onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                    className="w-full accent-emerald-600"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeCropper}
+                    className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmCrop}
+                    className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500"
+                  >
+                    確認
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -259,7 +625,9 @@ function FileUploadField({
   onChange,
   boxStyle,
   spanCols = false,
-  sizeHint
+  sizeHint,
+  previewUrl,
+  previewFit = "cover"
 }: {
   label: string;
   helper?: string;
@@ -268,8 +636,11 @@ function FileUploadField({
   boxStyle?: CSSProperties;
   spanCols?: boolean;
   sizeHint?: string;
+  previewUrl?: string | null;
+  previewFit?: "cover" | "contain";
 }) {
   const inputId = useId();
+  const hasPreview = Boolean(previewUrl);
 
   return (
     <div className={`space-y-2 ${spanCols ? "md:col-span-2" : ""}`}>
@@ -284,15 +655,27 @@ function FileUploadField({
       </div>
       <label
         htmlFor={inputId}
-        className="flex w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-300 bg-white/60 px-3 py-4 text-sm text-slate-600 transition hover:border-emerald-500 hover:text-emerald-700"
+        className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-300 bg-white/60 text-sm text-slate-600 transition hover:border-emerald-500 hover:text-emerald-700 ${
+          hasPreview ? "p-0" : "px-3 py-4"
+        }`}
         style={boxStyle}
       >
-        <div className="space-y-1 text-center">
-          <div className="text-sm font-semibold">點擊上傳</div>
-          <div className="text-xs text-slate-500">
-            {sizeHint ? `${sizeHint}｜支援圖片檔案` : "支援圖片檔案"}
+        {hasPreview ? (
+          <img
+            src={previewUrl ?? undefined}
+            alt={label}
+            className="h-full w-full rounded-md object-cover"
+            style={{ objectFit: previewFit }}
+            draggable={false}
+          />
+        ) : (
+          <div className="space-y-1 text-center">
+            <div className="text-sm font-semibold">點擊上傳</div>
+            <div className="text-xs text-slate-500">
+              {sizeHint ? `${sizeHint}｜支援圖片檔案` : "支援圖片檔案"}
+            </div>
           </div>
-        </div>
+        )}
       </label>
       <input
         id={inputId}
