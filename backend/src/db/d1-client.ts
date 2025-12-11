@@ -19,6 +19,8 @@ type OwnerRow = {
   display_name: string;
   avatar_url: string | null;
   max_pets: number;
+  city: string | null;
+  region: string | null;
   created_at: string;
   updated_at: string;
   is_active: number;
@@ -111,7 +113,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, created_at, updated_at, is_active
+          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, city, region, created_at, updated_at, is_active
           from owners
           where email = ?
         `
@@ -126,7 +128,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, created_at, updated_at, is_active
+          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, city, region, created_at, updated_at, is_active
           from owners
           where uuid = ?
         `
@@ -149,16 +151,47 @@ export class D1Client implements DBClient {
     await this.db
       .prepare(
         `
-          insert into owners (id, uuid, email, password_hash, display_name, avatar_url, created_at, updated_at)
-          values (?, ?, ?, ?, ?, ?, ?, ?)
+          insert into owners (id, uuid, email, password_hash, display_name, avatar_url, city, region, created_at, updated_at)
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .bind(input.id, input.uuid, input.email, input.passwordHash, input.displayName, input.avatarUrl ?? null, createdAt, createdAt)
+      .bind(
+        input.id,
+        input.uuid,
+        input.email,
+        input.passwordHash,
+        input.displayName,
+        input.avatarUrl ?? null,
+        null,
+        null,
+        createdAt,
+        createdAt
+      )
       .run();
 
     const row = await this.getOwnerByUuid(input.uuid);
     if (!row) {
       throw new Error("Failed to create owner");
+    }
+    return row;
+  }
+
+  async updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<Owner> {
+    const updatedAt = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          update owners
+          set city = ?, region = ?, updated_at = ?
+          where uuid = ?
+        `
+      )
+      .bind(city, region, updatedAt, ownerUuid)
+      .run();
+
+    const row = await this.getOwnerByUuid(ownerUuid);
+    if (!row) {
+      throw new Error("Owner not found");
     }
     return row;
   }
@@ -184,6 +217,8 @@ function mapOwnerRow(row: OwnerRow): Owner {
     avatarUrl: row.avatar_url ?? null,
     passwordHash: row.password_hash,
     maxPets: row.max_pets,
+    city: row.city ?? null,
+    region: row.region ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isActive: row.is_active

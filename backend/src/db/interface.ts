@@ -21,4 +21,5 @@ export interface DBClient {
     passwordHash: string;
     avatarUrl?: string | null;
   }): Promise<import("./models").Owner>;
+  updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
 }

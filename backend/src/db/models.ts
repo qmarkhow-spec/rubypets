@@ -26,6 +26,8 @@ export interface Owner {
   displayName: string;
   avatarUrl: string | null;
   maxPets: number;
+  city?: string | null;
+  region?: string | null;
   createdAt: string;
   updatedAt: string;
   isActive: number;
