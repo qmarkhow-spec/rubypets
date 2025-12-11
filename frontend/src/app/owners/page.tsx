@@ -565,6 +565,8 @@ function PageShell({
                       top: "50%",
                       width: cropState.naturalWidth || "auto",
                       height: cropState.naturalHeight || "auto",
+                      maxWidth: "none",
+                      maxHeight: "none",
                       transform: `translate(-50%, -50%) translate(${cropState.offset.x}px, ${cropState.offset.y}px) scale(${clampedScale})`,
                       transformOrigin: "center center"
                     }}
