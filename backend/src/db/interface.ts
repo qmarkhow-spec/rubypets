@@ -14,12 +14,20 @@ export interface DBClient {
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   createOwner(input: {
-    id: string;
+    accountId: string;
     uuid: string;
     displayName: string;
-    email: string;
-    passwordHash: string;
     avatarUrl?: string | null;
   }): Promise<import("./models").Owner>;
+  createAccount(input: {
+    accountId: string;
+    email: string;
+    passwordHash: string;
+    phoneNumber?: string | null;
+  }): Promise<import("./models").Account>;
   updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
+  updateAccountVerificationUrls(
+    accountId: string,
+    urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null }
+  ): Promise<void>;
 }

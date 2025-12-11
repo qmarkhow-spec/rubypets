@@ -46,8 +46,9 @@ export interface ApiError extends Error {
 }
 
 export interface OwnerDetail {
+  accountId: string;
   uuid: string;
-  email: string;
+  email: string | null;
   displayName: string;
   avatarUrl: string | null;
   maxPets: number;
@@ -56,4 +57,8 @@ export interface OwnerDetail {
   isActive: number;
   city?: string | null;
   region?: string | null;
+  isVerified?: number;
+  idLicenseFrontUrl?: string | null;
+  idLicenseBackUrl?: string | null;
+  faceWithLicenseUrl?: string | null;
 }
