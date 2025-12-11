@@ -73,7 +73,7 @@ function PageShell({
 
   async function loadCsv() {
     try {
-      const res = await fetch("/tw_cities_districts.csv");
+      const res = await fetch("/data_taiwan_districts.csv");
       const text = await res.text();
       const rows = text
         .split("\n")
