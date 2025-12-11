@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Owner, Post } from "./models";
+import { Owner, Post, Account } from "./models";
 
 type PostRow = {
   id: string;
@@ -12,9 +12,9 @@ type PostRow = {
 };
 
 type OwnerRow = {
-  id: string;
+  account_id: string;
   uuid: string;
-  email: string;
+  email: string | null;
   password_hash: string | null;
   display_name: string;
   avatar_url: string | null;
@@ -24,6 +24,23 @@ type OwnerRow = {
   created_at: string;
   updated_at: string;
   is_active: number;
+  is_verified: number | null;
+  id_license_front_url: string | null;
+  id_license_back_url: string | null;
+  face_with_license_urll: string | null;
+};
+
+type AccountRow = {
+  account_id: string;
+  email: string;
+  password_hash: string;
+  phone_number: string | null;
+  is_verified: number;
+  id_license_front_url: string | null;
+  id_license_back_url: string | null;
+  face_with_license_urll: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export class D1Client implements DBClient {
@@ -113,9 +130,26 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, city, region, created_at, updated_at, is_active
-          from owners
-          where email = ?
+          select
+            o.account_id,
+            o.uuid,
+            a.email,
+            a.password_hash,
+            o.display_name,
+            o.avatar_url,
+            o.max_pets,
+            o.city,
+            o.region,
+            o.created_at,
+            o.updated_at,
+            o.is_active,
+            a.is_verified,
+            a.id_license_front_url,
+            a.id_license_back_url,
+            a.face_with_license_urll
+          from owners o
+          join accounts a on a.account_id = o.account_id
+          where a.email = ?
         `
       )
       .bind(email)
@@ -128,9 +162,26 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, uuid, email, password_hash, display_name, avatar_url, max_pets, city, region, created_at, updated_at, is_active
-          from owners
-          where uuid = ?
+          select
+            o.account_id,
+            o.uuid,
+            a.email,
+            a.password_hash,
+            o.display_name,
+            o.avatar_url,
+            o.max_pets,
+            o.city,
+            o.region,
+            o.created_at,
+            o.updated_at,
+            o.is_active,
+            a.is_verified,
+            a.id_license_front_url,
+            a.id_license_back_url,
+            a.face_with_license_urll
+          from owners o
+          join accounts a on a.account_id = o.account_id
+          where o.uuid = ?
         `
       )
       .bind(uuid)
@@ -140,26 +191,22 @@ export class D1Client implements DBClient {
   }
 
   async createOwner(input: {
-    id: string;
+    accountId: string;
     uuid: string;
     displayName: string;
-    email: string;
-    passwordHash: string;
     avatarUrl?: string | null;
   }): Promise<Owner> {
     const createdAt = new Date().toISOString();
     await this.db
       .prepare(
         `
-          insert into owners (id, uuid, email, password_hash, display_name, avatar_url, city, region, created_at, updated_at)
-          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          insert into owners (account_id, uuid, display_name, avatar_url, city, region, created_at, updated_at)
+          values (?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
       .bind(
-        input.id,
+        input.accountId,
         input.uuid,
-        input.email,
-        input.passwordHash,
         input.displayName,
         input.avatarUrl ?? null,
         null,
@@ -174,6 +221,38 @@ export class D1Client implements DBClient {
       throw new Error("Failed to create owner");
     }
     return row;
+  }
+
+  async createAccount(input: {
+    accountId: string;
+    email: string;
+    passwordHash: string;
+    phoneNumber?: string | null;
+  }): Promise<Account> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into accounts (account_id, email, password_hash, phone_number, is_verified, created_at, updated_at)
+          values (?, ?, ?, ?, 0, ?, ?)
+        `
+      )
+      .bind(input.accountId, input.email, input.passwordHash, input.phoneNumber ?? null, now, now)
+      .run();
+
+    const row = await this.db
+      .prepare(
+        `
+          select account_id, email, password_hash, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+          from accounts
+          where account_id = ?
+        `
+      )
+      .bind(input.accountId)
+      .first<AccountRow>();
+
+    if (!row) throw new Error("Failed to create account");
+    return mapAccountRow(row);
   }
 
   async updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<Owner> {
@@ -195,6 +274,27 @@ export class D1Client implements DBClient {
     }
     return row;
   }
+
+  async updateAccountVerificationUrls(
+    accountId: string,
+    urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null }
+  ): Promise<void> {
+    const updatedAt = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          update accounts
+          set
+            id_license_front_url = coalesce(?, id_license_front_url),
+            id_license_back_url = coalesce(?, id_license_back_url),
+            face_with_license_urll = coalesce(?, face_with_license_urll),
+            updated_at = ?
+          where account_id = ?
+        `
+      )
+      .bind(urls.frontUrl ?? null, urls.backUrl ?? null, urls.faceUrl ?? null, updatedAt, accountId)
+      .run();
+  }
 }
 
 function mapPostRow(row: PostRow): Post {
@@ -210,17 +310,36 @@ function mapPostRow(row: PostRow): Post {
 
 function mapOwnerRow(row: OwnerRow): Owner {
   return {
-    id: row.id,
+    accountId: row.account_id,
     uuid: row.uuid,
     displayName: row.display_name,
-    email: row.email,
+    email: row.email ?? null,
     avatarUrl: row.avatar_url ?? null,
-    passwordHash: row.password_hash,
+    passwordHash: row.password_hash ?? undefined,
     maxPets: row.max_pets,
     city: row.city ?? null,
     region: row.region ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    isActive: row.is_active
+    isActive: row.is_active,
+    isVerified: row.is_verified ?? 0,
+    idLicenseFrontUrl: row.id_license_front_url ?? null,
+    idLicenseBackUrl: row.id_license_back_url ?? null,
+    faceWithLicenseUrl: row.face_with_license_urll ?? null
+  };
+}
+
+function mapAccountRow(row: AccountRow): Account {
+  return {
+    accountId: row.account_id,
+    email: row.email,
+    passwordHash: row.password_hash,
+    phoneNumber: row.phone_number ?? null,
+    isVerified: row.is_verified,
+    idLicenseFrontUrl: row.id_license_front_url ?? null,
+    idLicenseBackUrl: row.id_license_back_url ?? null,
+    faceWithLicenseUrl: row.face_with_license_urll ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }

@@ -19,10 +19,10 @@ export interface Post {
 }
 
 export interface Owner {
-  id: string;
+  accountId: string;
   uuid: string;
-  email: string;
-  passwordHash: string | null;
+  email?: string | null;
+  passwordHash?: string | null;
   displayName: string;
   avatarUrl: string | null;
   maxPets: number;
@@ -31,4 +31,21 @@ export interface Owner {
   createdAt: string;
   updatedAt: string;
   isActive: number;
+  isVerified?: number;
+  idLicenseFrontUrl?: string | null;
+  idLicenseBackUrl?: string | null;
+  faceWithLicenseUrl?: string | null;
+}
+
+export interface Account {
+  accountId: string;
+  email: string;
+  passwordHash: string;
+  phoneNumber?: string | null;
+  isVerified: number;
+  idLicenseFrontUrl?: string | null;
+  idLicenseBackUrl?: string | null;
+  faceWithLicenseUrl?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }

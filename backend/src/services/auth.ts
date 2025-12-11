@@ -5,6 +5,7 @@ export interface RegisterPayload {
   email: string;
   password: string;
   displayName?: string;
+  phoneNumber?: string;
 }
 
 export interface LoginPayload {
@@ -24,6 +25,7 @@ export async function registerUser(db: DBClient, payload: RegisterPayload) {
   const email = (payload.email ?? "").trim().toLowerCase();
   const password = payload.password ?? "";
   const displayName = (payload.displayName ?? email.split("@")[0] ?? "user").trim();
+  const phoneNumber = (payload.phoneNumber ?? "").trim() || null;
 
   if (!email || !password) {
     throw new Error("email and password are required");
@@ -35,15 +37,20 @@ export async function registerUser(db: DBClient, payload: RegisterPayload) {
   }
 
   const passwordHash = await hashPassword(password);
-  const uuid = crypto.randomUUID();
-  const id = randomId(8);
+  const accountId = generateAccountId();
+  const uuid = generateOwnerUuid();
+
+  await db.createAccount({
+    accountId,
+    email,
+    passwordHash,
+    phoneNumber: phoneNumber ?? undefined
+  });
 
   const owner = await db.createOwner({
-    id,
+    accountId,
     uuid,
-    displayName,
-    email,
-    passwordHash
+    displayName
   });
 
   const tokens = issueTokens(owner.uuid);
@@ -77,9 +84,10 @@ export async function getUserFromAuthHeader(db: DBClient, request: Request): Pro
 }
 
 export function toPublicOwner(owner: Owner) {
+  const email = owner.email ?? "";
   return {
     id: owner.uuid,
-    handle: owner.displayName || owner.email.split("@")[0] || owner.uuid,
+    handle: owner.displayName || email.split("@")[0] || owner.uuid,
     displayName: owner.displayName,
     email: owner.email ?? null,
     avatarUrl: owner.avatarUrl ?? null,
@@ -130,4 +138,22 @@ function randomId(len = 8): string {
     out += chars[bytes[i] % chars.length];
   }
   return out;
+}
+
+function randomLowerId(len = 8): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let out = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  for (let i = 0; i < len; i++) {
+    out += chars[bytes[i] % chars.length];
+  }
+  return out;
+}
+
+function generateAccountId() {
+  return `acct_${randomLowerId(12)}`;
+}
+
+function generateOwnerUuid() {
+  return `owner_${randomLowerId(8)}`;
 }

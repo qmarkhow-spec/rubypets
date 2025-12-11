@@ -114,6 +114,9 @@ function PageShell({
     width: 0,
     height: 0
   });
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const cropBoxRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{
     startX: number;
@@ -344,7 +347,7 @@ function PageShell({
       CROP_CANVAS_HEIGHT
     );
 
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const dataUrl = canvas.toDataURL("image/png");
     if (cropState.target === "front") {
       setIdFrontPreview(dataUrl);
       setIdFrontFile(cropState.file);
@@ -353,6 +356,64 @@ function PageShell({
       setIdBackFile(cropState.file);
     }
     closeCropper();
+  }
+
+  function dataUrlToFile(dataUrl: string, filename: string): File {
+    const [head, body] = dataUrl.split(",");
+    const mime = head?.match(/data:(.*?);base64/)?.[1] ?? "image/png";
+    const binary = atob(body ?? "");
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new File([bytes], filename, { type: mime });
+  }
+
+  async function uploadVerificationDocs() {
+    if (!owner) {
+      setUploadError("請先載入飼主資料");
+      return;
+    }
+    if (!idFrontPreview || !idBackPreview || !idSelfiePreview) {
+      setUploadError("請先完成三張照片的調整/上傳");
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+    try {
+      const form = new FormData();
+      form.append("id_license_front", dataUrlToFile(idFrontPreview, `${owner.accountId}_id_license_front.png`));
+      form.append("id_license_back", dataUrlToFile(idBackPreview, `${owner.accountId}_id_license_back.png`));
+      form.append(
+        "face_with_license",
+        dataUrlToFile(idSelfiePreview, `${owner.accountId}_face_with_license.png`)
+      );
+
+      const { data } = await apiFetch<{
+        idLicenseFrontUrl: string;
+        idLicenseBackUrl: string;
+        faceWithLicenseUrl: string;
+      }>(`/api/owners/${owner.uuid}/verification-docs`, {
+        method: "POST",
+        body: form
+      });
+
+      const nextOwner = {
+        ...owner,
+        idLicenseFrontUrl: data.idLicenseFrontUrl,
+        idLicenseBackUrl: data.idLicenseBackUrl,
+        faceWithLicenseUrl: data.faceWithLicenseUrl
+      };
+      onUpdated(nextOwner);
+      setUploadSuccess("上傳完成");
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      const details = (err as { details?: unknown }).details;
+      setUploadError(`上傳失敗（${status ?? "?"}）：${typeof details === "string" ? details : JSON.stringify(details)}`);
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function saveLocation() {
@@ -525,6 +586,20 @@ function PageShell({
             previewUrl={idSelfiePreview}
             previewFit="contain"
           />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={uploadVerificationDocs}
+            disabled={
+              uploading || !owner || !idFrontPreview || !idBackPreview || !idSelfiePreview || !owner.accountId
+            }
+            className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
+          >
+            {uploading ? "上傳中..." : "上傳"}
+          </button>
+          {uploadError && <span className="text-sm text-red-600">{uploadError}</span>}
+          {uploadSuccess && !uploadError && <span className="text-sm text-emerald-600">{uploadSuccess}</span>}
         </div>
       </section>
       {isCropping && cropState.imageUrl && (
