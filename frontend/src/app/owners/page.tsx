@@ -75,6 +75,9 @@ function PageShell({
   async function loadCsv() {
     try {
       const res = await fetch("/data_taiwan_districts.csv");
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const text = await res.text();
       const rows = text
         .split(/\r?\n/)
@@ -83,6 +86,9 @@ function PageShell({
         .map((line) => line.split(","))
         .filter((cols) => cols.length >= 2)
         .map((cols) => ({ city: cols[0].trim(), region: cols[1].trim() }));
+      if (rows.length === 0) {
+        throw new Error("檔案為空或格式不符");
+      }
       setCsvData(rows);
       setCsvError(null);
     } catch (err) {
