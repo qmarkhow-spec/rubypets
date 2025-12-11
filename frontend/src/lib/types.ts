@@ -54,4 +54,6 @@ export interface OwnerDetail {
   createdAt: string;
   updatedAt: string;
   isActive: number;
+  city?: string | null;
+  region?: string | null;
 }

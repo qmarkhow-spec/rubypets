@@ -1,0 +1,2 @@
+ALTER TABLE owners ADD COLUMN city TEXT;
+ALTER TABLE owners ADD COLUMN region TEXT;

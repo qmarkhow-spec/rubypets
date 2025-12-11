@@ -180,7 +180,10 @@ type DynamicRoute =
       handler: (ctx: HandlerContext, params: Record<string, string>) => Promise<Response>;
     };
 
-const dynamicRoutes: DynamicRoute[] = [{ method: "GET", pattern: /^\/owners\/([^/]+)$/, handler: ownerDetailRoute }];
+const dynamicRoutes: DynamicRoute[] = [
+  { method: "GET", pattern: /^\/owners\/([^/]+)$/, handler: ownerDetailRoute },
+  { method: "POST", pattern: /^\/owners\/([^/]+)\/location$/, handler: ownerLocationRoute }
+];
 
 function matchDynamicRoute(pathname: string):
   | { handler: (ctx: HandlerContext, params: Record<string, string>) => Promise<Response>; params: Record<string, string> }
@@ -205,6 +208,28 @@ async function ownerDetailRoute(ctx: HandlerContext, params: Record<string, stri
     maxPets: owner.maxPets,
     createdAt: owner.createdAt,
     updatedAt: owner.updatedAt,
-    isActive: owner.isActive
+    isActive: owner.isActive,
+    city: owner.city ?? null,
+    region: owner.region ?? null
+  });
+}
+
+async function ownerLocationRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const authed = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!authed || authed.uuid !== params.id) return errorJson("Forbidden", 403);
+  const body = (await ctx.request.json()) as { city?: string; region?: string };
+  if (!body.city || !body.region) return errorJson("city and region are required", 400);
+  const owner = await ctx.db.updateOwnerLocation(params.id, body.city, body.region);
+  return okJson({
+    uuid: owner.uuid,
+    email: owner.email,
+    displayName: owner.displayName,
+    avatarUrl: owner.avatarUrl,
+    maxPets: owner.maxPets,
+    createdAt: owner.createdAt,
+    updatedAt: owner.updatedAt,
+    isActive: owner.isActive,
+    city: owner.city ?? null,
+    region: owner.region ?? null
   });
 }

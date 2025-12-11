@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS owners (
   display_name TEXT NOT NULL,
   avatar_url TEXT,
   max_pets INTEGER NOT NULL DEFAULT 2,
+  city TEXT,
+  region TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   is_active INTEGER NOT NULL DEFAULT 1
