@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { OwnerDetail } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
+import { TAIWAN_DISTRICTS } from "@/data/taiwan-districts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
 
@@ -58,7 +59,6 @@ function PageShell({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [csvData, setCsvData] = useState<Array<{ city: string; region: string }>>([]);
-  const [csvError, setCsvError] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [region, setRegion] = useState("");
   const [saving, setSaving] = useState(false);
@@ -66,35 +66,11 @@ function PageShell({
 
   useEffect(() => {
     if (!showForm || csvData.length > 0) return;
-    void loadCsv();
+    setCsvData(TAIWAN_DISTRICTS.map((r) => ({ city: r.city, region: r.region })));
   }, [showForm, csvData.length]);
 
   const cities = useMemo(() => Array.from(new Set(csvData.map((r) => r.city))), [csvData]);
   const regions = useMemo(() => csvData.filter((r) => r.city === city).map((r) => r.region), [csvData, city]);
-
-  async function loadCsv() {
-    try {
-      const res = await fetch("/data_taiwan_districts.csv");
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const text = await res.text();
-      const rows = text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.split(","))
-        .filter((cols) => cols.length >= 2)
-        .map((cols) => ({ city: cols[0].trim(), region: cols[1].trim() }));
-      if (rows.length === 0) {
-        throw new Error("檔案為空或格式不符");
-      }
-      setCsvData(rows);
-      setCsvError(null);
-    } catch (err) {
-      setCsvError(`無法載入行政區資料：${String(err)}`);
-    }
-  }
 
   async function saveLocation() {
     if (!city || !region || !ownerId) {
@@ -183,7 +159,6 @@ function PageShell({
         </div>
         {showForm && (
           <div className="mt-4 space-y-3">
-            {csvError && <p className="text-sm text-red-600">{csvError}</p>}
             <div className="space-y-1">
               <label className="text-sm text-slate-700">縣市</label>
               <select
