@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, useId, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import type { OwnerDetail } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
@@ -63,6 +63,9 @@ function PageShell({
   const [region, setRegion] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [idFrontFile, setIdFrontFile] = useState<File | null>(null);
+  const [idBackFile, setIdBackFile] = useState<File | null>(null);
+  const [idSelfieFile, setIdSelfieFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!showForm || csvData.length > 0) return;
@@ -212,6 +215,92 @@ function PageShell({
           </div>
         )}
       </section>
+
+      <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">實名認證</h2>
+          <p className="text-xs text-slate-600">請依序上傳三張照片供審核</p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <FileUploadField
+            label="上傳身分證正面"
+            helper="點擊下方 85.7mm x 54mm 的方塊上傳"
+            file={idFrontFile}
+            onChange={setIdFrontFile}
+            boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
+            sizeHint="85.7mm x 54mm"
+          />
+          <FileUploadField
+            label="上傳身分證背面"
+            helper="點擊下方 85.7mm x 54mm 的方塊上傳"
+            file={idBackFile}
+            onChange={setIdBackFile}
+            boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
+            sizeHint="85.7mm x 54mm"
+          />
+          <FileUploadField
+            label="上傳手持身分證正面並和自己拍照"
+            helper="尺寸不拘，請確保證件與本人清晰可辨"
+            file={idSelfieFile}
+            onChange={setIdSelfieFile}
+            boxStyle={{ minHeight: "200px" }}
+            spanCols
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function FileUploadField({
+  label,
+  helper,
+  file,
+  onChange,
+  boxStyle,
+  spanCols = false,
+  sizeHint
+}: {
+  label: string;
+  helper?: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+  boxStyle?: CSSProperties;
+  spanCols?: boolean;
+  sizeHint?: string;
+}) {
+  const inputId = useId();
+
+  return (
+    <div className={`space-y-2 ${spanCols ? "md:col-span-2" : ""}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-slate-800">{label}</p>
+          {helper && <p className="text-xs text-slate-500">{helper}</p>}
+        </div>
+        <span className="truncate text-xs text-slate-500">
+          {file ? `已選擇：${file.name}` : "尚未選擇檔案"}
+        </span>
+      </div>
+      <label
+        htmlFor={inputId}
+        className="flex w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-300 bg-white/60 px-3 py-4 text-sm text-slate-600 transition hover:border-emerald-500 hover:text-emerald-700"
+        style={boxStyle}
+      >
+        <div className="space-y-1 text-center">
+          <div className="text-sm font-semibold">點擊上傳</div>
+          <div className="text-xs text-slate-500">
+            {sizeHint ? `${sizeHint}｜支援圖片檔案` : "支援圖片檔案"}
+          </div>
+        </div>
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
     </div>
   );
 }
