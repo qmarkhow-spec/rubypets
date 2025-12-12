@@ -176,8 +176,10 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
     if (value.startsWith("http://") || value.startsWith("https://")) return value;
     const base = ctx.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
     const key = value.replace(/^\/+/, "");
-    const prefixedKey = key.startsWith(`${bucket}/`) ? key : `${bucket}/${key}`;
-    return base ? `${base}/${prefixedKey}` : prefixedKey;
+    const baseHasBucket =
+      base?.endsWith(`/${bucket}`) || base === bucket || base?.includes(`/${bucket}/`) || base?.endsWith(bucket);
+    const finalKey = baseHasBucket ? key : `${bucket}/${key}`;
+    return base ? `${base}/${finalKey}` : finalKey;
   };
 
   return okJson(
