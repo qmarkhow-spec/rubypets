@@ -37,12 +37,14 @@ export function AppShell({
   title,
   intro,
   actions,
-  children
+  children,
+  requireAuth = true
 }: {
   title: string;
   intro?: string;
   actions?: ReactNode;
   children: ReactNode;
+  requireAuth?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -71,25 +73,38 @@ export function AppShell({
 
   return (
     <div className="layout">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="dot" aria-hidden />
-          <span>Rubypets Admin</span>
+      <AuthGate enabled={requireAuth}>
+        <aside className="sidebar">
+          <div className="brand">
+            <span className="dot" aria-hidden />
+            <span>Rubypets Admin</span>
+          </div>
+          <div className="side-links">{NAV_ITEMS.map(renderNav)}</div>
+          <div className="env-pill">環境：{envLabel}</div>
+        </aside>
+        <div className="content">
+          <header className="top-bar">
+            <h1 className="top-title">{title}</h1>
+            <Link href="/login" className="btn ghost">
+              登入/Token
+            </Link>
+          </header>
+          {intro ? <p className="page-intro">{intro}</p> : null}
+          {actions ? <div className="btn-row" style={{ marginTop: 4 }}>{actions}</div> : null}
+          <div className="page-body">{children}</div>
         </div>
-        <div className="side-links">{NAV_ITEMS.map(renderNav)}</div>
-        <div className="env-pill">環境：{envLabel}</div>
-      </aside>
-      <div className="content">
-        <header className="top-bar">
-          <h1 className="top-title">{title}</h1>
-          <Link href="/login" className="btn ghost">
-            登入/Token
-          </Link>
-        </header>
-        {intro ? <p className="page-intro">{intro}</p> : null}
-        {actions ? <div className="btn-row" style={{ marginTop: 4 }}>{actions}</div> : null}
-        <div className="page-body">{children}</div>
-      </div>
+      </AuthGate>
     </div>
   );
+}
+
+function AuthGate({ enabled, children }: { enabled: boolean; children: ReactNode }) {
+  if (!enabled) return <>{children}</>;
+  if (typeof window === "undefined") return null;
+  const token = window.localStorage.getItem("ADMIN_TOKEN");
+  if (!token) {
+    window.location.href = "/admin-login";
+    return null;
+  }
+  return <>{children}</>;
 }

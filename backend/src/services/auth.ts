@@ -121,7 +121,7 @@ export async function hashPassword(password: string): Promise<string> {
   return `${salt}:${hashHex}`;
 }
 
-async function verifyPassword(password: string, stored: string): Promise<boolean> {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [salt, hashHex] = stored.split(":");
   if (!salt || !hashHex) return false;
   const data = new TextEncoder().encode(`${salt}:${password}`);

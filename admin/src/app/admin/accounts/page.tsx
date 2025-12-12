@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api";
 import type { AdminAccount, PermissionOption } from "@/lib/admin-types";
 import { PERMISSION_OPTIONS } from "@/lib/admin-types";
+import { getAdminToken } from "@/lib/admin-auth";
 
 type FormState = {
   adminId: string;
@@ -28,7 +29,7 @@ export default function AdminAccountsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ data: AdminAccount[] }>("/admin/admin-accounts");
+      const res = await apiFetch<{ data: AdminAccount[] }>("/admin/admin-accounts", { headers: tokenHeaders() });
       setItems(res.data);
     } catch (err) {
       setError((err as Error).message || "無法取得管理員列表");
@@ -58,6 +59,7 @@ export default function AdminAccountsPage() {
     try {
       await apiFetch("/admin/admin-accounts", {
         method: "POST",
+        headers: tokenHeaders(),
         body: JSON.stringify({ adminId: form.adminId, password: form.password, permission: form.permission })
       });
       setShowModal(false);
@@ -173,4 +175,11 @@ export default function AdminAccountsPage() {
       ) : null}
     </AppShell>
   );
+}
+
+function tokenHeaders() {
+  const token = getAdminToken();
+  const headers = new Headers();
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  return headers;
 }
