@@ -33,7 +33,8 @@ export interface DBClient {
     accountId: string,
     urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null; setPending?: boolean }
   ): Promise<void>;
-  countVerificationStatuses(): Promise<{ pending: number; verified: number; awaiting: number }>;
+  updateAccountVerificationStatus(accountId: string, status: number): Promise<void>;
+  countVerificationStatuses(): Promise<{ pending: number; verified: number; awaiting: number; failed: number }>;
   listVerifications(): Promise<
     Array<{
       accountId: string;

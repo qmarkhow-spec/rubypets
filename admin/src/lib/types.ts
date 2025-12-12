@@ -21,6 +21,7 @@ export type ReviewSummary = {
   pending: number;
   verified: number;
   awaiting: number;
+  failed: number;
   ts: string;
 };
 
