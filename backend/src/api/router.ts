@@ -175,10 +175,14 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
     if (!value) return null;
     if (value.startsWith("http://") || value.startsWith("https://")) return value;
     const base = ctx.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
-    const key = value.replace(/^\/+/, "");
-    // If a public base is provided (custom domain usually already mapped to bucket root), just join with key.
-    // Fallback to bucket-prefixed key when base is absent.
-    if (base) return `${base}/${key}`;
+    let key = value.replace(/^\/+/, "");
+    if (base) {
+      // If key already carries the bucket prefix and base is a custom domain, drop the duplicate.
+      if (key.startsWith(`${bucket}/`)) {
+        key = key.slice(bucket.length + 1);
+      }
+      return `${base}/${key}`;
+    }
     return `${bucket}/${key}`;
   };
 
