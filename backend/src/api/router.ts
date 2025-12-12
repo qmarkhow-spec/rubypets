@@ -169,6 +169,14 @@ async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
 async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const account = await ctx.db.getAccountById(params.id);
   if (!account) return errorJson("Not found", 404);
+
+  const toUrl = (value: string | null | undefined) => {
+    if (!value) return null;
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    const base = ctx.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
+    return base ? `${base}/${value.replace(/^\/+/, "")}` : value;
+  };
+
   return okJson(
     {
       accountId: account.accountId,
@@ -176,9 +184,9 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
       idNumber: account.idNumber ?? null,
       phoneNumber: account.phoneNumber ?? null,
       isVerified: account.isVerified,
-      idLicenseFrontUrl: account.idLicenseFrontUrl ?? null,
-      idLicenseBackUrl: account.idLicenseBackUrl ?? null,
-      faceWithLicenseUrl: account.faceWithLicenseUrl ?? null,
+      idLicenseFrontUrl: toUrl(account.idLicenseFrontUrl),
+      idLicenseBackUrl: toUrl(account.idLicenseBackUrl),
+      faceWithLicenseUrl: toUrl(account.faceWithLicenseUrl),
       createdAt: account.createdAt ?? null
     },
     200
