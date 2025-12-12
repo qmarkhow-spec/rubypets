@@ -41,6 +41,7 @@ export interface Account {
   accountId: string;
   email: string;
   passwordHash: string;
+  realName?: string | null;
   phoneNumber?: string | null;
   isVerified: number;
   idLicenseFrontUrl?: string | null;

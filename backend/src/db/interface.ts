@@ -23,6 +23,7 @@ export interface DBClient {
     accountId: string;
     email: string;
     passwordHash: string;
+    realName?: string | null;
     phoneNumber?: string | null;
   }): Promise<import("./models").Account>;
   updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
@@ -30,4 +31,8 @@ export interface DBClient {
     accountId: string,
     urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null }
   ): Promise<void>;
+  countPendingVerifications(): Promise<number>;
+  listPendingVerifications(): Promise<
+    Array<{ accountId: string; realName: string | null; phoneNumber: string | null; createdAt: string }>
+  >;
 }

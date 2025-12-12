@@ -6,6 +6,7 @@ export interface RegisterPayload {
   password: string;
   displayName?: string;
   phoneNumber?: string;
+  realName?: string;
 }
 
 export interface LoginPayload {
@@ -26,6 +27,7 @@ export async function registerUser(db: DBClient, payload: RegisterPayload) {
   const password = payload.password ?? "";
   const displayName = (payload.displayName ?? email.split("@")[0] ?? "user").trim();
   const phoneNumber = (payload.phoneNumber ?? "").trim() || null;
+  const realName = (payload.realName ?? displayName).trim();
 
   if (!email || !password) {
     throw new Error("email and password are required");
@@ -44,6 +46,7 @@ export async function registerUser(db: DBClient, payload: RegisterPayload) {
     accountId,
     email,
     passwordHash,
+    realName,
     phoneNumber: phoneNumber ?? undefined
   });
 

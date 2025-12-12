@@ -16,3 +16,15 @@ export type OwnerSummary = {
   lastUpdate: string;
   risk?: "low" | "medium" | "high";
 };
+
+export type ReviewSummary = {
+  pendingAccounts: number;
+  ts: string;
+};
+
+export type KycPendingItem = {
+  accountId: string;
+  realName: string | null;
+  phoneNumber: string | null;
+  createdAt: string;
+};

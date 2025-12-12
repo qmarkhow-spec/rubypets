@@ -4,9 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-const NAV_LINKS = [
+type NavItem = {
+  href: string;
+  label: string;
+  children?: NavItem[];
+};
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "總覽" },
-  { href: "/owners", label: "飼主審核" },
+  {
+    href: "/review",
+    label: "審核管理",
+    children: [
+      { href: "/review", label: "Overview" },
+      { href: "/review/kyc", label: "實名認證審核" }
+    ]
+  },
   { href: "/login", label: "登入/Token" }
 ];
 
@@ -25,33 +38,50 @@ export function AppShell({
 }) {
   const pathname = usePathname();
 
+  const renderNav = (item: NavItem) => {
+    const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+    return (
+      <div key={item.href} className="side-link-group">
+        <Link href={item.href} className={`side-link${active ? " active" : ""}`}>
+          {item.label}
+        </Link>
+        {item.children ? (
+          <div className="side-children">
+            {item.children.map((child) => {
+              const childActive = pathname === child.href;
+              return (
+                <Link key={child.href} href={child.href} className={`side-link child${childActive ? " active" : ""}`}>
+                  {child.label}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
-    <main>
-      <header className="top-nav">
+    <div className="layout">
+      <aside className="sidebar">
         <div className="brand">
           <span className="dot" aria-hidden />
           <span>Rubypets Admin</span>
         </div>
-        <nav className="nav-links" aria-label="Primary">
-          {NAV_LINKS.map((link) => {
-            const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
-            return (
-              <Link key={link.href} href={link.href} className={`nav-link${active ? " active" : ""}`}>
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="side-links">{NAV_ITEMS.map(renderNav)}</div>
         <div className="env-pill">環境：{envLabel}</div>
-      </header>
-
-      <div className="hero">
-        <h1>{title}</h1>
-        {intro ? <p>{intro}</p> : null}
-        {actions ? <div className="btn-row" style={{ marginTop: 10 }}>{actions}</div> : null}
+      </aside>
+      <div className="content">
+        <header className="top-bar">
+          <h1 className="top-title">{title}</h1>
+          <Link href="/login" className="btn ghost">
+            登入/Token
+          </Link>
+        </header>
+        {intro ? <p className="page-intro">{intro}</p> : null}
+        {actions ? <div className="btn-row" style={{ marginTop: 4 }}>{actions}</div> : null}
+        <div className="page-body">{children}</div>
       </div>
-
-      {children}
-    </main>
+    </div>
   );
 }
