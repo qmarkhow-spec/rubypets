@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { StatusPill } from "@/components/status-pill";
@@ -107,9 +108,9 @@ export default function KycReviewPage() {
                   <td className="helper">{item.accountId}</td>
                   <td>{renderStatus(item.isVerified)}</td>
                   <td>
-                    <button className="btn" disabled>
+                    <Link href={`/review/kyc/detail?accountId=${encodeURIComponent(item.accountId)}`} className="btn">
                       審核
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))

@@ -297,6 +297,21 @@ export class D1Client implements DBClient {
     return row;
   }
 
+  async getAccountById(accountId: string): Promise<Account | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
+                 id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+          from accounts
+          where account_id = ?
+        `
+      )
+      .bind(accountId)
+      .first<AccountRow>();
+    return row ? mapAccountRow(row) : null;
+  }
+
   async updateAccountVerificationUrls(
     accountId: string,
     urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null; setPending?: boolean }

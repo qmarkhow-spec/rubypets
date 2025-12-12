@@ -27,6 +27,7 @@ export interface DBClient {
     idNumber?: string | null;
     phoneNumber?: string | null;
   }): Promise<import("./models").Account>;
+  getAccountById(accountId: string): Promise<import("./models").Account | null>;
   updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
   updateAccountVerificationUrls(
     accountId: string,
