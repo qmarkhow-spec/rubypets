@@ -67,9 +67,9 @@ export default function DashboardPage() {
     >
       <div className="grid-3">
         <section className="card stat">
-          <div className="value">{reviewSummary?.pendingAccounts ?? "—"}</div>
+          <div className="value">{reviewSummary?.pending ?? "—"}</div>
           <div className="label">待審核飼主</div>
-          <p>來自 D1 accounts.is_verified = 0</p>
+          <p>來自 D1 accounts.is_verified = 2</p>
           {errorReview ? <p className="helper" style={{ color: "#fecdd3" }}>{errorReview}</p> : null}
         </section>
         <section className="card stat">

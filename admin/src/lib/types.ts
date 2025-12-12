@@ -18,7 +18,9 @@ export type OwnerSummary = {
 };
 
 export type ReviewSummary = {
-  pendingAccounts: number;
+  pending: number;
+  verified: number;
+  awaiting: number;
   ts: string;
 };
 
@@ -26,5 +28,7 @@ export type KycPendingItem = {
   accountId: string;
   realName: string | null;
   phoneNumber: string | null;
+  idNumber: string | null;
   createdAt: string;
+  isVerified: number;
 };

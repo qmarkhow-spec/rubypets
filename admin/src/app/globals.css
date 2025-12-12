@@ -297,6 +297,12 @@ p {
   color: var(--muted);
 }
 
+.btn.ghost.active {
+  color: var(--text);
+  border-color: rgba(255, 107, 107, 0.25);
+  background: rgba(255, 107, 107, 0.12);
+}
+
 .split {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   real_name TEXT,
+  id_number TEXT,
   phone_number TEXT,
   is_verified INTEGER NOT NULL DEFAULT 0,
   id_license_front_url TEXT,
@@ -107,8 +108,8 @@ CREATE TABLE IF NOT EXISTS media_objects (
 );
 
 -- Seed demo data
-INSERT OR IGNORE INTO accounts (account_id, email, password_hash, real_name, phone_number, is_verified, created_at, updated_at)
-VALUES ('demo-owner', 'demo@rubypets.com', '', 'Demo User', NULL, 0, datetime('now'), datetime('now'));
+INSERT OR IGNORE INTO accounts (account_id, email, password_hash, real_name, id_number, phone_number, is_verified, created_at, updated_at)
+VALUES ('demo-owner', 'demo@rubypets.com', '', 'Demo User', NULL, NULL, 0, datetime('now'), datetime('now'));
 
 INSERT OR IGNORE INTO owners (account_id, uuid, display_name, avatar_url, max_pets, city, region, created_at, updated_at, is_active)
 VALUES ('demo-owner', 'demo-user', 'Demo User', NULL, 2, NULL, NULL, datetime('now'), datetime('now'), 1);

@@ -1,14 +1,18 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { StatusPill } from "@/components/status-pill";
 import { apiFetch } from "@/lib/api";
 import type { KycPendingItem } from "@/lib/types";
+
+type Filter = "all" | "pending" | "verified" | "awaiting";
 
 export default function KycReviewPage() {
   const [items, setItems] = useState<KycPendingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     void load();
@@ -28,10 +32,23 @@ export default function KycReviewPage() {
     }
   }
 
+  const filtered = useMemo(() => {
+    if (filter === "all") return items;
+    if (filter === "pending") return items.filter((i) => i.isVerified === 2);
+    if (filter === "verified") return items.filter((i) => i.isVerified === 1);
+    return items.filter((i) => i.isVerified === 0);
+  }, [items, filter]);
+
+  const renderStatus = (val: number) => {
+    if (val === 2) return <StatusPill label="待審核" tone="warn" />;
+    if (val === 1) return <StatusPill label="已審核" tone="success" />;
+    return <StatusPill label="未上傳資料" tone="neutral" />;
+  };
+
   return (
     <AppShell
       title="實名認證審核"
-      intro="列出 D1 中 is_verified=0 的帳號，只顯示本名、手機、註冊時間。"
+      intro="列出 D1 中的帳號（is_verified 狀態：0 未上傳、2 待審核、1 已審核）。"
       actions={
         <button className="btn ghost" onClick={load} disabled={loading}>
           {loading ? "載入中..." : "重新整理"}
@@ -41,29 +58,59 @@ export default function KycReviewPage() {
       <section className="card">
         <h3>待審核列表</h3>
         {error ? <div className="callout" style={{ color: "#fecdd3" }}>{error}</div> : null}
+        <div className="btn-row" style={{ marginTop: 10, flexWrap: "wrap" }}>
+          <button className={`btn ghost${filter === "all" ? " active" : ""}`} onClick={() => setFilter("all")}>
+            顯示全部
+          </button>
+          <button className={`btn ghost${filter === "pending" ? " active" : ""}`} onClick={() => setFilter("pending")}>
+            待審核
+          </button>
+          <button
+            className={`btn ghost${filter === "verified" ? " active" : ""}`}
+            onClick={() => setFilter("verified")}
+          >
+            已審核
+          </button>
+          <button
+            className={`btn ghost${filter === "awaiting" ? " active" : ""}`}
+            onClick={() => setFilter("awaiting")}
+          >
+            未上傳資料
+          </button>
+        </div>
         <table className="table" style={{ marginTop: 8 }}>
           <thead>
             <tr>
               <th>本名</th>
+              <th>身份證字號</th>
               <th>手機</th>
               <th>註冊時間</th>
               <th>Account ID</th>
+              <th>狀態</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ color: "var(--muted)" }}>
-                  {loading ? "載入中..." : "目前沒有待審核的實名認證。"}
+                <td colSpan={7} style={{ color: "var(--muted)" }}>
+                  {loading ? "載入中..." : "沒有符合條件的資料。"}
                 </td>
               </tr>
             ) : (
-              items.map((item) => (
+              filtered.map((item) => (
                 <tr key={item.accountId}>
                   <td>{item.realName ?? "—"}</td>
+                  <td>{item.idNumber ?? "—"}</td>
                   <td>{item.phoneNumber ?? "—"}</td>
                   <td>{new Date(item.createdAt).toLocaleString()}</td>
                   <td className="helper">{item.accountId}</td>
+                  <td>{renderStatus(item.isVerified)}</td>
+                  <td>
+                    <button className="btn" disabled>
+                      審核
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

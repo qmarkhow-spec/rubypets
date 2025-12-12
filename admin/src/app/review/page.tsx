@@ -29,26 +29,27 @@ export default function ReviewOverviewPage() {
   }
 
   return (
-    <AppShell title="審核管理" intro="從 D1 讀取待審核飼主（accounts.is_verified = 0）。">
+    <AppShell title="審核管理" intro="從 D1 讀取實名狀態（accounts.is_verified）。">
       <section className="card">
         <div className="btn-row" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
           <div>
             <h3>待審核飼主</h3>
-            <p className="meta">源自 accounts 表，is_verified = 0</p>
+            <p className="meta">源自 accounts 表，狀態：0 未上傳、2 待審核、1 已審核</p>
           </div>
           <button className="btn ghost" onClick={load} disabled={loading}>
             {loading ? "載入中..." : "重新整理"}
           </button>
         </div>
         <div className="stat" style={{ marginTop: 8 }}>
-          <div className="value">{summary?.pendingAccounts ?? "—"}</div>
-          <div className="label">筆數</div>
+          <div className="value">{summary?.pending ?? "—"}</div>
+          <div className="label">待審核（is_verified=2）</div>
+          <div className="pill-grid" style={{ marginTop: 10 }}>
+            <StatusPill label={`未上傳：${summary?.awaiting ?? 0}`} tone="neutral" />
+            <StatusPill label={`待審核：${summary?.pending ?? 0}`} tone="warn" />
+            <StatusPill label={`已審核：${summary?.verified ?? 0}`} tone="success" />
+          </div>
           {summary?.ts ? <p className="helper">更新時間：{new Date(summary.ts).toLocaleString()}</p> : null}
           {error ? <p className="helper" style={{ color: "#fecdd3" }}>{error}</p> : null}
-        </div>
-        <div className="pill-grid" style={{ marginTop: 10 }}>
-          <StatusPill label="需人工檢查 is_verified=0" tone="warn" />
-          <StatusPill label="完成後設 is_verified=1" tone="neutral" hint="並更新 updated_at" />
         </div>
       </section>
 
