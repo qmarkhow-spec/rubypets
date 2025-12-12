@@ -157,12 +157,12 @@ async function meRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function reviewSummaryRoute(ctx: HandlerContext): Promise<Response> {
-  const pendingAccounts = await ctx.db.countPendingVerifications();
-  return okJson({ pendingAccounts, ts: new Date().toISOString() });
+  const counts = await ctx.db.countVerificationStatuses();
+  return okJson({ ...counts, ts: new Date().toISOString() });
 }
 
 async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
-  const data = await ctx.db.listPendingVerifications();
+  const data = await ctx.db.listVerifications();
   return okJson({ data }, 200);
 }
 
@@ -294,7 +294,8 @@ async function ownerVerificationDocsRoute(ctx: HandlerContext, params: Record<st
   await ctx.db.updateAccountVerificationUrls(accountId, {
     frontUrl,
     backUrl,
-    faceUrl
+    faceUrl,
+    setPending: true
   });
 
   return okJson(

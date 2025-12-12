@@ -24,15 +24,23 @@ export interface DBClient {
     email: string;
     passwordHash: string;
     realName?: string | null;
+    idNumber?: string | null;
     phoneNumber?: string | null;
   }): Promise<import("./models").Account>;
   updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
   updateAccountVerificationUrls(
     accountId: string,
-    urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null }
+    urls: { frontUrl?: string | null; backUrl?: string | null; faceUrl?: string | null; setPending?: boolean }
   ): Promise<void>;
-  countPendingVerifications(): Promise<number>;
-  listPendingVerifications(): Promise<
-    Array<{ accountId: string; realName: string | null; phoneNumber: string | null; createdAt: string }>
+  countVerificationStatuses(): Promise<{ pending: number; verified: number; awaiting: number }>;
+  listVerifications(): Promise<
+    Array<{
+      accountId: string;
+      realName: string | null;
+      phoneNumber: string | null;
+      idNumber: string | null;
+      createdAt: string;
+      isVerified: number;
+    }>
   >;
 }
