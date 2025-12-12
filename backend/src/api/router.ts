@@ -10,7 +10,8 @@ import {
   parseRegisterPayload,
   registerUser,
   toPublicOwner,
-  hashPassword
+  hashPassword,
+  verifyPassword
 } from "../services/auth";
 
 interface Route {
@@ -30,6 +31,7 @@ const routes: Route[] = [
   { method: "GET", path: "/admin/review/kyc-pending", handler: reviewKycPendingRoute },
   { method: "GET", path: "/admin/admin-accounts", handler: adminAccountsListRoute },
   { method: "POST", path: "/admin/admin-accounts", handler: adminAccountsCreateRoute },
+  { method: "POST", path: "/admin/auth/login", handler: adminLoginRoute },
   { method: "GET", path: "/", handler: rootRoute }
 ];
 
@@ -232,6 +234,19 @@ async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> 
   const hashed = await hashPassword(password);
   const created = await ctx.db.createAdminAccount({ adminId, password: hashed, permission });
   return okJson({ data: created }, 201);
+}
+
+async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
+  const payload = (await ctx.request.json().catch(() => ({}))) as { adminId?: string; password?: string };
+  const adminId = (payload.adminId ?? "").trim();
+  const password = payload.password ?? "";
+  if (!adminId || !password) return errorJson("adminId and password are required", 400);
+  const admin = await ctx.db.getAdminByAdminId(adminId);
+  if (!admin) return errorJson("invalid credentials", 401);
+  const ok = await verifyPassword(password, admin.passwordHash);
+  if (!ok) return errorJson("invalid credentials", 401);
+  const token = `admin:${admin.adminId}`;
+  return okJson({ token, admin: { id: admin.id, adminId: admin.adminId, permission: admin.permission } }, 200);
 }
 
 function okJson(data: unknown, status = 200): Response {

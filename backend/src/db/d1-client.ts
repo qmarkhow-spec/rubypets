@@ -447,6 +447,21 @@ export class D1Client implements DBClient {
     if (!row) throw new Error("Failed to create admin account");
     return mapAdminAccountRow(row);
   }
+
+  async getAdminByAdminId(adminId: string): Promise<(AdminAccount & { passwordHash: string }) | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select id, admin_id, password, permission, created_at, last_at, updated_at
+          from admin_accounts
+          where admin_id = ?
+        `
+      )
+      .bind(adminId)
+      .first<AdminAccountRow>();
+    if (!row) return null;
+    return { ...mapAdminAccountRow(row), passwordHash: row.password };
+  }
 }
 
 function mapPostRow(row: PostRow): Post {
