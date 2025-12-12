@@ -20,6 +20,8 @@ export default function AdminAccountsPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>({ adminId: "", password: "", permission: "Inspector" });
+  const [rollModal, setRollModal] = useState<string | null>(null);
+  const [rollPassword, setRollPassword] = useState(generatePasswordValue());
 
   useEffect(() => {
     void load();
@@ -41,12 +43,11 @@ export default function AdminAccountsPage() {
   const permissionLabel = (value: string) => PERMISSION_OPTIONS.find((p) => p.value === value)?.label ?? value;
 
   function generatePassword() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-    let out = "";
-    for (let i = 0; i < 12; i++) {
-      out += chars[Math.floor(Math.random() * chars.length)];
-    }
-    setForm((f) => ({ ...f, password: out }));
+    setForm((f) => ({ ...f, password: generatePasswordValue() }));
+  }
+
+  function generateRollPassword() {
+    setRollPassword(generatePasswordValue());
   }
 
   async function handleSave() {
@@ -67,6 +68,31 @@ export default function AdminAccountsPage() {
       await load();
     } catch (err) {
       setError((err as Error).message || "建立失敗");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openRollModal(adminId: string) {
+    setError(null);
+    setRollPassword(generatePasswordValue());
+    setRollModal(adminId);
+  }
+
+  async function handleRollSave() {
+    if (!rollModal) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await apiFetch(`/admin/admin-accounts/${encodeURIComponent(rollModal)}/roll`, {
+        method: "POST",
+        headers: tokenHeaders(),
+        body: JSON.stringify({ password: rollPassword })
+      });
+      setRollModal(null);
+      await load();
+    } catch (err) {
+      setError((err as Error).message || "重置失敗");
     } finally {
       setSaving(false);
     }
@@ -96,6 +122,7 @@ export default function AdminAccountsPage() {
               <th>建立時間</th>
               <th>最近上線</th>
               <th>最近修改</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -114,6 +141,11 @@ export default function AdminAccountsPage() {
                   <td>{new Date(item.createdAt).toLocaleString()}</td>
                   <td>{item.lastAt ? new Date(item.lastAt).toLocaleString() : "—"}</td>
                   <td>{new Date(item.updatedAt).toLocaleString()}</td>
+                  <td>
+                    <button className="btn ghost" onClick={() => openRollModal(item.adminId)}>
+                      roll
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -173,6 +205,33 @@ export default function AdminAccountsPage() {
           </div>
         </div>
       ) : null}
+
+      {rollModal ? (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3>重置密碼</h3>
+            <p className="helper">帳號：{rollModal}</p>
+            <div className="field" style={{ marginTop: 10 }}>
+              <label>新密碼</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={rollPassword} readOnly />
+                <button type="button" className="btn ghost" onClick={generateRollPassword}>
+                  重新生成
+                </button>
+              </div>
+            </div>
+            {error ? <div className="callout" style={{ color: "#fecdd3" }}>{error}</div> : null}
+            <div className="btn-row" style={{ justifyContent: "flex-end", marginTop: 14 }}>
+              <button className="btn ghost" onClick={() => setRollModal(null)} disabled={saving}>
+                取消
+              </button>
+              <button className="btn" onClick={handleRollSave} disabled={saving}>
+                {saving ? "儲存中..." : "確定"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AppShell>
   );
 }
@@ -182,4 +241,13 @@ function tokenHeaders() {
   const headers = new Headers();
   if (token) headers.set("authorization", `Bearer ${token}`);
   return headers;
+}
+
+function generatePasswordValue() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  let out = "";
+  for (let i = 0; i < 12; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
 }

@@ -462,6 +462,18 @@ export class D1Client implements DBClient {
     if (!row) return null;
     return { ...mapAdminAccountRow(row), passwordHash: row.password };
   }
+
+  async updateAdminLastAt(adminId: string, ts: string): Promise<void> {
+    await this.db.prepare(`update admin_accounts set last_at = ? where admin_id = ?`).bind(ts, adminId).run();
+  }
+
+  async updateAdminPassword(adminId: string, passwordHash: string): Promise<void> {
+    const ts = new Date().toISOString();
+    await this.db
+      .prepare(`update admin_accounts set password = ?, updated_at = ? where admin_id = ?`)
+      .bind(passwordHash, ts, adminId)
+      .run();
+  }
 }
 
 function mapPostRow(row: PostRow): Post {
