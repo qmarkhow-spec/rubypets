@@ -27,6 +27,8 @@ const routes: Route[] = [
   { method: "GET", path: "/me", handler: meRoute },
   { method: "GET", path: "/admin/review/summary", handler: reviewSummaryRoute },
   { method: "GET", path: "/admin/review/kyc-pending", handler: reviewKycPendingRoute },
+  { method: "GET", path: "/admin/admin-accounts", handler: adminAccountsListRoute },
+  { method: "POST", path: "/admin/admin-accounts", handler: adminAccountsCreateRoute },
   { method: "GET", path: "/", handler: rootRoute }
 ];
 
@@ -208,6 +210,27 @@ async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, stri
   if (body.status !== 1 && body.status !== 3) return errorJson("invalid status", 400);
   await ctx.db.updateAccountVerificationStatus(accountId, body.status);
   return okJson({ accountId, status: body.status }, 200);
+}
+
+async function adminAccountsListRoute(ctx: HandlerContext): Promise<Response> {
+  const admins = await ctx.db.listAdminAccounts();
+  return okJson({ data: admins }, 200);
+}
+
+async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> {
+  const payload = (await ctx.request.json().catch(() => ({}))) as {
+    adminId?: string;
+    password?: string;
+    permission?: string;
+  };
+  const adminId = (payload.adminId ?? "").trim();
+  const password = payload.password ?? "";
+  const permission = (payload.permission ?? "").trim() || "Inspector";
+  if (!adminId || !password) return errorJson("adminId and password are required", 400);
+  if (!["super", "administrator", "Inspector"].includes(permission)) return errorJson("invalid permission", 400);
+  const hashed = await hashPassword(password);
+  const created = await ctx.db.createAdminAccount({ adminId, password: hashed, permission });
+  return okJson({ data: created }, 201);
 }
 
 function okJson(data: unknown, status = 200): Response {

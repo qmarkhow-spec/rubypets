@@ -20,6 +20,14 @@ const NAV_ITEMS: NavItem[] = [
       { href: "/review/kyc", label: "實名認證審核" }
     ]
   },
+  {
+    href: "/admin",
+    label: "管理員管理",
+    children: [
+      { href: "/admin", label: "總覽" },
+      { href: "/admin/accounts", label: "管理員帳號" }
+    ]
+  },
   { href: "/login", label: "登入/Token" }
 ];
 

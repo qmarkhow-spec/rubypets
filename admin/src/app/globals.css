@@ -441,6 +441,25 @@ p {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.modal {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  width: min(520px, 94vw);
+  box-shadow: 0 30px 120px rgba(0, 0, 0, 0.35);
+}
+
 .panel-stack {
   display: flex;
   flex-direction: column;
