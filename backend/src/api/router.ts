@@ -9,7 +9,8 @@ import {
   parseLoginPayload,
   parseRegisterPayload,
   registerUser,
-  toPublicOwner
+  toPublicOwner,
+  hashPassword
 } from "../services/auth";
 
 interface Route {
