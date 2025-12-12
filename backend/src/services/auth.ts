@@ -113,7 +113,7 @@ export function parseUserIdFromToken(token: string): string | null {
   return token.slice("owner:".length);
 }
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomUUID();
   const data = new TextEncoder().encode(`${salt}:${password}`);
   const digest = await crypto.subtle.digest("SHA-256", data);

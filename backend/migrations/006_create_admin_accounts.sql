@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS admin_accounts (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_admin_accounts_admin_id ON admin_accounts(admin_id);
+CREATE INDEX idx_admin_accounts_admin_id ON admin_accounts(admin_id);
 
 PRAGMA foreign_keys=ON;
