@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Owner, Post, Account } from "./models";
+import { Owner, Post, Account, AdminAccount } from "./models";
 
 type PostRow = {
   id: string;
@@ -52,6 +52,16 @@ type VerificationRow = {
   phone_number: string | null;
   created_at: string;
   is_verified: number;
+};
+
+type AdminAccountRow = {
+  id: number;
+  admin_id: string;
+  password: string;
+  permission: string;
+  created_at: string;
+  last_at: string | null;
+  updated_at: string;
 };
 
 export class D1Client implements DBClient {
@@ -398,6 +408,45 @@ export class D1Client implements DBClient {
       isVerified: row.is_verified
     }));
   }
+
+  async listAdminAccounts(): Promise<AdminAccount[]> {
+    const { results } = await this.db
+      .prepare(
+        `
+          select id, admin_id, permission, created_at, last_at, updated_at
+          from admin_accounts
+          order by id desc
+        `
+      )
+      .all<AdminAccountRow>();
+    return (results ?? []).map(mapAdminAccountRow);
+  }
+
+  async createAdminAccount(input: { adminId: string; password: string; permission: string }): Promise<AdminAccount> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into admin_accounts (admin_id, password, permission, created_at, updated_at)
+          values (?, ?, ?, ?, ?)
+        `
+      )
+      .bind(input.adminId, input.password, input.permission, now, now)
+      .run();
+
+    const row = await this.db
+      .prepare(
+        `
+          select id, admin_id, permission, created_at, last_at, updated_at
+          from admin_accounts
+          where admin_id = ?
+        `
+      )
+      .bind(input.adminId)
+      .first<AdminAccountRow>();
+    if (!row) throw new Error("Failed to create admin account");
+    return mapAdminAccountRow(row);
+  }
 }
 
 function mapPostRow(row: PostRow): Post {
@@ -445,6 +494,17 @@ function mapAccountRow(row: AccountRow): Account {
     idLicenseBackUrl: row.id_license_back_url ?? null,
     faceWithLicenseUrl: row.face_with_license_urll ?? null,
     createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapAdminAccountRow(row: AdminAccountRow): AdminAccount {
+  return {
+    id: row.id,
+    adminId: row.admin_id,
+    permission: row.permission,
+    createdAt: row.created_at,
+    lastAt: row.last_at ?? null,
     updatedAt: row.updated_at
   };
 }

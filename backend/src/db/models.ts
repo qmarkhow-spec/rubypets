@@ -51,3 +51,12 @@ export interface Account {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface AdminAccount {
+  id: number;
+  adminId: string;
+  permission: string;
+  createdAt: string;
+  lastAt: string | null;
+  updatedAt: string;
+}

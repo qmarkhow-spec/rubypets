@@ -45,4 +45,6 @@ export interface DBClient {
       isVerified: number;
     }>
   >;
+  listAdminAccounts(): Promise<import("./models").AdminAccount[]>;
+  createAdminAccount(input: { adminId: string; password: string; permission: string }): Promise<import("./models").AdminAccount>;
 }
