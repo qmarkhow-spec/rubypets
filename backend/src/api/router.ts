@@ -202,6 +202,14 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
   );
 }
 
+async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const accountId = params.id;
+  const body = (await ctx.request.json().catch(() => ({}))) as { status?: number };
+  if (body.status !== 1 && body.status !== 3) return errorJson("invalid status", 400);
+  await ctx.db.updateAccountVerificationStatus(accountId, body.status);
+  return okJson({ accountId, status: body.status }, 200);
+}
+
 function okJson(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -232,7 +240,8 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/owners\/([^/]+)$/, handler: ownerDetailRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/location$/, handler: ownerLocationRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/verification-docs$/, handler: ownerVerificationDocsRoute },
-  { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute }
+  { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute },
+  { method: "POST", pattern: /^\/admin\/review\/kyc\/([^/]+)\/decision$/, handler: kycDecisionRoute }
 ];
 
 function matchDynamicRoute(pathname: string):

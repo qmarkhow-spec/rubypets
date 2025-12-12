@@ -71,6 +71,19 @@ function KycDetailContent() {
     );
   };
 
+  async function handleDecision(status: number) {
+    if (!accountId) return;
+    setLoading(true);
+    try {
+      await updateStatus(accountId, status);
+      router.push("/review/kyc");
+    } catch (err) {
+      setError((err as Error).message || "更新狀態失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <AppShell
       title="實名認證審核 - 詳細"
@@ -132,7 +145,27 @@ function KycDetailContent() {
             {renderImage(data?.faceWithLicenseUrl ?? null, "人像+證件自拍")}
           </div>
         </div>
+        <div className="btn-row" style={{ marginTop: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
+          <button className="btn ghost" onClick={() => router.push("/review/kyc")}>
+            返回
+          </button>
+          <div className="btn-row" style={{ gap: 8 }}>
+            <button className="btn ghost" onClick={() => handleDecision(3)} disabled={loading || !accountId}>
+              不核准
+            </button>
+            <button className="btn" onClick={() => handleDecision(1)} disabled={loading || !accountId}>
+              核准
+            </button>
+          </div>
+        </div>
       </section>
     </AppShell>
   );
+}
+
+async function updateStatus(accountId: string, status: number) {
+  await apiFetch(`/admin/review/kyc/${encodeURIComponent(accountId)}/decision`, {
+    method: "POST",
+    body: JSON.stringify({ status })
+  });
 }

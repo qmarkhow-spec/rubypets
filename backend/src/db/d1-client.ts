@@ -334,22 +334,38 @@ export class D1Client implements DBClient {
       .run();
   }
 
-  async countVerificationStatuses(): Promise<{ pending: number; verified: number; awaiting: number }> {
+  async updateAccountVerificationStatus(accountId: string, status: number): Promise<void> {
+    const updatedAt = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          update accounts
+          set is_verified = ?, updated_at = ?
+          where account_id = ?
+        `
+      )
+      .bind(status, updatedAt, accountId)
+      .run();
+  }
+
+  async countVerificationStatuses(): Promise<{ pending: number; verified: number; awaiting: number; failed: number }> {
     const row = await this.db
       .prepare(
         `
           select
             sum(case when is_verified = 2 then 1 else 0 end) as pending,
             sum(case when is_verified = 1 then 1 else 0 end) as verified,
-            sum(case when is_verified = 0 then 1 else 0 end) as awaiting
+            sum(case when is_verified = 0 then 1 else 0 end) as awaiting,
+            sum(case when is_verified = 3 then 1 else 0 end) as failed
           from accounts
         `
       )
-      .first<{ pending: number; verified: number; awaiting: number }>();
+      .first<{ pending: number; verified: number; awaiting: number; failed: number }>();
     return {
       pending: row?.pending ?? 0,
       verified: row?.verified ?? 0,
-      awaiting: row?.awaiting ?? 0
+      awaiting: row?.awaiting ?? 0,
+      failed: row?.failed ?? 0
     };
   }
 

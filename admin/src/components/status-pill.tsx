@@ -1,4 +1,4 @@
-type Tone = "success" | "warn" | "neutral";
+type Tone = "success" | "warn" | "neutral" | "danger";
 
 export function StatusPill({ label, tone = "neutral", hint }: { label: string; tone?: Tone; hint?: string }) {
   return (

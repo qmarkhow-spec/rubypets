@@ -47,6 +47,7 @@ export default function ReviewOverviewPage() {
             <StatusPill label={`未上傳：${summary?.awaiting ?? 0}`} tone="neutral" />
             <StatusPill label={`待審核：${summary?.pending ?? 0}`} tone="warn" />
             <StatusPill label={`已審核：${summary?.verified ?? 0}`} tone="success" />
+            <StatusPill label={`審核未通過：${summary?.failed ?? 0}`} tone="danger" />
           </div>
           {summary?.ts ? <p className="helper">更新時間：{new Date(summary.ts).toLocaleString()}</p> : null}
           {error ? <p className="helper" style={{ color: "#fecdd3" }}>{error}</p> : null}

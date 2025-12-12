@@ -261,6 +261,17 @@ p {
   color: var(--muted);
 }
 
+.pill.danger {
+  color: #fecdd3;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.pill.danger .dot {
+  background: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.18);
+}
+
 .pill-grid {
   display: flex;
   gap: 10px;

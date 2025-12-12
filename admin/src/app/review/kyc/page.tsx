@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/status-pill";
 import { apiFetch } from "@/lib/api";
 import type { KycPendingItem } from "@/lib/types";
 
-type Filter = "all" | "pending" | "verified" | "awaiting";
+type Filter = "all" | "pending" | "verified" | "awaiting" | "failed";
 
 export default function KycReviewPage() {
   const [items, setItems] = useState<KycPendingItem[]>([]);
@@ -37,12 +37,14 @@ export default function KycReviewPage() {
     if (filter === "all") return items;
     if (filter === "pending") return items.filter((i) => i.isVerified === 2);
     if (filter === "verified") return items.filter((i) => i.isVerified === 1);
+    if (filter === "failed") return items.filter((i) => i.isVerified === 3);
     return items.filter((i) => i.isVerified === 0);
   }, [items, filter]);
 
   const renderStatus = (val: number) => {
     if (val === 2) return <StatusPill label="待審核" tone="warn" />;
     if (val === 1) return <StatusPill label="已審核" tone="success" />;
+    if (val === 3) return <StatusPill label="審核未通過" tone="danger" />;
     return <StatusPill label="未上傳資料" tone="neutral" />;
   };
 
@@ -77,6 +79,9 @@ export default function KycReviewPage() {
             onClick={() => setFilter("awaiting")}
           >
             未上傳資料
+          </button>
+          <button className={`btn ghost${filter === "failed" ? " active" : ""}`} onClick={() => setFilter("failed")}>
+            審核未通過
           </button>
         </div>
         <table className="table" style={{ marginTop: 8 }}>
