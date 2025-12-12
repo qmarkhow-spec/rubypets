@@ -1,6 +1,5 @@
 'use client';
 
-import Image from "next/image";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -67,7 +66,7 @@ function KycDetailContent() {
     }
     return (
       <div className="img-box">
-        <Image src={url} alt={label} fill sizes="400px" style={{ objectFit: "contain" }} />
+        <img src={url} alt={label} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
       </div>
     );
   };
