@@ -170,11 +170,14 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
   const account = await ctx.db.getAccountById(params.id);
   if (!account) return errorJson("Not found", 404);
 
+  const bucket = ctx.env.R2_MEDIA?.bucket?.name ?? "rubypets-media-dev";
   const toUrl = (value: string | null | undefined) => {
     if (!value) return null;
     if (value.startsWith("http://") || value.startsWith("https://")) return value;
     const base = ctx.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
-    return base ? `${base}/${value.replace(/^\/+/, "")}` : value;
+    const key = value.replace(/^\/+/, "");
+    const prefixedKey = key.startsWith(`${bucket}/`) ? key : `${bucket}/${key}`;
+    return base ? `${base}/${prefixedKey}` : prefixedKey;
   };
 
   return okJson(
