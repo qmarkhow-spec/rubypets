@@ -51,7 +51,7 @@ export default function KycReviewPage() {
   return (
     <AppShell
       title="實名認證審核"
-      intro="列出 D1 中的帳號（is_verified 狀態：0 未上傳、2 待審核、1 已審核）。"
+      intro="列出 D1 中的帳號（is_verified 狀態：0 未上傳、1 已審核、2 待審核、3 審核未通過）。"
       actions={
         <button className="btn ghost" onClick={load} disabled={loading}>
           {loading ? "載入中..." : "重新整理"}
