@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { clearAdminToken } from "@/lib/admin-auth";
 
 type NavItem = {
   href: string;
@@ -85,9 +86,15 @@ export function AppShell({
         <div className="content">
           <header className="top-bar">
             <h1 className="top-title">{title}</h1>
-            <Link href="/login" className="btn ghost">
-              登入/Token
-            </Link>
+            <button
+              className="btn ghost"
+              onClick={() => {
+                clearAdminToken();
+                window.location.href = "/admin-login";
+              }}
+            >
+              登出
+            </button>
           </header>
           {intro ? <p className="page-intro">{intro}</p> : null}
           {actions ? <div className="btn-row" style={{ marginTop: 4 }}>{actions}</div> : null}
