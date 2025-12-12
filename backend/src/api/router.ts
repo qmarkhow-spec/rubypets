@@ -246,7 +246,18 @@ async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
   const ok = await verifyPassword(password, admin.passwordHash);
   if (!ok) return errorJson("invalid credentials", 401);
   const token = `admin:${admin.adminId}`;
+  await ctx.db.updateAdminLastAt(admin.adminId, new Date().toISOString());
   return okJson({ token, admin: { id: admin.id, adminId: admin.adminId, permission: admin.permission } }, 200);
+}
+
+async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const id = params.id;
+  const payload = (await ctx.request.json().catch(() => ({}))) as { password?: string };
+  const newPassword = payload.password ?? "";
+  if (!newPassword) return errorJson("password required", 400);
+  const hashed = await hashPassword(newPassword);
+  await ctx.db.updateAdminPassword(id, hashed);
+  return okJson({ accountId: id, ok: true }, 200);
 }
 
 function okJson(data: unknown, status = 200): Response {
@@ -280,7 +291,8 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "POST", pattern: /^\/owners\/([^/]+)\/location$/, handler: ownerLocationRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/verification-docs$/, handler: ownerVerificationDocsRoute },
   { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute },
-  { method: "POST", pattern: /^\/admin\/review\/kyc\/([^/]+)\/decision$/, handler: kycDecisionRoute }
+  { method: "POST", pattern: /^\/admin\/review\/kyc\/([^/]+)\/decision$/, handler: kycDecisionRoute },
+  { method: "POST", pattern: /^\/admin\/admin-accounts\/([^/]+)\/roll$/, handler: adminAccountRollRoute }
 ];
 
 function matchDynamicRoute(pathname: string):
