@@ -166,6 +166,25 @@ async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
   return okJson({ data }, 200);
 }
 
+async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const account = await ctx.db.getAccountById(params.id);
+  if (!account) return errorJson("Not found", 404);
+  return okJson(
+    {
+      accountId: account.accountId,
+      realName: account.realName ?? null,
+      idNumber: account.idNumber ?? null,
+      phoneNumber: account.phoneNumber ?? null,
+      isVerified: account.isVerified,
+      idLicenseFrontUrl: account.idLicenseFrontUrl ?? null,
+      idLicenseBackUrl: account.idLicenseBackUrl ?? null,
+      faceWithLicenseUrl: account.faceWithLicenseUrl ?? null,
+      createdAt: account.createdAt ?? null
+    },
+    200
+  );
+}
+
 function okJson(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -195,7 +214,8 @@ type DynamicRoute =
 const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/owners\/([^/]+)$/, handler: ownerDetailRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/location$/, handler: ownerLocationRoute },
-  { method: "POST", pattern: /^\/owners\/([^/]+)\/verification-docs$/, handler: ownerVerificationDocsRoute }
+  { method: "POST", pattern: /^\/owners\/([^/]+)\/verification-docs$/, handler: ownerVerificationDocsRoute },
+  { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute }
 ];
 
 function matchDynamicRoute(pathname: string):

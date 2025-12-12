@@ -32,3 +32,15 @@ export type KycPendingItem = {
   createdAt: string;
   isVerified: number;
 };
+
+export type KycDetail = {
+  accountId: string;
+  realName: string | null;
+  idNumber: string | null;
+  phoneNumber: string | null;
+  isVerified: number;
+  idLicenseFrontUrl: string | null;
+  idLicenseBackUrl: string | null;
+  faceWithLicenseUrl: string | null;
+  createdAt: string | null;
+};

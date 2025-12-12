@@ -409,6 +409,27 @@ p {
   color: var(--muted);
 }
 
+.img-box {
+  position: relative;
+  width: 100%;
+  padding-top: 65%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.empty-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 180px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .panel-stack {
   display: flex;
   flex-direction: column;
