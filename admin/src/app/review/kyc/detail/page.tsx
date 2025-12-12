@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { StatusPill } from "@/components/status-pill";
@@ -9,6 +9,14 @@ import { apiFetch } from "@/lib/api";
 import type { KycDetail } from "@/lib/types";
 
 export default function KycDetailPage() {
+  return (
+    <Suspense fallback={<div className="callout">載入中...</div>}>
+      <KycDetailContent />
+    </Suspense>
+  );
+}
+
+function KycDetailContent() {
   const search = useSearchParams();
   const router = useRouter();
   const accountId = search.get("accountId") ?? "";
