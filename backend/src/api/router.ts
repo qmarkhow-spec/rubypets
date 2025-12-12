@@ -25,6 +25,8 @@ const routes: Route[] = [
   { method: "POST", path: "/auth/register", handler: registerRoute },
   { method: "POST", path: "/auth/login", handler: loginRoute },
   { method: "GET", path: "/me", handler: meRoute },
+  { method: "GET", path: "/admin/review/summary", handler: reviewSummaryRoute },
+  { method: "GET", path: "/admin/review/kyc-pending", handler: reviewKycPendingRoute },
   { method: "GET", path: "/", handler: rootRoute }
 ];
 
@@ -152,6 +154,16 @@ async function meRoute(ctx: HandlerContext): Promise<Response> {
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
   if (!user) return errorJson("Unauthorized", 401);
   return okJson(toPublicOwner(user), 200);
+}
+
+async function reviewSummaryRoute(ctx: HandlerContext): Promise<Response> {
+  const pendingAccounts = await ctx.db.countPendingVerifications();
+  return okJson({ pendingAccounts, ts: new Date().toISOString() });
+}
+
+async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
+  const data = await ctx.db.listPendingVerifications();
+  return okJson({ data }, 200);
 }
 
 function okJson(data: unknown, status = 200): Response {

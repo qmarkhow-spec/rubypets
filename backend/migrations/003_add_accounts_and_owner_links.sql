@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   account_id TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  real_name TEXT,
   phone_number TEXT,
   is_verified INTEGER NOT NULL DEFAULT 0,
   id_license_front_url TEXT,
@@ -23,8 +24,8 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 
 -- Seed accounts from existing owners (prefer existing account_id if it already exists, otherwise fallback to id)
-INSERT OR IGNORE INTO accounts (account_id, email, password_hash, phone_number, is_verified, created_at, updated_at)
-SELECT COALESCE(account_id, id), email, password_hash, NULL, 0, created_at, updated_at FROM owners;
+INSERT OR IGNORE INTO accounts (account_id, email, password_hash, real_name, phone_number, is_verified, created_at, updated_at)
+SELECT COALESCE(account_id, id), email, password_hash, display_name, NULL, 0, created_at, updated_at FROM owners;
 
 -- 2) Recreate owners table without id/email/password_hash, add account_id
 CREATE TABLE IF NOT EXISTS owners_new (
@@ -128,8 +129,8 @@ DROP TABLE media_objects;
 ALTER TABLE media_objects_new RENAME TO media_objects;
 
 -- 7) Seed demo account/owner if missing
-INSERT OR IGNORE INTO accounts (account_id, email, password_hash, phone_number, is_verified, created_at, updated_at)
-VALUES ('demo-owner', 'demo@rubypets.com', '', NULL, 0, datetime('now'), datetime('now'));
+INSERT OR IGNORE INTO accounts (account_id, email, password_hash, real_name, phone_number, is_verified, created_at, updated_at)
+VALUES ('demo-owner', 'demo@rubypets.com', '', 'Demo User', NULL, 0, datetime('now'), datetime('now'));
 
 INSERT OR IGNORE INTO owners (account_id, uuid, display_name, avatar_url, max_pets, city, region, created_at, updated_at, is_active)
 VALUES ('demo-owner', 'demo-user', 'Demo User', NULL, 2, NULL, NULL, datetime('now'), datetime('now'), 1);

@@ -34,6 +34,7 @@ type AccountRow = {
   account_id: string;
   email: string;
   password_hash: string;
+  real_name: string | null;
   phone_number: string | null;
   is_verified: number;
   id_license_front_url: string | null;
@@ -41,6 +42,13 @@ type AccountRow = {
   face_with_license_urll: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type PendingVerificationRow = {
+  account_id: string;
+  real_name: string | null;
+  phone_number: string | null;
+  created_at: string;
 };
 
 export class D1Client implements DBClient {
@@ -227,23 +235,24 @@ export class D1Client implements DBClient {
     accountId: string;
     email: string;
     passwordHash: string;
+    realName?: string | null;
     phoneNumber?: string | null;
   }): Promise<Account> {
     const now = new Date().toISOString();
     await this.db
       .prepare(
         `
-          insert into accounts (account_id, email, password_hash, phone_number, is_verified, created_at, updated_at)
-          values (?, ?, ?, ?, 0, ?, ?)
+          insert into accounts (account_id, email, password_hash, real_name, phone_number, is_verified, created_at, updated_at)
+          values (?, ?, ?, ?, ?, 0, ?, ?)
         `
       )
-      .bind(input.accountId, input.email, input.passwordHash, input.phoneNumber ?? null, now, now)
+      .bind(input.accountId, input.email, input.passwordHash, input.realName ?? null, input.phoneNumber ?? null, now, now)
       .run();
 
     const row = await this.db
       .prepare(
         `
-          select account_id, email, password_hash, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+          select account_id, email, password_hash, real_name, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
           from accounts
           where account_id = ?
         `
@@ -295,6 +304,41 @@ export class D1Client implements DBClient {
       .bind(urls.frontUrl ?? null, urls.backUrl ?? null, urls.faceUrl ?? null, updatedAt, accountId)
       .run();
   }
+
+  async countPendingVerifications(): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `
+          select count(*) as pending
+          from accounts
+          where is_verified = 0
+        `
+      )
+      .first<{ pending: number }>();
+    return row?.pending ?? 0;
+  }
+
+  async listPendingVerifications(): Promise<
+    Array<{ accountId: string; realName: string | null; phoneNumber: string | null; createdAt: string }>
+  > {
+    const { results } = await this.db
+      .prepare(
+        `
+          select account_id, real_name, phone_number, created_at
+          from accounts
+          where is_verified = 0
+          order by created_at desc
+        `
+      )
+      .all<PendingVerificationRow>();
+
+    return (results ?? []).map((row) => ({
+      accountId: row.account_id,
+      realName: row.real_name ?? null,
+      phoneNumber: row.phone_number ?? null,
+      createdAt: row.created_at
+    }));
+  }
 }
 
 function mapPostRow(row: PostRow): Post {
@@ -334,6 +378,7 @@ function mapAccountRow(row: AccountRow): Account {
     accountId: row.account_id,
     email: row.email,
     passwordHash: row.password_hash,
+    realName: row.real_name ?? null,
     phoneNumber: row.phone_number ?? null,
     isVerified: row.is_verified,
     idLicenseFrontUrl: row.id_license_front_url ?? null,
