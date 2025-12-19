@@ -14,6 +14,24 @@ type PostRow = {
   author_display_name?: string | null;
 };
 
+type MediaAssetRow = {
+  id: string;
+  owner_id: string;
+  kind: string;
+  usage: string;
+  storage_key: string;
+  url: string | null;
+  thumbnail_url: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  width: number | null;
+  height: number | null;
+  duration_sec: number | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type OwnerRow = {
   account_id: string;
   uuid: string;
@@ -157,6 +175,136 @@ export class D1Client implements DBClient {
       .all<PostRow>();
 
     return (results ?? []).map(mapPostRow);
+  }
+
+  async getPostById(id: string): Promise<Post | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            p.id,
+            p.owner_id,
+            p.content_text,
+            p.visibility,
+            p.post_type,
+            p.media_count,
+            p.created_at,
+            o.display_name as author_display_name
+          from posts p
+          left join owners o on o.uuid = p.owner_id
+          where p.id = ?
+        `
+      )
+      .bind(id)
+      .first<PostRow>();
+    return row ? mapPostRow(row) : null;
+  }
+
+  async createMediaAsset(input: {
+    ownerId: string;
+    kind: "image" | "video";
+    usage: "avatar" | "pet_avatar" | "post" | "kyc" | "other";
+    storageKey: string;
+    url?: string | null;
+    thumbnailUrl?: string | null;
+    mimeType?: string | null;
+    sizeBytes?: number | null;
+    width?: number | null;
+    height?: number | null;
+    durationSec?: number | null;
+    status?: "uploaded" | "processing" | "ready" | "failed";
+  }): Promise<MediaAsset> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into media_assets (
+            id, owner_id, kind, usage, storage_key, url, thumbnail_url, mime_type, size_bytes,
+            width, height, duration_sec, status, created_at, updated_at
+          )
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+      )
+      .bind(
+        id,
+        input.ownerId,
+        input.kind,
+        input.usage,
+        input.storageKey,
+        input.url ?? null,
+        input.thumbnailUrl ?? null,
+        input.mimeType ?? null,
+        input.sizeBytes ?? null,
+        input.width ?? null,
+        input.height ?? null,
+        input.durationSec ?? null,
+        input.status ?? "uploaded",
+        now,
+        now
+      )
+      .run();
+
+    const row = await this.db
+      .prepare(
+        `
+          select id, owner_id, kind, usage, storage_key, url, thumbnail_url, mime_type, size_bytes,
+                 width, height, duration_sec, status, created_at, updated_at
+          from media_assets
+          where id = ?
+        `
+      )
+      .bind(id)
+      .first<MediaAssetRow>();
+
+    if (!row) throw new Error("Failed to create media asset");
+    return mapMediaAssetRow(row);
+  }
+
+  async getMediaAssetsByIds(ids: string[]): Promise<MediaAsset[]> {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => "?").join(",");
+    const { results } = await this.db
+      .prepare(
+        `
+          select id, owner_id, kind, usage, storage_key, url, thumbnail_url, mime_type, size_bytes,
+                 width, height, duration_sec, status, created_at, updated_at
+          from media_assets
+          where id in (${placeholders})
+        `
+      )
+      .bind(...ids)
+      .all<MediaAssetRow>();
+    return (results ?? []).map(mapMediaAssetRow);
+  }
+
+  async attachMediaToPost(postId: string, postType: "image_set" | "video", assetIds: string[]): Promise<void> {
+    const now = new Date().toISOString();
+    const inserts = assetIds.map((assetId, idx) =>
+      this.db
+        .prepare(
+          `
+            insert into post_media (id, post_id, asset_id, order_index, created_at)
+            values (?, ?, ?, ?, ?)
+          `
+        )
+        .bind(crypto.randomUUID(), postId, assetId, idx, now)
+        .run()
+    );
+    for (const p of inserts) {
+      await p;
+    }
+
+    await this.db
+      .prepare(
+        `
+          update posts
+          set post_type = ?, media_count = ?, updated_at = ?
+          where id = ?
+        `
+      )
+      .bind(postType, assetIds.length, now, postId)
+      .run();
   }
 
   async getOwnerByEmail(email: string): Promise<Owner | null> {

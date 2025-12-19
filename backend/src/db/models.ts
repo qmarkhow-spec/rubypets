@@ -21,6 +21,24 @@ export interface Post {
   mediaCount?: number;
 }
 
+export interface MediaAsset {
+  id: string;
+  ownerId: string;
+  kind: "image" | "video";
+  usage: "avatar" | "pet_avatar" | "post" | "kyc" | "other";
+  storageKey: string;
+  url?: string | null;
+  thumbnailUrl?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  width?: number | null;
+  height?: number | null;
+  durationSec?: number | null;
+  status: "uploaded" | "processing" | "ready" | "failed";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Owner {
   accountId: string;
   uuid: string;
