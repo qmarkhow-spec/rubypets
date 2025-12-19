@@ -13,6 +13,7 @@ export interface DBClient {
   createPost(input: CreatePostInput): Promise<Post>;
   getPostsByOwner(ownerUuid: string, limit?: number): Promise<Post[]>;
   listRecentPosts(limit?: number): Promise<Post[]>;
+  getPostById(id: string): Promise<Post | null>;
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   getOwnerByAccountId(accountId: string): Promise<import("./models").Owner | null>;
@@ -32,6 +33,22 @@ export interface DBClient {
   }): Promise<import("./models").Account>;
   getAccountById(accountId: string): Promise<import("./models").Account | null>;
   getAccountByEmail(email: string): Promise<import("./models").Account | null>;
+  createMediaAsset(input: {
+    ownerId: string;
+    kind: "image" | "video";
+    usage: "avatar" | "pet_avatar" | "post" | "kyc" | "other";
+    storageKey: string;
+    url?: string | null;
+    thumbnailUrl?: string | null;
+    mimeType?: string | null;
+    sizeBytes?: number | null;
+    width?: number | null;
+    height?: number | null;
+    durationSec?: number | null;
+    status?: "uploaded" | "processing" | "ready" | "failed";
+  }): Promise<import("./models").MediaAsset>;
+  getMediaAssetsByIds(ids: string[]): Promise<import("./models").MediaAsset[]>;
+  attachMediaToPost(postId: string, postType: "image_set" | "video", assetIds: string[]): Promise<void>;
   getAdminByAdminId(adminId: string): Promise<import("./models").AdminAccount & { passwordHash: string } | null>;
   updateAdminLastAt(adminId: string, ts: string): Promise<void>;
   updateAdminPassword(adminId: string, passwordHash: string): Promise<void>;
