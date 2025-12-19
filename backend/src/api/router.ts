@@ -97,10 +97,26 @@ async function postsListRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function createPostRoute(ctx: HandlerContext): Promise<Response> {
-  const payload = (await ctx.request.json()) as { content?: string; mediaKey?: string | null };
+  const payload = (await ctx.request.json()) as {
+    content?: string;
+    mediaKey?: string | null; // deprecated
+    post_type?: string;
+    visibility?: string;
+  };
 
-  if (!payload.content) {
+  const content = (payload.content ?? "").trim();
+  if (!content) {
     return errorJson("content is required", 400);
+  }
+
+  const postType = (payload.post_type ?? "text").trim();
+  if (!["text", "image_set", "video"].includes(postType)) {
+    return errorJson("invalid post_type", 400);
+  }
+
+  const visibility = (payload.visibility ?? "public").trim();
+  if (!["public", "friends", "private"].includes(visibility)) {
+    return errorJson("invalid visibility", 400);
   }
 
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
@@ -108,8 +124,9 @@ async function createPostRoute(ctx: HandlerContext): Promise<Response> {
 
   const post = await createPost(ctx.db, {
     authorId,
-    content: payload.content,
-    mediaKey: payload.mediaKey ?? null
+    content,
+    visibility,
+    postType
   });
 
   return new Response(JSON.stringify(post), {
