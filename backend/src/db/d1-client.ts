@@ -169,7 +169,7 @@ export class D1Client implements DBClient {
             a.id_license_back_url,
             a.face_with_license_urll
           from owners o
-          join accounts a on a.account_id = o.account_id
+          join accounts a on a.id = o.account_id
           where a.email = ?
         `
       )
@@ -201,7 +201,7 @@ export class D1Client implements DBClient {
             a.id_license_back_url,
             a.face_with_license_urll
           from owners o
-          join accounts a on a.account_id = o.account_id
+          join accounts a on a.id = o.account_id
           where o.uuid = ?
         `
       )
@@ -233,7 +233,7 @@ export class D1Client implements DBClient {
             a.id_license_back_url,
             a.face_with_license_urll
           from owners o
-          join accounts a on a.account_id = o.account_id
+          join accounts a on a.id = o.account_id
           where o.account_id = ?
         `
       )
@@ -288,7 +288,7 @@ export class D1Client implements DBClient {
     await this.db
       .prepare(
         `
-          insert into accounts (account_id, email, password_hash, real_name, id_number, phone_number, is_verified, created_at, updated_at)
+          insert into accounts (id, email, password_hash, real_name, id_number, phone_number, is_verified, created_at, updated_at)
           values (?, ?, ?, ?, ?, ?, 0, ?, ?)
         `
       )
@@ -307,9 +307,9 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select account_id, email, password_hash, real_name, id_number, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+          select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
           from accounts
-          where account_id = ?
+          where id = ?
         `
       )
       .bind(input.accountId)
@@ -343,10 +343,10 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
+          select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
                  id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
           from accounts
-          where account_id = ?
+          where id = ?
         `
       )
       .bind(accountId)
@@ -358,7 +358,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
+          select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
                  id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
           from accounts
           where email = ?
