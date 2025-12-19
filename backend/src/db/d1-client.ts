@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Owner, Post, Account, AdminAccount } from "./models";
+import { Owner, Post, Account, AdminAccount, MediaAsset } from "./models";
 
 type PostRow = {
   id: string;
@@ -48,7 +48,7 @@ type OwnerRow = {
   is_verified: number | null;
   id_license_front_url: string | null;
   id_license_back_url: string | null;
-  face_with_license_urll: string | null;
+  face_with_license_url: string | null;
 };
 
 type AccountRow = {
@@ -742,6 +742,26 @@ function mapAdminAccountRow(row: AdminAccountRow): AdminAccount {
     permission: row.permission,
     createdAt: row.created_at,
     lastAt: row.last_at ?? null,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapMediaAssetRow(row: MediaAssetRow): MediaAsset {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    kind: row.kind as MediaAsset["kind"],
+    usage: row.usage as MediaAsset["usage"],
+    storageKey: row.storage_key,
+    url: row.url ?? null,
+    thumbnailUrl: row.thumbnail_url ?? null,
+    mimeType: row.mime_type ?? null,
+    sizeBytes: row.size_bytes ?? null,
+    width: row.width ?? null,
+    height: row.height ?? null,
+    durationSec: row.duration_sec ?? null,
+    status: row.status as MediaAsset["status"],
+    createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
