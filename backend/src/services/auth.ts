@@ -9,6 +9,16 @@ export interface RegisterPayload {
   realName?: string;
 }
 
+export interface RegisterAccountOnlyPayload {
+  email: string;
+  password: string;
+}
+
+export interface RegisterOwnerPayload {
+  accountId: string;
+  displayName: string;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -16,6 +26,14 @@ export interface LoginPayload {
 
 export async function parseRegisterPayload(request: Request): Promise<RegisterPayload> {
   return readJson<RegisterPayload>(request);
+}
+
+export async function parseRegisterAccountOnlyPayload(request: Request): Promise<RegisterAccountOnlyPayload> {
+  return readJson<RegisterAccountOnlyPayload>(request);
+}
+
+export async function parseRegisterOwnerPayload(request: Request): Promise<RegisterOwnerPayload> {
+  return readJson<RegisterOwnerPayload>(request);
 }
 
 export async function parseLoginPayload(request: Request): Promise<LoginPayload> {
@@ -50,6 +68,52 @@ export async function registerUser(db: DBClient, payload: RegisterPayload) {
     phoneNumber: phoneNumber ?? undefined
   });
 
+  const owner = await db.createOwner({
+    accountId,
+    uuid,
+    displayName
+  });
+
+  const tokens = issueTokens(owner.uuid);
+  return { owner: toPublicOwner(owner), tokens };
+}
+
+export async function registerAccountOnly(db: DBClient, payload: RegisterAccountOnlyPayload) {
+  const email = (payload.email ?? "").trim().toLowerCase();
+  const password = payload.password ?? "";
+  if (!email || !password) throw new Error("email and password are required");
+
+  const existingAccount = await db.getAccountByEmail(email);
+  if (existingAccount) {
+    throw new Error("email already registered");
+  }
+
+  const passwordHash = await hashPassword(password);
+  const accountId = generateAccountId();
+
+  const account = await db.createAccount({
+    accountId,
+    email,
+    passwordHash,
+    realName: null,
+    phoneNumber: null
+  });
+
+  return { accountId: account.accountId, email: account.email };
+}
+
+export async function registerOwnerForAccount(db: DBClient, payload: RegisterOwnerPayload) {
+  const accountId = (payload.accountId ?? "").trim();
+  const displayName = (payload.displayName ?? "").trim();
+  if (!accountId || !displayName) throw new Error("accountId and displayName are required");
+
+  const account = await db.getAccountById(accountId);
+  if (!account) throw new Error("account not found");
+
+  const existingOwner = await db.getOwnerByAccountId(accountId);
+  if (existingOwner) throw new Error("owner already exists for this account");
+
+  const uuid = generateOwnerUuid();
   const owner = await db.createOwner({
     accountId,
     uuid,

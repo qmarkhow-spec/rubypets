@@ -13,6 +13,7 @@ export interface DBClient {
   listRecentPosts(limit?: number): Promise<Post[]>;
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
+  getOwnerByAccountId(accountId: string): Promise<import("./models").Owner | null>;
   createOwner(input: {
     accountId: string;
     uuid: string;
@@ -27,10 +28,11 @@ export interface DBClient {
     idNumber?: string | null;
     phoneNumber?: string | null;
   }): Promise<import("./models").Account>;
+  getAccountById(accountId: string): Promise<import("./models").Account | null>;
+  getAccountByEmail(email: string): Promise<import("./models").Account | null>;
   getAdminByAdminId(adminId: string): Promise<import("./models").AdminAccount & { passwordHash: string } | null>;
   updateAdminLastAt(adminId: string, ts: string): Promise<void>;
   updateAdminPassword(adminId: string, passwordHash: string): Promise<void>;
-  getAccountById(accountId: string): Promise<import("./models").Account | null>;
   updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
   updateAccountVerificationUrls(
     accountId: string,
