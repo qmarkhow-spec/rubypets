@@ -73,7 +73,6 @@ export default function Home() {
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
               <p className="mt-2 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
-              {post.mediaKey && <p className="mt-1 text-xs text-slate-500">mediaKey: {post.mediaKey}</p>}
             </article>
           ))}
         </div>
