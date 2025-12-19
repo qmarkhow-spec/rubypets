@@ -28,6 +28,10 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RubyPets 需要存取你的相簿以選擇要上傳的圖片或影片。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>RubyPets 需要權限以將內容儲存到你的相簿。</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
