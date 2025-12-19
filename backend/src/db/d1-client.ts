@@ -542,9 +542,9 @@ export class D1Client implements DBClient {
           set
             id_license_front_url = coalesce(?, id_license_front_url),
             id_license_back_url = coalesce(?, id_license_back_url),
-            face_with_license_urll = coalesce(?, face_with_license_urll),
+            face_with_license_url = coalesce(?, face_with_license_url),
             updated_at = ?${setPendingClause}
-          where account_id = ?
+          where id = ?
         `
       )
       .bind(urls.frontUrl ?? null, urls.backUrl ?? null, urls.faceUrl ?? null, updatedAt, accountId)
