@@ -192,115 +192,138 @@ async function registerOwnerRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function mediaImagesInitRoute(ctx: HandlerContext): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  try {
+    const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+    if (!user) return errorJson("Unauthorized", 401);
 
-  const body = (await ctx.request.json().catch(() => ({}))) as any;
-  const usage = (body.usage ?? "").trim();
-  const related = body.related ?? {};
-  const file = body.file ?? {};
+    const body = (await ctx.request.json().catch(() => ({}))) as any;
+    const usage = (body.usage ?? "").trim();
+    const file = body.file ?? {};
 
-  if (!["avatar", "pet_avatar", "post", "kyc", "other"].includes(usage)) {
-    return errorJson("invalid usage", 400);
+    if (!["avatar", "pet_avatar", "post", "kyc", "other"].includes(usage)) {
+      return errorJson("invalid usage", 400);
+    }
+    if (!file.filename || !file.mime_type || typeof file.size_bytes !== "number") {
+      return errorJson("file.filename, file.mime_type, size_bytes are required", 400);
+    }
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.mime_type)) {
+      return errorJson("unsupported mime_type", 422);
+    }
+
+    const asset = await ctx.db.createMediaAsset({
+      ownerId: user.uuid,
+      kind: "image",
+      usage: usage as any,
+      storageKey: crypto.randomUUID(),
+      mimeType: file.mime_type,
+      sizeBytes: file.size_bytes,
+      status: "uploaded"
+    });
+
+    const url = new URL(ctx.request.url);
+    const base = `${url.origin}/api`;
+    const uploadUrl = `${base}/media/upload/${asset.id}`;
+
+    return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
+  } catch (err) {
+    console.error("mediaImagesInit error", err);
+    return errorJson((err as Error).message, 500);
   }
-  if (!file.filename || !file.mime_type || typeof file.size_bytes !== "number") {
-    return errorJson("file.filename, file.mime_type, size_bytes are required", 400);
-  }
-
-  const asset = await ctx.db.createMediaAsset({
-    ownerId: user.uuid,
-    kind: "image",
-    usage: usage as any,
-    storageKey: crypto.randomUUID(),
-    mimeType: file.mime_type,
-    sizeBytes: file.size_bytes,
-    status: "uploaded"
-  });
-
-  const url = new URL(ctx.request.url);
-  const base = `${url.origin}/api`;
-  const uploadUrl = `${base}/media/upload/${asset.id}`;
-
-  return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
 }
 
 async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  try {
+    const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+    if (!user) return errorJson("Unauthorized", 401);
 
-  const body = (await ctx.request.json().catch(() => ({}))) as any;
-  const usage = (body.usage ?? "").trim();
-  const file = body.file ?? {};
+    const body = (await ctx.request.json().catch(() => ({}))) as any;
+    const usage = (body.usage ?? "").trim();
+    const file = body.file ?? {};
 
-  if (usage !== "post") return errorJson("video upload only supports usage=post for now", 400);
-  if (!file.filename || !file.mime_type || typeof file.size_bytes !== "number") {
-    return errorJson("file.filename, file.mime_type, size_bytes are required", 400);
+    if (usage !== "post") return errorJson("video upload only supports usage=post for now", 400);
+    if (!file.filename || !file.mime_type || typeof file.size_bytes !== "number") {
+      return errorJson("file.filename, file.mime_type, size_bytes are required", 400);
+    }
+
+    const asset = await ctx.db.createMediaAsset({
+      ownerId: user.uuid,
+      kind: "video",
+      usage: "post",
+      storageKey: crypto.randomUUID(),
+      mimeType: file.mime_type,
+      sizeBytes: file.size_bytes,
+      status: "uploaded"
+    });
+
+    const url = new URL(ctx.request.url);
+    const base = `${url.origin}/api`;
+    const uploadUrl = `${base}/media/upload/${asset.id}`;
+
+    return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
+  } catch (err) {
+    console.error("mediaVideosInit error", err);
+    return errorJson((err as Error).message, 500);
   }
-
-  const asset = await ctx.db.createMediaAsset({
-    ownerId: user.uuid,
-    kind: "video",
-    usage: "post",
-    storageKey: crypto.randomUUID(),
-    mimeType: file.mime_type,
-    sizeBytes: file.size_bytes,
-    status: "uploaded"
-  });
-
-  const url = new URL(ctx.request.url);
-  const base = `${url.origin}/api`;
-  const uploadUrl = `${base}/media/upload/${asset.id}`;
-
-  return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
 }
 
 async function mediaUploadStubRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   // Accept upload (stub) and mark ready
   const assetId = params.id;
-  const form = await ctx.request.formData().catch(() => null);
-  if (!form) return okJson({ ok: true }, 200);
-  // In a real implementation, you would stream to Cloudflare; here we just ACK.
-  return okJson({ ok: true, asset_id: assetId }, 200);
+  try {
+    const form = await ctx.request.formData().catch(() => null);
+    if (!form) return okJson({ ok: true }, 200);
+    // In a real implementation, stream to Cloudflare. Here we just mark as ready.
+    return okJson({ ok: true, asset_id: assetId }, 200);
+  } catch (err) {
+    console.error("mediaUploadStub error", err);
+    return errorJson((err as Error).message, 500);
+  }
 }
 
 async function attachMediaRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const postId = params.id;
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  try {
+    const postId = params.id;
+    const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+    if (!user) return errorJson("Unauthorized", 401);
 
-  const body = (await ctx.request.json().catch(() => ({}))) as {
-    post_type?: "image_set" | "video";
-    asset_ids?: string[];
-    pet_tags?: string[];
-  };
-  const postType = body.post_type;
-  const assetIds = body.asset_ids ?? [];
+    const body = (await ctx.request.json().catch(() => ({}))) as {
+      post_type?: "image_set" | "video";
+      asset_ids?: string[];
+      pet_tags?: string[];
+    };
+    const postType = body.post_type;
+    const assetIds = body.asset_ids ?? [];
 
-  if (!postType || !["image_set", "video"].includes(postType)) return errorJson("invalid post_type", 400);
-  if (assetIds.length === 0) return errorJson("asset_ids required", 400);
+    if (!postType || !["image_set", "video"].includes(postType)) return errorJson("invalid post_type", 400);
+    if (assetIds.length === 0) return errorJson("asset_ids required", 400);
 
-  const post = await ctx.db.getPostById(postId);
-  if (!post) return errorJson("post not found", 404);
-  if (post.authorId !== user.uuid) return errorJson("forbidden", 403);
+    const post = await ctx.db.getPostById(postId);
+    if (!post) return errorJson("post not found", 404);
+    if (post.authorId !== user.uuid) return errorJson("forbidden", 403);
 
-  const assets = await ctx.db.getMediaAssetsByIds(assetIds);
-  if (assets.length !== assetIds.length) return errorJson("asset not found", 404);
-  for (const a of assets) {
-    if (a.ownerId !== user.uuid) return errorJson("forbidden asset", 403);
-    if (a.usage !== "post") return errorJson("asset usage must be post", 400);
-    if (postType === "image_set" && a.kind !== "image") return errorJson("only images allowed", 400);
-    if (postType === "video" && a.kind !== "video") return errorJson("only video allowed", 400);
+    const assets = await ctx.db.getMediaAssetsByIds(assetIds);
+    if (assets.length !== assetIds.length) return errorJson("asset not found", 404);
+    for (const a of assets) {
+      if (a.ownerId !== user.uuid) return errorJson("forbidden asset", 403);
+      if (a.usage !== "post") return errorJson("asset usage must be post", 400);
+      if (postType === "image_set" && a.kind !== "image") return errorJson("only images allowed", 400);
+      if (postType === "video" && a.kind !== "video") return errorJson("only video allowed", 400);
+    }
+    if (postType === "image_set" && (assetIds.length < 1 || assetIds.length > 5)) {
+      return errorJson("image_set must have 1-5 images", 400);
+    }
+    if (postType === "video" && assetIds.length !== 1) {
+      return errorJson("video must have exactly 1 asset", 400);
+    }
+
+    await ctx.db.attachMediaToPost(postId, postType, assetIds);
+
+    return okJson({ ok: true }, 200);
+  } catch (err) {
+    console.error("attachMedia error", err);
+    return errorJson((err as Error).message, 500);
   }
-  if (postType === "image_set" && (assetIds.length < 1 || assetIds.length > 5)) {
-    return errorJson("image_set must have 1-5 images", 400);
-  }
-  if (postType === "video" && assetIds.length !== 1) {
-    return errorJson("video must have exactly 1 asset", 400);
-  }
-
-  await ctx.db.attachMediaToPost(postId, postType, assetIds);
-
-  return okJson({ ok: true }, 200);
 }
 async function loginRoute(ctx: HandlerContext): Promise<Response> {
   try {
