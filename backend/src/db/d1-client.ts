@@ -40,7 +40,7 @@ type AccountRow = {
   is_verified: number;
   id_license_front_url: string | null;
   id_license_back_url: string | null;
-  face_with_license_urll: string | null;
+  face_with_license_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -167,7 +167,7 @@ export class D1Client implements DBClient {
             a.is_verified,
             a.id_license_front_url,
             a.id_license_back_url,
-            a.face_with_license_urll
+            a.face_with_license_url
           from owners o
           join accounts a on a.id = o.account_id
           where a.email = ?
@@ -199,7 +199,7 @@ export class D1Client implements DBClient {
             a.is_verified,
             a.id_license_front_url,
             a.id_license_back_url,
-            a.face_with_license_urll
+            a.face_with_license_url
           from owners o
           join accounts a on a.id = o.account_id
           where o.uuid = ?
@@ -231,7 +231,7 @@ export class D1Client implements DBClient {
             a.is_verified,
             a.id_license_front_url,
             a.id_license_back_url,
-            a.face_with_license_urll
+            a.face_with_license_url
           from owners o
           join accounts a on a.id = o.account_id
           where o.account_id = ?
@@ -288,8 +288,8 @@ export class D1Client implements DBClient {
     await this.db
       .prepare(
         `
-          insert into accounts (id, email, password_hash, real_name, id_number, phone_number, is_verified, created_at, updated_at)
-          values (?, ?, ?, ?, ?, ?, 0, ?, ?)
+          insert into accounts (id, email, password_hash, real_name, id_number, phone_number, is_verified, created_at, updated_at, face_with_license_url, id_license_front_url, id_license_back_url)
+          values (?, ?, ?, ?, ?, ?, 0, ?, ?, NULL, NULL, NULL)
         `
       )
       .bind(
@@ -307,7 +307,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+          select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified, id_license_front_url, id_license_back_url, face_with_license_url, created_at, updated_at
           from accounts
           where id = ?
         `
@@ -344,7 +344,7 @@ export class D1Client implements DBClient {
       .prepare(
         `
           select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
-                 id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+                 id_license_front_url, id_license_back_url, face_with_license_url, created_at, updated_at
           from accounts
           where id = ?
         `
@@ -359,7 +359,7 @@ export class D1Client implements DBClient {
       .prepare(
         `
           select id as account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
-                 id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+                 id_license_front_url, id_license_back_url, face_with_license_url, created_at, updated_at
           from accounts
           where email = ?
         `
@@ -551,7 +551,7 @@ function mapOwnerRow(row: OwnerRow): Owner {
     isVerified: row.is_verified ?? 0,
     idLicenseFrontUrl: row.id_license_front_url ?? null,
     idLicenseBackUrl: row.id_license_back_url ?? null,
-    faceWithLicenseUrl: row.face_with_license_urll ?? null
+    faceWithLicenseUrl: row.face_with_license_url ?? null
   };
 }
 
@@ -566,7 +566,7 @@ function mapAccountRow(row: AccountRow): Account {
     isVerified: row.is_verified,
     idLicenseFrontUrl: row.id_license_front_url ?? null,
     idLicenseBackUrl: row.id_license_back_url ?? null,
-    faceWithLicenseUrl: row.face_with_license_urll ?? null,
+    faceWithLicenseUrl: row.face_with_license_url ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
