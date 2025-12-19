@@ -181,7 +181,7 @@ async function registerAccountRoute(ctx: HandlerContext): Promise<Response> {
   }
 }
 
-async function registerOwnerRoute(ctx: HandlerContext): Promise<Response> {
+  async function registerOwnerRoute(ctx: HandlerContext): Promise<Response> {
   try {
     const payload = await parseRegisterOwnerPayload(ctx.request);
     const { owner, tokens } = await registerOwnerForAccount(ctx.db, payload);
@@ -211,19 +211,32 @@ async function mediaImagesInitRoute(ctx: HandlerContext): Promise<Response> {
       return errorJson("unsupported mime_type", 422);
     }
 
+    const cfAccountId = ctx.env.CF_ACCOUNT_ID;
+    const cfToken = ctx.env.CF_API_TOKEN;
+    if (!cfAccountId || !cfToken) return errorJson("cloudflare images not configured", 500);
+
+    const cfResp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/images/v2/direct_upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${cfToken}` }
+    });
+    const cfJson = (await cfResp.json().catch(() => ({}))) as any;
+    if (!cfResp.ok || !cfJson?.success) {
+      console.error("CF Images init failed", cfJson);
+      return errorJson("cloudflare images init failed", 502);
+    }
+    const cfImageId = cfJson.result?.id;
+    const uploadUrl = cfJson.result?.uploadURL;
+    if (!cfImageId || !uploadUrl) return errorJson("cloudflare images init missing uploadURL", 502);
+
     const asset = await ctx.db.createMediaAsset({
       ownerId: user.uuid,
       kind: "image",
       usage: usage as any,
-      storageKey: crypto.randomUUID(),
+      storageKey: cfImageId,
       mimeType: file.mime_type,
       sizeBytes: file.size_bytes,
       status: "uploaded"
     });
-
-    const url = new URL(ctx.request.url);
-    const base = `${url.origin}/api`;
-    const uploadUrl = `${base}/media/upload/${asset.id}`;
 
     return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
   } catch (err) {
@@ -246,19 +259,36 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
       return errorJson("file.filename, file.mime_type, size_bytes are required", 400);
     }
 
+    const cfAccountId = ctx.env.CF_ACCOUNT_ID;
+    const cfToken = ctx.env.CF_API_TOKEN;
+    if (!cfAccountId || !cfToken) return errorJson("cloudflare stream not configured", 500);
+
+    const cfResp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/stream/direct_upload`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ maxDurationSeconds: 60, creator: user.uuid })
+    });
+    const cfJson = (await cfResp.json().catch(() => ({}))) as any;
+    if (!cfResp.ok || !cfJson?.success) {
+      console.error("CF Stream init failed", cfJson);
+      return errorJson("cloudflare stream init failed", 502);
+    }
+    const uid = cfJson.result?.uid;
+    const uploadUrl = cfJson.result?.uploadURL;
+    if (!uid || !uploadUrl) return errorJson("cloudflare stream init missing uploadURL", 502);
+
     const asset = await ctx.db.createMediaAsset({
       ownerId: user.uuid,
       kind: "video",
       usage: "post",
-      storageKey: crypto.randomUUID(),
+      storageKey: uid,
       mimeType: file.mime_type,
       sizeBytes: file.size_bytes,
       status: "uploaded"
     });
-
-    const url = new URL(ctx.request.url);
-    const base = `${url.origin}/api`;
-    const uploadUrl = `${base}/media/upload/${asset.id}`;
 
     return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
   } catch (err) {
