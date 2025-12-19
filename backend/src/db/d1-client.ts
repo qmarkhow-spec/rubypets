@@ -3,9 +3,12 @@ import { Owner, Post, Account, AdminAccount } from "./models";
 
 type PostRow = {
   id: string;
-  author_id: string;
-  body: string;
-  media_key: string | null;
+  owner_id: string;
+  content_text: string | null;
+  visibility: string;
+  post_type: string;
+  media_count: number;
+  media_key?: string | null;
   created_at: string;
   author_handle?: string | null;
   author_display_name?: string | null;
@@ -79,24 +82,29 @@ export class D1Client implements DBClient {
   async createPost(input: CreatePostInput): Promise<Post> {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
-    const mediaKey = input.mediaKey ?? null;
+    const visibility = input.visibility ?? "public";
+    const postType = input.postType ?? "text";
+    const mediaCount = input.mediaCount ?? 0;
 
     await this.db
       .prepare(
         `
-          insert into posts (id, author_id, body, media_key, created_at)
-          values (?, ?, ?, ?, ?)
+          insert into posts (id, owner_id, content_text, visibility, post_type, media_count, created_at, updated_at)
+          values (?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .bind(id, input.authorId, input.body, mediaKey, createdAt)
+      .bind(id, input.authorId, input.body ?? null, visibility, postType, mediaCount, createdAt, createdAt)
       .run();
 
     return {
       id,
       authorId: input.authorId,
-      body: input.body,
-      mediaKey,
-      createdAt
+      body: input.body ?? null,
+      mediaKey: null,
+      createdAt,
+      visibility,
+      postType,
+      mediaCount
     };
   }
 
@@ -104,18 +112,20 @@ export class D1Client implements DBClient {
     const { results } = await this.db
       .prepare(
         `
-          select
-            p.id,
-            p.author_id,
-            p.body,
-            p.media_key,
-            p.created_at,
-            o.display_name as author_display_name
-          from posts p
-          left join owners o on o.uuid = p.author_id
-          where p.author_id = ?
-          order by p.created_at desc
-          limit ?
+              select
+                p.id,
+                p.owner_id,
+                p.content_text,
+                p.visibility,
+                p.post_type,
+                p.media_count,
+                p.created_at,
+                o.display_name as author_display_name
+              from posts p
+              left join owners o on o.uuid = p.owner_id
+              where p.owner_id = ?
+              order by p.created_at desc
+              limit ?
         `
       )
       .bind(ownerUuid, limit)
@@ -128,17 +138,19 @@ export class D1Client implements DBClient {
     const { results } = await this.db
       .prepare(
         `
-          select
-            p.id,
-            p.author_id,
-            p.body,
-            p.media_key,
-            p.created_at,
-            o.display_name as author_display_name
-          from posts p
-          left join owners o on o.uuid = p.author_id
-          order by p.created_at desc
-          limit ?
+              select
+                p.id,
+                p.owner_id,
+                p.content_text,
+                p.visibility,
+                p.post_type,
+                p.media_count,
+                p.created_at,
+                o.display_name as author_display_name
+              from posts p
+              left join owners o on o.uuid = p.owner_id
+              order by p.created_at desc
+              limit ?
         `
       )
       .bind(limit)
@@ -526,11 +538,14 @@ export class D1Client implements DBClient {
 function mapPostRow(row: PostRow): Post {
   return {
     id: row.id,
-    authorId: row.author_id,
-    body: row.body,
-    mediaKey: row.media_key,
+    authorId: row.owner_id,
+    body: row.content_text ?? null,
+    mediaKey: row.media_key ?? null,
     createdAt: row.created_at,
-    authorDisplayName: row.author_display_name ?? null
+    authorDisplayName: row.author_display_name ?? null,
+    visibility: row.visibility,
+    postType: row.post_type,
+    mediaCount: row.media_count
   };
 }
 

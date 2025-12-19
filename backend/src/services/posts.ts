@@ -4,7 +4,8 @@ import { Post } from "../db/models";
 export interface CreatePostInput {
   authorId: string;
   content: string;
-  mediaKey?: string | null;
+  visibility?: string;
+  postType?: string;
 }
 
 export async function listRecentPosts(db: DBClient, limit = 20): Promise<Post[]> {
@@ -19,6 +20,8 @@ export async function createPost(db: DBClient, input: CreatePostInput): Promise<
   return db.createPost({
     authorId: input.authorId,
     body: input.content,
-    mediaKey: input.mediaKey ?? null
+    visibility: input.visibility ?? "public",
+    postType: input.postType ?? "text",
+    mediaCount: 0
   });
 }

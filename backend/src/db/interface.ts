@@ -2,8 +2,10 @@ import { Post } from "./models";
 
 export interface CreatePostInput {
   authorId: string; // owner uuid
-  body: string;
-  mediaKey?: string | null;
+  body: string | null;
+  visibility?: string;
+  postType?: string;
+  mediaCount?: number;
 }
 
 export interface DBClient {

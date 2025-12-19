@@ -11,11 +11,14 @@ export interface User {
 export interface Post {
   id: string;
   authorId: string; // owner uuid
-  body: string;
+  body: string | null;
   mediaKey: string | null;
   createdAt: string;
   authorHandle?: string | null;
   authorDisplayName?: string | null;
+  visibility?: string;
+  postType?: string;
+  mediaCount?: number;
 }
 
 export interface Owner {
