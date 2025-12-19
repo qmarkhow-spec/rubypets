@@ -1,6 +1,29 @@
 PRAGMA foreign_keys = ON;
 
--- Accounts: login + KYC URLs
+CREATE TABLE IF NOT EXISTS media_assets (
+  id            TEXT PRIMARY KEY,
+  owner_id      TEXT NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('image','video')),
+  usage         TEXT NOT NULL DEFAULT 'other' CHECK (usage IN ('avatar','pet_avatar','post','kyc','other')),
+  storage_key   TEXT NOT NULL,
+  url           TEXT,
+  thumbnail_url TEXT,
+  mime_type     TEXT,
+  size_bytes    INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  width         INTEGER CHECK (width IS NULL OR width >= 0),
+  height        INTEGER CHECK (height IS NULL OR height >= 0),
+  duration_sec  INTEGER CHECK (duration_sec IS NULL OR duration_sec >= 0),
+  status        TEXT NOT NULL DEFAULT 'ready'
+               CHECK (status IN ('uploaded','processing','ready','failed')),
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_media_assets_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_assets_owner_id ON media_assets(owner_id);
+CREATE INDEX IF NOT EXISTS idx_media_assets_usage ON media_assets(usage);
+CREATE INDEX IF NOT EXISTS idx_media_assets_kind ON media_assets(kind);
+
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
@@ -22,7 +45,6 @@ CREATE TABLE IF NOT EXISTS accounts (
   CONSTRAINT fk_kyc_face_asset  FOREIGN KEY (face_with_license_asset_id) REFERENCES media_assets(id) ON DELETE SET NULL
 );
 
--- Owners: profile linked to accounts.account_id
 CREATE TABLE IF NOT EXISTS owners (
   uuid TEXT PRIMARY KEY,
   account_id TEXT NOT NULL UNIQUE,
@@ -36,12 +58,11 @@ CREATE TABLE IF NOT EXISTS owners (
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
   CONSTRAINT fk_owner_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
-  CONSTRAINT fk_owner_avatar_asset FOREIGN KEY (avatar_asset_id) REFERENCES media_assets(id) ON DELETE SET NULL,
+  CONSTRAINT fk_owner_avatar_asset FOREIGN KEY (avatar_asset_id) REFERENCES media_assets(id) ON DELETE SET NULL
 );
+
 CREATE INDEX IF NOT EXISTS idx_owners_avatar_asset_id ON owners(avatar_asset_id);
 
-
--- Pets
 CREATE TABLE IF NOT EXISTS pets (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL,
@@ -61,11 +82,10 @@ CREATE TABLE IF NOT EXISTS pets (
   CONSTRAINT fk_pet_avatar_asset FOREIGN KEY (avatar_asset_id) REFERENCES media_assets(id) ON DELETE SET NULL,
   CONSTRAINT chk_pet_gender CHECK (gender IN ('male', 'female', 'unknown'))
 );
+
 CREATE INDEX IF NOT EXISTS idx_pets_owner ON pets(owner_id);
 CREATE INDEX IF NOT EXISTS idx_pets_avatar_asset_id ON pets(avatar_asset_id);
 
-
--- Pet follows
 CREATE TABLE IF NOT EXISTS pet_follows (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   follower_owner_id TEXT NOT NULL,
@@ -75,10 +95,10 @@ CREATE TABLE IF NOT EXISTS pet_follows (
   CONSTRAINT fk_pet_follows_pet FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
   CONSTRAINT uq_pet_follow UNIQUE (follower_owner_id, pet_id)
 );
+
 CREATE INDEX IF NOT EXISTS idx_pet_follows_pet ON pet_follows(pet_id);
 CREATE INDEX IF NOT EXISTS idx_pet_follows_owner ON pet_follows(follower_owner_id);
 
--- Owner friendships (owner_id < friend_id)
 CREATE TABLE IF NOT EXISTS owner_friendships (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   owner_id TEXT NOT NULL,
@@ -94,70 +114,34 @@ CREATE TABLE IF NOT EXISTS owner_friendships (
   CONSTRAINT uq_friend_pair UNIQUE (owner_id, friend_id),
   CONSTRAINT chk_friend_order CHECK (owner_id != friend_id)
 );
+
 CREATE INDEX IF NOT EXISTS idx_friend_owner ON owner_friendships(owner_id);
 CREATE INDEX IF NOT EXISTS idx_friend_friend ON owner_friendships(friend_id);
 CREATE INDEX IF NOT EXISTS idx_friend_status ON owner_friendships(status);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_owner_friend_pair ON owner_friendships (pair_key);
 
--- Media Assets: unified storage for avatars / post media / KYC / others
-CREATE TABLE IF NOT EXISTS media_assets (
-  id            TEXT PRIMARY KEY,
-  owner_id      TEXT NOT NULL, -- uploader: owners.uuid, nullable for system assets
-  kind          TEXT NOT NULL CHECK (kind IN ('image','video')),
-  usage         TEXT NOT NULL DEFAULT 'other' CHECK (usage IN ('avatar','pet_avatar','post','kyc','other')),
-
-  -- Storage addressing (recommend storing key; url can be derived)
-  storage_key   TEXT NOT NULL,     
-  url           TEXT ,              -- optional: CDN URL
-  thumbnail_url TEXT,              -- optional
-
-  mime_type     TEXT,
-  size_bytes    INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
-  width         INTEGER CHECK (width IS NULL OR width >= 0),
-  height        INTEGER CHECK (height IS NULL OR height >= 0),
-  duration_sec  INTEGER CHECK (duration_sec IS NULL OR duration_sec >= 0),
-
-  status        TEXT NOT NULL DEFAULT 'ready'
-               CHECK (status IN ('uploaded','processing','ready','failed')),
-
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
-
-  CONSTRAINT fk_media_assets_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE SET NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_media_assets_owner_id ON media_assets(owner_id);
-CREATE INDEX IF NOT EXISTS idx_media_assets_usage ON media_assets(usage);
-CREATE INDEX IF NOT EXISTS idx_media_assets_kind ON media_assets(kind);
-
--- Posts (author_id = owners.uuid)
 CREATE TABLE IF NOT EXISTS posts (
   id               TEXT PRIMARY KEY,
-  owner_id         TEXT NOT NULL,               -- 發文者飼主
-  content_text     TEXT,                           -- 可空（純媒體貼文）
+  owner_id         TEXT NOT NULL,
+  content_text     TEXT,
   visibility       TEXT NOT NULL DEFAULT 'public'
                    CHECK (visibility IN ('public','friends','private')),
   is_deleted       INTEGER NOT NULL DEFAULT 0 CHECK (is_deleted IN (0, 1)),
-  -- 媒體摘要（快取/方便列表）
   media_count      INTEGER NOT NULL DEFAULT 0 CHECK (media_count >= 0),
   post_type TEXT NOT NULL DEFAULT 'text' CHECK (post_type IN ('text','image_set','video')),
-
-  -- 互動計數快取
   like_count       INTEGER NOT NULL DEFAULT 0 CHECK (like_count >= 0),
   comment_count    INTEGER NOT NULL DEFAULT 0 CHECK (comment_count >= 0),
   repost_count     INTEGER NOT NULL DEFAULT 0 CHECK (repost_count >= 0),
   share_count      INTEGER NOT NULL DEFAULT 0 CHECK (share_count >= 0),
-
-  -- 關聯（回覆/轉發）
   reply_to_post_id TEXT,
   origin_post_id   TEXT,
-
   created_at       TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
   CONSTRAINT fk_posts_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE CASCADE,
   CONSTRAINT fk_reply_to_post FOREIGN KEY (reply_to_post_id) REFERENCES posts(id) ON DELETE SET NULL,
   CONSTRAINT fk_origin_post FOREIGN KEY (origin_post_id) REFERENCES posts(id) ON DELETE SET NULL
 );
+
 CREATE INDEX IF NOT EXISTS idx_posts_owner_id ON posts(owner_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at);
 CREATE INDEX IF NOT EXISTS idx_posts_origin_post_id ON posts(origin_post_id);
@@ -172,7 +156,6 @@ CREATE TABLE IF NOT EXISTS post_media (
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   CONSTRAINT fk_post_media_post  FOREIGN KEY (post_id)  REFERENCES posts(id) ON DELETE CASCADE,
   CONSTRAINT fk_post_media_asset FOREIGN KEY (asset_id) REFERENCES media_assets(id) ON DELETE RESTRICT,
-
   UNIQUE(post_id, order_index),
   UNIQUE(post_id, asset_id)
 );
@@ -197,7 +180,7 @@ CREATE INDEX IF NOT EXISTS idx_media_tags_pet_id ON post_media_pet_tags(pet_id);
 CREATE TABLE IF NOT EXISTS post_likes (
   id         TEXT PRIMARY KEY,
   post_id    TEXT NOT NULL,
-  owner_id   TEXT NOT NULL,                      -- 以飼主身分按讚
+  owner_id   TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   CONSTRAINT fk_post_likes_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
   CONSTRAINT fk_post_likes_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE CASCADE,
@@ -213,7 +196,7 @@ CREATE TABLE IF NOT EXISTS post_comments (
   owner_id          TEXT NOT NULL,
   parent_comment_id TEXT,
   content_text      TEXT NOT NULL,
-  like_count        INTEGER NOT NULL DEFAULT 0 CHECK (like_count >= 0),     -- 可先留著，未來要做留言按讚再用
+  like_count        INTEGER NOT NULL DEFAULT 0 CHECK (like_count >= 0),
   is_deleted        INTEGER NOT NULL DEFAULT 0 CHECK (is_deleted IN (0, 1)),
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
@@ -229,8 +212,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON post_comments(paren
 CREATE TABLE IF NOT EXISTS post_shares (
   id            TEXT PRIMARY KEY,
   post_id        TEXT NOT NULL,
-  owner_id       TEXT,                           -- 未登入分享可為 NULL（看你的產品）
-  share_channel  TEXT,                              -- copy_link/line/facebook/...
+  owner_id       TEXT,
+  share_channel  TEXT,
   created_at     TEXT NOT NULL DEFAULT (datetime('now')),
   CONSTRAINT fk_post_shares_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
   CONSTRAINT fk_post_shares_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE SET NULL
@@ -238,4 +221,3 @@ CREATE TABLE IF NOT EXISTS post_shares (
 
 CREATE INDEX IF NOT EXISTS idx_post_shares_post_id ON post_shares(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_shares_owner_id ON post_shares(owner_id);
-

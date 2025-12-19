@@ -211,6 +211,38 @@ export class D1Client implements DBClient {
     return row ? mapOwnerRow(row) : null;
   }
 
+  async getOwnerByAccountId(accountId: string): Promise<Owner | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            o.account_id,
+            o.uuid,
+            a.email,
+            a.password_hash,
+            o.display_name,
+            o.avatar_url,
+            o.max_pets,
+            o.city,
+            o.region,
+            o.created_at,
+            o.updated_at,
+            o.is_active,
+            a.is_verified,
+            a.id_license_front_url,
+            a.id_license_back_url,
+            a.face_with_license_urll
+          from owners o
+          join accounts a on a.account_id = o.account_id
+          where o.account_id = ?
+        `
+      )
+      .bind(accountId)
+      .first<OwnerRow>();
+
+    return row ? mapOwnerRow(row) : null;
+  }
+
   async createOwner(input: {
     accountId: string;
     uuid: string;
@@ -318,6 +350,21 @@ export class D1Client implements DBClient {
         `
       )
       .bind(accountId)
+      .first<AccountRow>();
+    return row ? mapAccountRow(row) : null;
+  }
+
+  async getAccountByEmail(email: string): Promise<Account | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select account_id, email, password_hash, real_name, id_number, phone_number, is_verified,
+                 id_license_front_url, id_license_back_url, face_with_license_urll, created_at, updated_at
+          from accounts
+          where email = ?
+        `
+      )
+      .bind(email)
       .first<AccountRow>();
     return row ? mapAccountRow(row) : null;
   }

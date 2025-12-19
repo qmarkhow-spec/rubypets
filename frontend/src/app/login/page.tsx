@@ -1,9 +1,9 @@
 'use client';
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { apiFetch } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [registerInfo, setRegisterInfo] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -29,33 +28,11 @@ export default function LoginPage() {
     }
   }
 
-  async function quickRegister() {
-    setError(null);
-    setRegisterInfo(null);
-    setLoading(true);
-    try {
-      const { data } = await apiFetch("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-          handle: email.split("@")[0] || "user",
-          displayName: email.split("@")[0] || "user",
-        }),
-      });
-      setRegisterInfo(JSON.stringify(data, null, 2));
-    } catch (err) {
-      setError(readError(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-md space-y-6 rounded-xl border bg-white p-6 shadow-sm">
       <div>
-        <h1 className="text-xl font-semibold">登入 / 註冊</h1>
-        <p className="text-sm text-slate-600">先完成登入流程，後續 API 都會自動帶 Token。</p>
+        <h1 className="text-xl font-semibold">登入</h1>
+        <p className="text-sm text-slate-600">輸入 Email / 密碼以登入。</p>
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
@@ -71,7 +48,7 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-1">
-          <label className="text-sm text-slate-700">Password</label>
+          <label className="text-sm text-slate-700">密碼</label>
           <input
             type="password"
             required
@@ -87,26 +64,17 @@ export default function LoginPage() {
             disabled={loading}
             className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            {loading ? "處理中…" : "登入"}
+            {loading ? "登入中..." : "登入"}
           </button>
-          <button
-            type="button"
-            onClick={quickRegister}
-            disabled={loading}
-            className="rounded border border-slate-200 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+          <Link
+            href="/register"
+            className="rounded border border-slate-200 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
           >
-            快速註冊（用上方 Email/密碼）
-          </button>
+            前往註冊
+          </Link>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
       </form>
-
-      {registerInfo && (
-        <div>
-          <p className="text-sm text-slate-600">註冊回應：</p>
-          <pre className="mt-1 rounded bg-slate-50 p-3 text-xs text-slate-800">{registerInfo}</pre>
-        </div>
-      )}
     </div>
   );
 }
@@ -116,7 +84,7 @@ function readError(err: unknown): string {
   const status = (err as { status?: number }).status;
   const details = (err as { details?: unknown }).details;
   if (details && typeof details === "object" && "error" in details) {
-    return `${status ?? ""} ${(details as { error?: string }).error ?? "發生錯誤"}`;
+    return `${status ?? ""} ${(details as { error?: string }).error ?? "伺服器錯誤"}`;
   }
-  return status ? `HTTP ${status}` : "發生錯誤";
+  return status ? `HTTP ${status}` : "伺服器錯誤";
 }

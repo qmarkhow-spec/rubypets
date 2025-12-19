@@ -7,8 +7,12 @@ import {
   getUserFromAuthHeader,
   loginUser,
   parseLoginPayload,
+  parseRegisterAccountOnlyPayload,
   parseRegisterPayload,
+  parseRegisterOwnerPayload,
+  registerAccountOnly,
   registerUser,
+  registerOwnerForAccount,
   toPublicOwner,
   hashPassword,
   verifyPassword
@@ -25,6 +29,8 @@ const routes: Route[] = [
   { method: "GET", path: "/posts", handler: postsListRoute },
   { method: "POST", path: "/posts", handler: createPostRoute },
   { method: "POST", path: "/auth/register", handler: registerRoute },
+  { method: "POST", path: "/auth/register/account", handler: registerAccountRoute },
+  { method: "POST", path: "/auth/register/owner", handler: registerOwnerRoute },
   { method: "POST", path: "/auth/login", handler: loginRoute },
   { method: "GET", path: "/me", handler: meRoute },
   { method: "GET", path: "/admin/review/summary", handler: reviewSummaryRoute },
@@ -137,6 +143,26 @@ async function registerRoute(ctx: HandlerContext): Promise<Response> {
   try {
     const payload = await parseRegisterPayload(ctx.request);
     const { owner, tokens } = await registerUser(ctx.db, payload);
+    return okJson({ user: owner, ...tokens }, 201);
+  } catch (err) {
+    return errorJson((err as Error).message, 400);
+  }
+}
+
+async function registerAccountRoute(ctx: HandlerContext): Promise<Response> {
+  try {
+    const payload = await parseRegisterAccountOnlyPayload(ctx.request);
+    const account = await registerAccountOnly(ctx.db, payload);
+    return okJson({ account }, 201);
+  } catch (err) {
+    return errorJson((err as Error).message, 400);
+  }
+}
+
+async function registerOwnerRoute(ctx: HandlerContext): Promise<Response> {
+  try {
+    const payload = await parseRegisterOwnerPayload(ctx.request);
+    const { owner, tokens } = await registerOwnerForAccount(ctx.db, payload);
     return okJson({ user: owner, ...tokens }, 201);
   } catch (err) {
     return errorJson((err as Error).message, 400);
