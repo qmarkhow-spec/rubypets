@@ -155,21 +155,52 @@ export default function NewPostPage() {
     });
     const { upload_url, asset_id } = (data as any).data ?? data;
 
+    const isTus = /\/tus\//i.test(upload_url);
     const filenameMeta = btoa(unescape(encodeURIComponent(file.name)));
-    const uploadResp = await fetch(upload_url, {
-      method: "POST",
-      headers: {
-        "Tus-Resumable": "1.0.0",
-        "Upload-Offset": "0",
-        "Upload-Length": `${file.size}`,
-        "Upload-Metadata": `filename ${filenameMeta}`,
-        "Content-Type": "application/offset+octet-stream",
-      },
-      body: file,
-    });
-    if (!uploadResp.ok) {
-      const errText = await uploadResp.text().catch(() => "");
-      throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
+    let uploaded = false;
+
+    if (isTus || /upload\.cloudflarestream\.com/i.test(upload_url)) {
+      // Step 1: create upload (no body, only tus headers)
+      const createResp = await fetch(upload_url, {
+        method: "POST",
+        headers: {
+          "Tus-Resumable": "1.0.0",
+          "Upload-Length": `${file.size}`,
+          "Upload-Metadata": `filename ${filenameMeta}`,
+        },
+      });
+      if (!createResp.ok) {
+        const errText = await createResp.text().catch(() => "");
+        throw new Error(`影片建立直傳失敗${errText ? `: ${errText}` : ""}`);
+      }
+      const location = createResp.headers.get("Location") || upload_url;
+
+      // Step 2: PATCH upload bytes
+      const patchResp = await fetch(location, {
+        method: "PATCH",
+        headers: {
+          "Tus-Resumable": "1.0.0",
+          "Upload-Offset": "0",
+          "Content-Type": "application/offset+octet-stream",
+        },
+        body: file,
+      });
+      if (!patchResp.ok) {
+        const errText = await patchResp.text().catch(() => "");
+        throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
+      }
+      uploaded = true;
+    } else {
+      const uploadResp = await fetch(upload_url, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "video/mp4" },
+        body: file,
+      });
+      if (!uploadResp.ok) {
+        const errText = await uploadResp.text().catch(() => "");
+        throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
+      }
+      uploaded = true;
     }
 
     return asset_id;
