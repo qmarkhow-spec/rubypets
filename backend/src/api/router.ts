@@ -213,7 +213,8 @@ async function mediaImagesInitRoute(ctx: HandlerContext): Promise<Response> {
 
     const cfAccountId = ctx.env.CF_ACCOUNT_ID;
     const cfToken = ctx.env.CF_API_TOKEN;
-    if (!cfAccountId || !cfToken) return errorJson("cloudflare images not configured", 500);
+    const cfImagesHash = ctx.env.CF_IMAGES_ACCOUNT_HASH;
+    if (!cfAccountId || !cfToken || !cfImagesHash) return errorJson("cloudflare images not configured", 500);
 
     const cfResp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/images/v2/direct_upload`, {
       method: "POST",
@@ -233,6 +234,7 @@ async function mediaImagesInitRoute(ctx: HandlerContext): Promise<Response> {
       kind: "image",
       usage: usage as any,
       storageKey: cfImageId,
+      url: `https://imagedelivery.net/${cfImagesHash}/${cfImageId}/${pickImageVariant(usage)}`,
       mimeType: file.mime_type,
       sizeBytes: file.size_bytes,
       status: "uploaded"
@@ -262,6 +264,7 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
     const cfAccountId = ctx.env.CF_ACCOUNT_ID;
     const cfToken = ctx.env.CF_API_TOKEN;
     if (!cfAccountId || !cfToken) return errorJson("cloudflare stream not configured", 500);
+    const cfStreamSubdomain = ctx.env.CF_STREAM_SUBDOMAIN; // e.g. abc123
 
     const cfResp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/stream/direct_upload`, {
       method: "POST",
@@ -285,6 +288,7 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
       kind: "video",
       usage: "post",
       storageKey: uid,
+      url: cfStreamSubdomain ? `https://customer-${cfStreamSubdomain}.cloudflarestream.com/${uid}/manifest/video.m3u8` : null,
       mimeType: file.mime_type,
       sizeBytes: file.size_bytes,
       status: "uploaded"
@@ -353,6 +357,21 @@ async function attachMediaRoute(ctx: HandlerContext, params: Record<string, stri
   } catch (err) {
     console.error("attachMedia error", err);
     return errorJson((err as Error).message, 500);
+  }
+}
+
+function pickImageVariant(usage: string): string {
+  switch (usage) {
+    case "avatar":
+      return "OwnerAvatar256";
+    case "pet_avatar":
+      return "PetAvatar256";
+    case "post":
+      return "Post1080";
+    case "kyc":
+      return "KYCMax1600";
+    default:
+      return "public";
   }
 }
 async function loginRoute(ctx: HandlerContext): Promise<Response> {
