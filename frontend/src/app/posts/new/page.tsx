@@ -155,12 +155,23 @@ export default function NewPostPage() {
     });
     const { upload_url, asset_id } = (data as any).data ?? data;
 
+    const isTus = /\/tus\//i.test(upload_url);
     const uploadResp = await fetch(upload_url, {
-      method: "POST",
-      headers: { "content-type": file.type || "video/mp4" },
+      method: isTus ? "PATCH" : "POST",
+      headers: isTus
+        ? {
+            "Tus-Resumable": "1.0.0",
+            "Upload-Offset": "0",
+            "Upload-Length": `${file.size}`,
+            "Content-Type": "application/offset+octet-stream",
+          }
+        : { "content-type": file.type || "video/mp4" },
       body: file,
     });
-    if (!uploadResp.ok) throw new Error("上傳影片失敗");
+    if (!uploadResp.ok) {
+      const errText = await uploadResp.text().catch(() => "");
+      throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
+    }
 
     return asset_id;
   }
