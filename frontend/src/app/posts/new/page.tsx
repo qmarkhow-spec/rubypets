@@ -87,7 +87,7 @@ export default function NewPostPage() {
       }
 
       if (kind === "image_set") {
-        if (!images.length) throw new Error("請至少選擇 1 張圖片，最多 5 張");
+        if (!images.length) throw new Error("請至少選??1 張�??��??��?5 �?);
         const created = await createPost({ content, post_type: "image_set", visibility });
         const assetIds = await Promise.all(images.map((file) => uploadImage(file, created.id)));
         await attachMedia(created.id, "image_set", assetIds);
@@ -98,7 +98,7 @@ export default function NewPostPage() {
       }
 
       if (kind === "video") {
-        if (!video) throw new Error("請先選擇影片（限制 1 部，60 秒內）");
+        if (!video) throw new Error("請�??��?影�?（�???1 ?��?60 秒內�?);
         const created = await createPost({ content, post_type: "video", visibility });
         const assetId = await uploadVideo(video, created.id);
         await attachMedia(created.id, "video", [assetId]);
@@ -120,7 +120,7 @@ export default function NewPostPage() {
     });
     const post = (data as any).data ?? data;
     if (!post?.id) {
-      throw new Error("建立貼文失敗：缺少 id");
+      throw new Error("建�?貼�?失�?：缺�?id");
     }
     return post;
   }
@@ -139,7 +139,7 @@ export default function NewPostPage() {
     const form = new FormData();
     form.append("file", file);
     const uploadResp = await fetch(upload_url, { method: "POST", body: form });
-    if (!uploadResp.ok) throw new Error("上傳圖片失敗");
+    if (!uploadResp.ok) throw new Error("上傳?��?失�?");
 
     return asset_id;
   }
@@ -155,52 +155,25 @@ export default function NewPostPage() {
     });
     const { upload_url, asset_id } = (data as any).data ?? data;
 
-    const isTus = /\/tus\//i.test(upload_url);
+    const isTus = /\/tus\//i.test(upload_url) || /upload\.cloudflarestream\.com/i.test(upload_url);
     const filenameMeta = btoa(unescape(encodeURIComponent(file.name)));
-    let uploaded = false;
 
-    if (isTus || /upload\.cloudflarestream\.com/i.test(upload_url)) {
-      // Step 1: create upload (no body, only tus headers)
-      const createResp = await fetch(upload_url, {
-        method: "POST",
-        headers: {
-          "Tus-Resumable": "1.0.0",
-          "Upload-Length": `${file.size}`,
-          "Upload-Metadata": `filename ${filenameMeta}`,
-        },
-      });
-      if (!createResp.ok) {
-        const errText = await createResp.text().catch(() => "");
-        throw new Error(`影片建立直傳失敗${errText ? `: ${errText}` : ""}`);
-      }
-      const location = createResp.headers.get("Location") || upload_url;
-
-      // Step 2: PATCH upload bytes
-      const patchResp = await fetch(location, {
-        method: "PATCH",
-        headers: {
-          "Tus-Resumable": "1.0.0",
-          "Upload-Offset": "0",
-          "Content-Type": "application/offset+octet-stream",
-        },
-        body: file,
-      });
-      if (!patchResp.ok) {
-        const errText = await patchResp.text().catch(() => "");
-        throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
-      }
-      uploaded = true;
-    } else {
-      const uploadResp = await fetch(upload_url, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "video/mp4" },
-        body: file,
-      });
-      if (!uploadResp.ok) {
-        const errText = await uploadResp.text().catch(() => "");
-        throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
-      }
-      uploaded = true;
+    const uploadResp = await fetch(upload_url, {
+      method: isTus ? "PATCH" : "POST",
+      headers: isTus
+        ? {
+            "Tus-Resumable": "1.0.0",
+            "Upload-Offset": "0",
+            "Upload-Length": `${file.size}`,
+            "Upload-Metadata": `filename ${filenameMeta}`,
+            "Content-Type": "application/offset+octet-stream",
+          }
+        : { "Content-Type": file.type || "video/mp4" },
+      body: file,
+    });
+    if (!uploadResp.ok) {
+      const errText = await uploadResp.text().catch(() => "");
+      throw new Error(`�W�Ǽv������${errText ? `: ${errText}` : ""}`);
     }
 
     return asset_id;
@@ -221,27 +194,27 @@ export default function NewPostPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/" className="text-sm text-white/80 hover:text-white">
-          返回首頁
+          返�?首�?
         </Link>
-        <h1 className="text-xl font-semibold text-white">新增貼文</h1>
+        <h1 className="text-xl font-semibold text-white">?��?貼�?</h1>
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="flex flex-wrap gap-2">
-            <KindButton label="純文字" active={kind === "text"} onClick={() => onKindChange("text")} />
-            <KindButton label="圖片串 (1-5張)" active={kind === "image_set"} onClick={() => onKindChange("image_set")} />
-            <KindButton label="影片 (1 分鐘內)" active={kind === "video"} onClick={() => onKindChange("video")} />
+            <KindButton label="純�?�? active={kind === "text"} onClick={() => onKindChange("text")} />
+            <KindButton label="?��?�?(1-5�?" active={kind === "image_set"} onClick={() => onKindChange("image_set")} />
+            <KindButton label="影�? (1 ?��???" active={kind === "video"} onClick={() => onKindChange("video")} />
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-slate-700">內容</label>
+            <label className="text-sm text-slate-700">?�容</label>
             <textarea
               className="w-full rounded border border-slate-200 p-3 text-sm"
               rows={5}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="寫點什麼..."
+              placeholder="寫�?什�?.."
               required
             />
           </div>
@@ -254,9 +227,9 @@ export default function NewPostPage() {
                   onClick={() => imageInputRef.current?.click()}
                   className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
                 >
-                  選擇圖片
+                  ?��??��?
                 </button>
-                <span className="text-xs text-slate-600">最多 5 張，JPG/PNG/WebP</span>
+                <span className="text-xs text-slate-600">?��?5 張�?JPG/PNG/WebP</span>
               </div>
               <input
                 ref={imageInputRef}
@@ -267,7 +240,7 @@ export default function NewPostPage() {
                 onChange={handlePickImages}
               />
               <div className="space-y-1 text-sm text-slate-700">
-                {images.length === 0 && <p>尚未選擇圖片</p>}
+                {images.length === 0 && <p>尚未?��??��?</p>}
                 {images.map((file, idx) => (
                   <div key={`${file.name}-${idx}`} className="flex items-center justify-between rounded bg-slate-100 px-2 py-1">
                     <span className="truncate">{file.name}</span>
@@ -289,9 +262,9 @@ export default function NewPostPage() {
                   onClick={() => videoInputRef.current?.click()}
                   className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
                 >
-                  選擇影片
+                  ?��?影�?
                 </button>
-                <span className="text-xs text-slate-600">僅 1 部，60 秒內</span>
+                <span className="text-xs text-slate-600">??1 ?��?60 秒內</span>
               </div>
               <input
                 ref={videoInputRef}
@@ -301,7 +274,7 @@ export default function NewPostPage() {
                 onChange={handlePickVideo}
               />
               <div className="space-y-1 text-sm text-slate-700">
-                {!video && <p>尚未選擇影片</p>}
+                {!video && <p>尚未?��?影�?</p>}
                 {video && (
                   <div className="flex items-center justify-between rounded bg-slate-100 px-2 py-1">
                     <span className="truncate">{video.name}</span>
@@ -323,7 +296,7 @@ export default function NewPostPage() {
               disabled={submitting}
               className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300"
             >
-              {submitting ? "發布中..." : "發布貼文"}
+              {submitting ? "?��?�?.." : "?��?貼�?"}
             </button>
             {error && <span className="text-sm text-red-600">{error}</span>}
           </div>
@@ -336,19 +309,19 @@ export default function NewPostPage() {
       </section>
 
       <section className="rounded-xl border border-dashed border-white/20 bg-white/60 p-4 text-sm text-slate-700">
-        <h2 className="text-base font-semibold text-slate-900">送出前預覽</h2>
+        <h2 className="text-base font-semibold text-slate-900">?�出?��?�?/h2>
         {content.trim() ? (
           <div className="mt-2 space-y-1">
-            <p className="text-xs uppercase tracking-wide text-slate-500">內容預覽</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">?�容?�覽</p>
             <p className="rounded bg-slate-50 p-3 text-slate-800">{content}</p>
             {kind === "image_set" && images.length > 0 && (
-              <p className="text-xs text-slate-600">圖片：{images.map((f) => f.name).join(", ")}</p>
+              <p className="text-xs text-slate-600">?��?：{images.map((f) => f.name).join(", ")}</p>
             )}
-            {kind === "video" && video && <p className="text-xs text-slate-600">影片：{video.name}</p>}
+            {kind === "video" && video && <p className="text-xs text-slate-600">影�?：{video.name}</p>}
             {petTags.length > 0 && <p className="text-xs text-slate-600">寵物 Tag：{petTagsDisplay}</p>}
           </div>
         ) : (
-          <p className="mt-2 text-slate-600">輸入內容後即可預覽，確認沒問題再發佈。</p>
+          <p className="mt-2 text-slate-600">輸入?�容後即?��?覽�?確�?沒�?題�??��???/p>
         )}
       </section>
     </div>
@@ -356,14 +329,14 @@ export default function NewPostPage() {
 }
 
 function readError(err: unknown): string {
-  if (!err) return "未知錯誤";
+  if (!err) return "?�知?�誤";
   if (typeof err === "string") return err;
   const status = (err as { status?: number }).status;
   const details = (err as { details?: unknown }).details;
   if (details && typeof details === "object" && "error" in details) {
-    return `${status ?? ""} ${(details as { error?: string }).error ?? "伺服器錯誤"}`;
+    return `${status ?? ""} ${(details as { error?: string }).error ?? "伺�??�錯�?}`;
   }
-  return status ? `HTTP ${status}` : "伺服器錯誤";
+  return status ? `HTTP ${status}` : "伺�??�錯�?;
 }
 
 function KindButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -382,7 +355,7 @@ function PetTags({ petTags, onToggle }: { petTags: string[]; onToggle: (tag: str
   const options = ["Mochi", "Kiki", "Luna"];
   return (
     <div className="space-y-1">
-      <p className="text-xs text-slate-600">標記寵物（之後可改成從後端載入）</p>
+      <p className="text-xs text-slate-600">標�?寵物（�?後可?��?從�?端�??��?</p>
       <div className="flex flex-wrap gap-2">
         {options.map((pet) => (
           <button
@@ -402,16 +375,17 @@ function PetTags({ petTags, onToggle }: { petTags: string[]; onToggle: (tag: str
 function VisibilityField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <div className="space-y-1">
-      <label className="text-sm text-slate-700">可見性</label>
+      <label className="text-sm text-slate-700">?��???/label>
       <select
         className="w-full rounded border border-slate-200 p-3 text-sm"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="public">公開</option>
-        <option value="friends">好友</option>
-        <option value="private">僅自己</option>
+        <option value="public">?��?</option>
+        <option value="friends">好�?</option>
+        <option value="private">?�自�?/option>
       </select>
     </div>
   );
 }
+
