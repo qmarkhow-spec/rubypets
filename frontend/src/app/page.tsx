@@ -111,7 +111,12 @@ function renderMedia(post: Post) {
   return (
     <div className="mt-3 grid grid-cols-2 gap-2">
       {media.map((url) => (
-        <img key={url} src={url} alt="post media" className="h-32 w-full rounded-md object-cover" />
+        <img
+          key={url}
+          src={url}
+          alt="post media"
+          className="max-h-80 w-full rounded-md bg-slate-100 object-contain"
+        />
       ))}
     </div>
   );
