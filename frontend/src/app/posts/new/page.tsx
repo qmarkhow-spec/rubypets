@@ -157,11 +157,10 @@ export default function NewPostPage() {
     const filenameMeta = btoa(unescape(encodeURIComponent(file.name)));
 
     const uploadResp = await fetch(upload_url, {
-      method: isTus ? "PATCH" : "POST",
+      method: isTus ? "POST" : "POST",
       headers: isTus
         ? {
             "Tus-Resumable": "1.0.0",
-            "Upload-Offset": "0",
             "Upload-Length": `${file.size}`,
             "Upload-Metadata": `filename ${filenameMeta}`,
             "Content-Type": "application/offset+octet-stream",
@@ -386,4 +385,3 @@ function VisibilityField({ value, onChange }: { value: string; onChange: (value:
     </div>
   );
 }
-
