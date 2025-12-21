@@ -155,17 +155,16 @@ export default function NewPostPage() {
     });
     const { upload_url, asset_id } = (data as any).data ?? data;
 
-    const isTus = /\/tus\//i.test(upload_url);
+    const filenameMeta = btoa(unescape(encodeURIComponent(file.name)));
     const uploadResp = await fetch(upload_url, {
-      method: isTus ? "PATCH" : "POST",
-      headers: isTus
-        ? {
-            "Tus-Resumable": "1.0.0",
-            "Upload-Offset": "0",
-            "Upload-Length": `${file.size}`,
-            "Content-Type": "application/offset+octet-stream",
-          }
-        : { "content-type": file.type || "video/mp4" },
+      method: "POST",
+      headers: {
+        "Tus-Resumable": "1.0.0",
+        "Upload-Offset": "0",
+        "Upload-Length": `${file.size}`,
+        "Upload-Metadata": `filename ${filenameMeta}`,
+        "Content-Type": "application/offset+octet-stream",
+      },
       body: file,
     });
     if (!uploadResp.ok) {
