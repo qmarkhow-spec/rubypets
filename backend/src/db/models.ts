@@ -19,6 +19,7 @@ export interface Post {
   visibility?: string;
   postType?: string;
   mediaCount?: number;
+  mediaUrls?: string[];
 }
 
 export interface MediaAsset {

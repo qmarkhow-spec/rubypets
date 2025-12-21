@@ -149,7 +149,9 @@ export class D1Client implements DBClient {
       .bind(ownerUuid, limit)
       .all<PostRow>();
 
-    return (results ?? []).map(mapPostRow);
+    const posts = (results ?? []).map(mapPostRow);
+    await this.populateMedia(posts);
+    return posts;
   }
 
   async listRecentPosts(limit = 20): Promise<Post[]> {
@@ -174,7 +176,9 @@ export class D1Client implements DBClient {
       .bind(limit)
       .all<PostRow>();
 
-    return (results ?? []).map(mapPostRow);
+    const posts = (results ?? []).map(mapPostRow);
+    await this.populateMedia(posts);
+    return posts;
   }
 
   async getPostById(id: string): Promise<Post | null> {
@@ -197,7 +201,10 @@ export class D1Client implements DBClient {
       )
       .bind(id)
       .first<PostRow>();
-    return row ? mapPostRow(row) : null;
+    if (!row) return null;
+    const post = mapPostRow(row);
+    await this.populateMedia([post]);
+    return post;
   }
 
   async createMediaAsset(input: {
@@ -305,6 +312,34 @@ export class D1Client implements DBClient {
       )
       .bind(postType, assetIds.length, now, postId)
       .run();
+  }
+
+  private async populateMedia(posts: Post[]): Promise<void> {
+    if (posts.length === 0) return;
+    const ids = posts.map((p) => p.id);
+    const placeholders = ids.map(() => "?").join(",");
+    const { results } = await this.db
+      .prepare(
+        `
+          select pm.post_id, ma.url
+          from post_media pm
+          join media_assets ma on ma.id = pm.asset_id
+          where pm.post_id in (${placeholders})
+          order by pm.post_id, pm.order_index
+        `
+      )
+      .bind(...ids)
+      .all<{ post_id: string; url: string | null }>();
+
+    const grouped = new Map<string, string[]>();
+    for (const row of results ?? []) {
+      const arr = grouped.get(row.post_id) ?? [];
+      if (row.url) arr.push(row.url);
+      grouped.set(row.post_id, arr);
+    }
+    for (const p of posts) {
+      p.mediaUrls = grouped.get(p.id) ?? [];
+    }
   }
 
   async getOwnerByEmail(email: string): Promise<Owner | null> {
