@@ -73,6 +73,7 @@ export default function Home() {
                 <span>{new Date(post.createdAt).toLocaleString()}</span>
               </div>
               <p className="mt-2 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
+              {renderMedia(post)}
             </article>
           ))}
         </div>
@@ -90,4 +91,28 @@ function readError(err: unknown): string {
     return `${status ?? ""} ${(details as { error?: string }).error ?? "發生錯誤"}`;
   }
   return status ? `HTTP ${status}` : "發生錯誤";
+}
+
+function renderMedia(post: Post) {
+  const media = post.mediaUrls ?? [];
+  if (media.length === 0) return null;
+
+  if (post.postType === "video") {
+    const url = media[0];
+    return (
+      <div className="mt-3">
+        <video controls className="w-full rounded-md bg-black" src={url}>
+          你的瀏覽器不支援播放影片
+        </video>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      {media.map((url) => (
+        <img key={url} src={url} alt="post media" className="h-32 w-full rounded-md object-cover" />
+      ))}
+    </div>
+  );
 }

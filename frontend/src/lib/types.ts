@@ -33,6 +33,9 @@ export interface Post {
   createdAt: string;
   authorHandle?: string | null;
   authorDisplayName?: string | null;
+  postType?: string | null;
+  mediaCount?: number | null;
+  mediaUrls?: string[];
 }
 
 export interface ApiResult<T> {
