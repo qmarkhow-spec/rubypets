@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { Upload } from "tus-js-client";
 
 type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
 type PostKind = "text" | "image_set" | "video";
@@ -157,50 +156,20 @@ export default function NewPostPage() {
     });
     const { upload_url, asset_id } = (data as any).data ?? data;
 
-    const isTus = /\/tus\//i.test(upload_url) || /upload\.cloudflarestream\.com/i.test(upload_url);
-
-    if (isTus) {
-      await uploadWithTus(upload_url, file);
-    } else {
-      const uploadResp = await fetch(upload_url, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "video/mp4" },
-        body: file,
-      });
-      if (!uploadResp.ok) {
-        const errText = await uploadResp.text().catch(() => "");
-        throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
-      }
-      setVideoProgress(100);
+    // Basic direct upload requires multipart/form-data with "file" field.
+    const form = new FormData();
+    form.append("file", file);
+    const uploadResp = await fetch(upload_url, {
+      method: "POST",
+      body: form,
+    });
+    if (!uploadResp.ok) {
+      const errText = await uploadResp.text().catch(() => "");
+      throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
     }
+    setVideoProgress(100);
 
     return asset_id;
-  }
-
-  function uploadWithTus(uploadUrl: string, file: File) {
-    return new Promise<void>((resolve, reject) => {
-      const upload = new Upload(file, {
-        uploadUrl,
-        uploadSize: file.size,
-        metadata: {
-          filename: file.name,
-          filetype: file.type || "video/mp4",
-        },
-        onError: (err) => reject(err),
-        onProgress: (bytesSent, bytesTotal) => {
-          const pct = bytesTotal > 0 ? Math.round((bytesSent / bytesTotal) * 100) : 0;
-          setVideoProgress(pct);
-        },
-        onSuccess: () => {
-          setVideoProgress(100);
-          resolve();
-        },
-        headers: {
-          "Tus-Resumable": "1.0.0",
-        },
-      });
-      upload.start();
-    });
   }
 
   async function attachMedia(postId: string, postType: "image_set" | "video", assetIds: string[]) {
