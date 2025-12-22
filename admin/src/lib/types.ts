@@ -45,3 +45,16 @@ export type KycDetail = {
   faceWithLicenseUrl: string | null;
   createdAt: string | null;
 };
+
+export type AdminPost = {
+  id: string;
+  authorId: string;
+  authorDisplayName?: string | null;
+  body?: string | null;
+  content?: string | null;
+  postType?: string | null;
+  mediaCount?: number | null;
+  mediaUrls?: string[];
+  isDeleted?: number;
+  createdAt: string;
+};

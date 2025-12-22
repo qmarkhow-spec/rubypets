@@ -1,16 +1,17 @@
-﻿'use client';
+'use client';
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-client";
-import { Post } from "@/lib/types";
+import { Suspense, useEffect, useState } from "react";
+import { AppShell } from "@/components/app-shell";
+import { apiFetch } from "@/lib/api";
+import { AdminPost } from "@/lib/types";
 
-export default function AdminPostDetailPage() {
+function DetailInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const postId = searchParams.get("id") || "";
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<AdminPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<"disable" | "disable_delete_media" | "delete_all">("disable");
@@ -22,7 +23,7 @@ export default function AdminPostDetailPage() {
       setLoading(false);
       return;
     }
-    load(postId);
+    void load(postId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
@@ -30,8 +31,8 @@ export default function AdminPostDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await apiFetch<{ data: Post }>(`/api/admin/posts/${id}`);
-      setPost(data.data);
+      const res = await apiFetch<{ data: AdminPost }>(`/admin/posts/${id}`);
+      setPost(res.data);
     } catch (err) {
       setError(readError(err));
     } finally {
@@ -48,7 +49,7 @@ export default function AdminPostDetailPage() {
     setSaving(true);
     setError(null);
     try {
-      await apiFetch(`/api/admin/posts/${post.id}/moderate`, {
+      await apiFetch(`/admin/posts/${post.id}/moderate`, {
         method: "POST",
         body: JSON.stringify({ action }),
       });
@@ -67,20 +68,19 @@ export default function AdminPostDetailPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <AppShell title="貼文管理" intro="檢視與操作貼文" requireAuth>
       <div className="flex items-center gap-3 text-white">
         <Link href="/admin/posts" className="text-sm text-white/80 hover:text-white">
           返回列表
         </Link>
-        <h1 className="text-xl font-semibold">貼文管理</h1>
       </div>
 
       {!postId && <p className="text-sm text-red-500">缺少貼文 ID</p>}
-      {loading && <p className="text-sm text-white/80">載入中...</p>}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {loading && <p className="text-sm text-slate-600">載入中...</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {post && (
-        <div className="space-y-3 rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+        <div className="space-y-3 card">
           <div className="flex items-center justify-between text-sm text-slate-600">
             <span>作者：{post.authorDisplayName || post.authorId}</span>
             <span>{new Date(post.createdAt).toLocaleString()}</span>
@@ -124,18 +124,26 @@ export default function AdminPostDetailPage() {
               type="button"
               onClick={saveAction}
               disabled={saving}
-              className="mt-2 w-full rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="btn primary w-full"
             >
               {saving ? "儲存中..." : "儲存"}
             </button>
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }
 
-function renderMedia(post: Post) {
+export default function Page() {
+  return (
+    <Suspense fallback={<p className="text-sm text-white/80">載入中...</p>}>
+      <DetailInner />
+    </Suspense>
+  );
+}
+
+function renderMedia(post: AdminPost) {
   const media = post.mediaUrls ?? [];
   if (!media.length) return null;
 
@@ -162,10 +170,5 @@ function renderMedia(post: Post) {
 function readError(err: unknown): string {
   if (!err) return "未知錯誤";
   if (typeof err === "string") return err;
-  const status = (err as { status?: number }).status;
-  const details = (err as { details?: unknown }).details;
-  if (details && typeof details === "object" && "error" in details) {
-    return `${status ?? ""} ${(details as { error?: string }).error ?? "伺服器錯誤"}`;
-  }
-  return status ? `HTTP ${status}` : "伺服器錯誤";
+  return (err as Error).message || "伺服器錯誤";
 }
