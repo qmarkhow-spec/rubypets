@@ -334,12 +334,22 @@ export class D1Client implements DBClient {
     const grouped = new Map<string, string[]>();
     for (const row of results ?? []) {
       const arr = grouped.get(row.post_id) ?? [];
-      if (row.url) arr.push(row.url);
+      if (row.url) arr.push(this.sanitizeStreamUrl(row.url));
       grouped.set(row.post_id, arr);
     }
     for (const p of posts) {
       p.mediaUrls = grouped.get(p.id) ?? [];
     }
+  }
+
+  // Fix legacy/badly formatted Cloudflare Stream URLs that might contain duplicated customer- or host segments.
+  // Example bad: https://customer-customer-abc.cloudflarestream.com.cloudflarestream.com/uid/manifest/video.m3u8
+  // Example good: https://customer-abc.cloudflarestream.com/uid/manifest/video.m3u8
+  private sanitizeStreamUrl(url: string | null): string | null {
+    if (!url) return url;
+    let cleaned = url.replace(/customer-customer-/gi, "customer-");
+    cleaned = cleaned.replace(/\.cloudflarestream\.com\.cloudflarestream\.com/gi, ".cloudflarestream.com");
+    return cleaned;
   }
 
   async getOwnerByEmail(email: string): Promise<Owner | null> {
