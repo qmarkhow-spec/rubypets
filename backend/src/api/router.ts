@@ -40,6 +40,7 @@ const routes: Route[] = [
   { method: "GET", path: "/admin/admin-accounts", handler: adminAccountsListRoute },
   { method: "POST", path: "/admin/admin-accounts", handler: adminAccountsCreateRoute },
   { method: "POST", path: "/admin/auth/login", handler: adminLoginRoute },
+  { method: "GET", path: "/admin/posts", handler: adminPostsListRoute },
   { method: "GET", path: "/", handler: rootRoute }
 ];
 
@@ -504,6 +505,86 @@ async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string,
   return okJson({ accountId: id, ok: true }, 200);
 }
 
+async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
+  const url = new URL(ctx.request.url);
+  const limit = asNumber(url.searchParams.get("limit"), 20);
+  const page = Math.max(asNumber(url.searchParams.get("page"), 1), 1);
+  const offset = (page - 1) * limit;
+  const posts = await ctx.db.listAdminPosts(limit, offset);
+  return okJson({ data: posts, page, hasMore: posts.length === limit }, 200);
+}
+
+async function adminPostDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const post = await ctx.db.getPostById(params.id);
+  if (!post) return errorJson("post not found", 404);
+  return okJson({ data: post }, 200);
+}
+
+async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  try {
+    const postId = params.id;
+    const body = (await ctx.request.json().catch(() => ({}))) as { action?: string };
+    const action = (body.action ?? "").trim();
+    const post = await ctx.db.getPostById(postId);
+    if (!post) return errorJson("post not found", 404);
+
+    const assets = await ctx.db.getPostAssets(postId);
+    const assetIds = assets.map((a) => a.assetId);
+
+    if (action === "disable") {
+      await ctx.db.markPostDeleted(postId);
+      return okJson({ ok: true }, 200);
+    }
+
+    if (action === "disable_delete_media") {
+      await deleteCloudflareAssets(assets, ctx.env);
+      await ctx.db.deletePostMediaAndAssets(postId, assetIds);
+      await ctx.db.markPostDeleted(postId);
+      return okJson({ ok: true }, 200);
+    }
+
+    if (action === "delete_all") {
+      await deleteCloudflareAssets(assets, ctx.env);
+      await ctx.db.deletePostCascade(postId, assetIds);
+      return okJson({ ok: true }, 200);
+    }
+
+    return errorJson("invalid action", 400);
+  } catch (err) {
+    console.error("adminPostModerate error", err);
+    return errorJson((err as Error).message, 500);
+  }
+}
+
+async function deleteCloudflareAssets(
+  assets: { assetId: string; kind: string; storageKey: string }[],
+  env: HandlerContext["env"]
+): Promise<void> {
+  const cfAccountId = env.CF_ACCOUNT_ID;
+  const cfToken = env.CF_API_TOKEN;
+  if (!cfAccountId || !cfToken) {
+    console.warn("Cloudflare credentials missing, skip remote delete");
+    return;
+  }
+  for (const asset of assets) {
+    try {
+      if (asset.kind === "image") {
+        await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/images/v1/${asset.storageKey}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${cfToken}` }
+        });
+      } else if (asset.kind === "video") {
+        await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/stream/${asset.storageKey}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${cfToken}` }
+        });
+      }
+    } catch (err) {
+      console.error("deleteCloudflareAsset failed", asset, err);
+    }
+  }
+}
+
 function okJson(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -537,6 +618,8 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute },
   { method: "POST", pattern: /^\/admin\/review\/kyc\/([^/]+)\/decision$/, handler: kycDecisionRoute },
   { method: "POST", pattern: /^\/admin\/admin-accounts\/([^/]+)\/roll$/, handler: adminAccountRollRoute },
+  { method: "GET", pattern: /^\/admin\/posts\/([^/]+)$/, handler: adminPostDetailRoute },
+  { method: "POST", pattern: /^\/admin\/posts\/([^/]+)\/moderate$/, handler: adminPostModerateRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/media\/attach$/, handler: attachMediaRoute },
   { method: "POST", pattern: /^\/media\/upload\/([^/]+)$/, handler: mediaUploadStubRoute }
 ];

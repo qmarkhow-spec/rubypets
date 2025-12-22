@@ -36,6 +36,7 @@ export interface Post {
   postType?: string | null;
   mediaCount?: number | null;
   mediaUrls?: string[];
+   isDeleted?: number;
 }
 
 export interface ApiResult<T> {

@@ -40,12 +40,15 @@ export default function RootLayout({
                     <Link href="/" className="hover:text-white">
                       首頁
                     </Link>
-                    <Link href="/login" className="hover:text-white">
-                      登入
-                    </Link>
-                    <Link href="/debug" className="hover:text-white">
-                      Debug
-                    </Link>
+                  <Link href="/login" className="hover:text-white">
+                    登入
+                  </Link>
+                  <Link href="/debug" className="hover:text-white">
+                    Debug
+                  </Link>
+                  <Link href="/admin/posts" className="hover:text-white">
+                    貼文管理
+                  </Link>
                   </nav>
                   <UserStatus />
                 </div>
