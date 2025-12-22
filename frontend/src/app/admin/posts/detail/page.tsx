@@ -1,14 +1,15 @@
 'use client';
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { Post } from "@/lib/types";
 
 export default function AdminPostDetailPage() {
-  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const postId = searchParams.get("id") || "";
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,15 +17,20 @@ export default function AdminPostDetailPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    load();
+    if (!postId) {
+      setError("缺少貼文 ID");
+      setLoading(false);
+      return;
+    }
+    load(postId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [postId]);
 
-  async function load() {
+  async function load(id: string) {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await apiFetch<{ data: Post }>(`/api/admin/posts/${params.id}`);
+      const { data } = await apiFetch<{ data: Post }>(`/api/admin/posts/${id}`);
       setPost(data.data);
     } catch (err) {
       setError(readError(err));
@@ -51,7 +57,7 @@ export default function AdminPostDetailPage() {
         router.refresh();
         return;
       }
-      await load();
+      await load(post.id);
       alert("已儲存");
     } catch (err) {
       setError(readError(err));
@@ -69,6 +75,7 @@ export default function AdminPostDetailPage() {
         <h1 className="text-xl font-semibold">貼文管理</h1>
       </div>
 
+      {!postId && <p className="text-sm text-red-500">缺少貼文 ID</p>}
       {loading && <p className="text-sm text-white/80">載入中...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
 

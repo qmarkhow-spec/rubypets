@@ -73,7 +73,7 @@ export default function AdminPostsPage() {
         <div className="divide-y divide-slate-200">
           {posts.map((post) => (
             <div key={post.id} className="grid grid-cols-5 gap-3 py-3 text-sm text-slate-800">
-              <Link href={`/admin/posts/${post.id}`} className="truncate text-blue-600 hover:underline">
+              <Link href={`/admin/posts/detail?id=${post.id}`} className="truncate text-blue-600 hover:underline">
                 {post.id}
               </Link>
               <span className="truncate">{post.authorDisplayName || post.authorId}</span>
