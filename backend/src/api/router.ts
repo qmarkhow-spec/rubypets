@@ -291,7 +291,7 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
       url: cfStreamSubdomain ? `https://customer-${cfStreamSubdomain}.cloudflarestream.com/${uid}/manifest/video.m3u8` : null,
       mimeType: file.mime_type,
       sizeBytes: file.size_bytes,
-      status: "uploaded"
+      status: "processing"
     });
 
     return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);

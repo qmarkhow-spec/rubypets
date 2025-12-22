@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { Upload } from "tus-js-client";
 
 type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
 type PostKind = "text" | "image_set" | "video";
@@ -24,6 +25,7 @@ export default function NewPostPage() {
   const [result, setResult] = useState<Json | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [videoProgress, setVideoProgress] = useState<number | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -97,10 +99,12 @@ export default function NewPostPage() {
 
       if (kind === "video") {
         if (!video) throw new Error("請選擇 1 部 60 秒內的影片");
+        setVideoProgress(0);
         const created = await createPost({ content, post_type: "video", visibility });
         const assetId = await uploadVideo(video, created.id);
         await attachMedia(created.id, "video", [assetId]);
         setResult(created);
+        setVideoProgress(null);
         router.push("/");
         router.refresh();
       }
@@ -154,26 +158,49 @@ export default function NewPostPage() {
     const { upload_url, asset_id } = (data as any).data ?? data;
 
     const isTus = /\/tus\//i.test(upload_url) || /upload\.cloudflarestream\.com/i.test(upload_url);
-    const filenameMeta = btoa(unescape(encodeURIComponent(file.name)));
 
-    const uploadResp = await fetch(upload_url, {
-      method: isTus ? "POST" : "POST",
-      headers: isTus
-        ? {
-            "Tus-Resumable": "1.0.0",
-            "Upload-Length": `${file.size}`,
-            "Upload-Metadata": `filename ${filenameMeta}`,
-            "Content-Type": "application/offset+octet-stream",
-          }
-        : { "Content-Type": file.type || "video/mp4" },
-      body: file,
-    });
-    if (!uploadResp.ok) {
-      const errText = await uploadResp.text().catch(() => "");
-      throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
+    if (isTus) {
+      await uploadWithTus(upload_url, file);
+    } else {
+      const uploadResp = await fetch(upload_url, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "video/mp4" },
+        body: file,
+      });
+      if (!uploadResp.ok) {
+        const errText = await uploadResp.text().catch(() => "");
+        throw new Error(`上傳影片失敗${errText ? `: ${errText}` : ""}`);
+      }
+      setVideoProgress(100);
     }
 
     return asset_id;
+  }
+
+  function uploadWithTus(uploadUrl: string, file: File) {
+    return new Promise<void>((resolve, reject) => {
+      const upload = new Upload(file, {
+        uploadUrl,
+        uploadSize: file.size,
+        metadata: {
+          filename: file.name,
+          filetype: file.type || "video/mp4",
+        },
+        onError: (err) => reject(err),
+        onProgress: (bytesSent, bytesTotal) => {
+          const pct = bytesTotal > 0 ? Math.round((bytesSent / bytesTotal) * 100) : 0;
+          setVideoProgress(pct);
+        },
+        onSuccess: () => {
+          setVideoProgress(100);
+          resolve();
+        },
+        headers: {
+          "Tus-Resumable": "1.0.0",
+        },
+      });
+      upload.start();
+    });
   }
 
   async function attachMedia(postId: string, postType: "image_set" | "video", assetIds: string[]) {
@@ -279,6 +306,9 @@ export default function NewPostPage() {
                       移除
                     </button>
                   </div>
+                )}
+                {videoProgress !== null && (
+                  <p className="text-xs text-slate-600">上傳進度：{videoProgress}%</p>
                 )}
               </div>
               <PetTags petTags={petTags} onToggle={togglePetTag} />
