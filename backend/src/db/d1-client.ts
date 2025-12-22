@@ -10,6 +10,7 @@ type PostRow = {
   media_count: number;
   media_key?: string | null;
   created_at: string;
+  is_deleted?: number | null;
   author_handle?: string | null;
   author_display_name?: string | null;
 };
@@ -137,11 +138,12 @@ export class D1Client implements DBClient {
                 p.visibility,
                 p.post_type,
                 p.media_count,
+                p.is_deleted,
                 p.created_at,
                 o.display_name as author_display_name
               from posts p
               left join owners o on o.uuid = p.owner_id
-              where p.owner_id = ?
+              where p.owner_id = ? and p.is_deleted = 0
               order by p.created_at desc
               limit ?
         `
@@ -165,10 +167,12 @@ export class D1Client implements DBClient {
                 p.visibility,
                 p.post_type,
                 p.media_count,
+                p.is_deleted,
                 p.created_at,
                 o.display_name as author_display_name
               from posts p
               left join owners o on o.uuid = p.owner_id
+              where p.is_deleted = 0
               order by p.created_at desc
               limit ?
         `
@@ -192,6 +196,7 @@ export class D1Client implements DBClient {
             p.visibility,
             p.post_type,
             p.media_count,
+            p.is_deleted,
             p.created_at,
             o.display_name as author_display_name
           from posts p
@@ -312,6 +317,70 @@ export class D1Client implements DBClient {
       )
       .bind(postType, assetIds.length, now, postId)
       .run();
+  }
+
+  async listAdminPosts(limit = 20, offset = 0): Promise<Post[]> {
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            p.id,
+            p.owner_id,
+            p.content_text,
+            p.visibility,
+            p.post_type,
+            p.media_count,
+            p.is_deleted,
+            p.created_at,
+            o.display_name as author_display_name
+          from posts p
+          left join owners o on o.uuid = p.owner_id
+          order by p.created_at desc
+          limit ? offset ?
+        `
+      )
+      .bind(limit, offset)
+      .all<PostRow>();
+    const posts = (results ?? []).map(mapPostRow);
+    await this.populateMedia(posts);
+    return posts;
+  }
+
+  async markPostDeleted(postId: string): Promise<void> {
+    const ts = new Date().toISOString();
+    await this.db.prepare(`update posts set is_deleted = 1, updated_at = ? where id = ?`).bind(ts, postId).run();
+  }
+
+  async getPostAssets(postId: string): Promise<{ assetId: string; kind: string; storageKey: string }[]> {
+    const { results } = await this.db
+      .prepare(
+        `
+          select ma.id as asset_id, ma.kind, ma.storage_key
+          from post_media pm
+          join media_assets ma on ma.id = pm.asset_id
+          where pm.post_id = ?
+          order by pm.order_index
+        `
+      )
+      .bind(postId)
+      .all<{ asset_id: string; kind: string; storage_key: string }>();
+    return (results ?? []).map((r) => ({ assetId: r.asset_id, kind: r.kind, storageKey: r.storage_key }));
+  }
+
+  async deletePostMediaAndAssets(postId: string, assetIds: string[]): Promise<void> {
+    if (assetIds.length === 0) return;
+    const placeholders = assetIds.map(() => "?").join(",");
+    await this.db.prepare(`delete from post_media_pet_tags where post_id = ?`).bind(postId).run();
+    await this.db.prepare(`delete from post_media where post_id = ?`).bind(postId).run();
+    await this.db.prepare(`delete from media_assets where id in (${placeholders})`).bind(...assetIds).run();
+  }
+
+  async deletePostCascade(postId: string, assetIds: string[]): Promise<void> {
+    await this.deletePostMediaAndAssets(postId, assetIds);
+    await this.db.prepare(`delete from post_likes where post_id = ?`).bind(postId).run();
+    await this.db.prepare(`delete from post_comments where post_id = ?`).bind(postId).run();
+    await this.db.prepare(`delete from post_shares where post_id = ?`).bind(postId).run();
+    await this.db.prepare(`delete from posts where id = ?`).bind(postId).run();
   }
 
   private async populateMedia(posts: Post[]): Promise<void> {
@@ -738,7 +807,8 @@ function mapPostRow(row: PostRow): Post {
     authorDisplayName: row.author_display_name ?? null,
     visibility: row.visibility,
     postType: row.post_type,
-    mediaCount: row.media_count
+    mediaCount: row.media_count,
+    isDeleted: row.is_deleted ?? 0
   };
 }
 

@@ -20,6 +20,7 @@ export interface Post {
   postType?: string;
   mediaCount?: number;
   mediaUrls?: string[];
+  isDeleted?: number;
 }
 
 export interface MediaAsset {
