@@ -1,12 +1,18 @@
-'use client';
-
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { Post } from "@/lib/types";
 
-export default function AdminPostDetailPage() {
+export default function Page() {
+  return (
+    <Suspense fallback={<p className="text-sm text-white/80">載入中...</p>}>
+      <AdminPostDetailPage />
+    </Suspense>
+  );
+}
+
+function AdminPostDetailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const postId = searchParams.get("id") || "";
