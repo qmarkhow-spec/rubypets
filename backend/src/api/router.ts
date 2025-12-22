@@ -264,7 +264,7 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
     const cfAccountId = ctx.env.CF_ACCOUNT_ID;
     const cfToken = ctx.env.CF_API_TOKEN;
     if (!cfAccountId || !cfToken) return errorJson("cloudflare stream not configured", 500);
-    const cfStreamSubdomain = ctx.env.CF_STREAM_SUBDOMAIN; // e.g. abc123
+    const cfStreamSubdomain = ctx.env.CF_STREAM_SUBDOMAIN; // e.g. abc123 or customer-abc123.cloudflarestream.com
 
     const cfResp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/stream/direct_upload`, {
       method: "POST",
@@ -283,12 +283,17 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
     const uploadUrl = cfJson.result?.uploadURL;
     if (!uid || !uploadUrl) return errorJson("cloudflare stream init missing uploadURL", 502);
 
+    const streamUrl =
+      cfStreamSubdomain && uid
+        ? `https://customer-${normalizeStreamSubdomain(cfStreamSubdomain)}.cloudflarestream.com/${uid}/manifest/video.m3u8`
+        : null;
+
     const asset = await ctx.db.createMediaAsset({
       ownerId: user.uuid,
       kind: "video",
       usage: "post",
       storageKey: uid,
-      url: cfStreamSubdomain ? `https://customer-${cfStreamSubdomain}.cloudflarestream.com/${uid}/manifest/video.m3u8` : null,
+      url: streamUrl,
       mimeType: file.mime_type,
       sizeBytes: file.size_bytes,
       status: "processing"
@@ -373,6 +378,14 @@ function pickImageVariant(usage: string): string {
     default:
       return "public";
   }
+}
+
+function normalizeStreamSubdomain(value: string): string {
+  let sub = value.trim();
+  sub = sub.replace(/^https?:\/\//, "");
+  sub = sub.replace(/\.cloudflarestream\.com.*$/i, "");
+  sub = sub.replace(/^customer-/, "");
+  return sub;
 }
 async function loginRoute(ctx: HandlerContext): Promise<Response> {
   try {
