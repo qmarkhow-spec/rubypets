@@ -14,7 +14,7 @@ function DetailInner() {
   const [post, setPost] = useState<AdminPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [action, setAction] = useState<"disable" | "disable_delete_media" | "delete_all">("disable");
+  const [action, setAction] = useState<"disable" | "disable_delete_media" | "delete_all" | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ function DetailInner() {
   }
 
   async function saveAction() {
-    if (!post) return;
+    if (!post || !action) return;
     if (action !== "disable") {
       const ok = window.confirm("此動作會刪除媒體或整筆貼文資料，確定要執行嗎？");
       if (!ok) return;
@@ -123,10 +123,17 @@ function DetailInner() {
             <button
               type="button"
               onClick={saveAction}
-              disabled={saving}
+              disabled={saving || !action}
               className="btn primary w-full"
             >
               {saving ? "儲存中..." : "儲存"}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="btn ghost w-full"
+            >
+              返回
             </button>
           </div>
         </div>

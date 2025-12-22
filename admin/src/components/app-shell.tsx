@@ -26,10 +26,10 @@ const NAV_ITEMS: NavItem[] = [
     label: "管理員管理",
     children: [
       { href: "/admin", label: "總覽" },
-      { href: "/admin/accounts", label: "管理員帳號" },
-      { href: "/admin/posts", label: "貼文管理" }
+      { href: "/admin/accounts", label: "管理員帳號" }
     ]
   },
+  { href: "/admin/posts", label: "貼文管理" },
   { href: "/login", label: "登入/Token" }
 ];
 
