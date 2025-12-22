@@ -58,41 +58,41 @@ export default function AdminPostsPage() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="card mt-3 overflow-x-auto">
-        <table className="min-w-full text-sm text-slate-800">
-          <thead className="text-xs font-semibold text-slate-500 border-b border-slate-200">
+        <table className="min-w-full text-sm text-slate-800 border-separate border-spacing-y-2">
+          <thead className="text-xs font-semibold text-slate-500">
             <tr className="text-left">
-              <th className="px-3 py-2">作者</th>
-              <th className="px-3 py-2">貼文 ID</th>
-              <th className="px-3 py-2">狀態</th>
-              <th className="px-3 py-2">類型</th>
-              <th className="px-3 py-2">建立時間</th>
+              <th className="px-4 py-2">作者</th>
+              <th className="px-4 py-2">貼文 ID</th>
+              <th className="px-4 py-2">狀態</th>
+              <th className="px-4 py-2">類型</th>
+              <th className="px-4 py-2">建立時間</th>
             </tr>
           </thead>
           <tbody>
             {posts.map((post) => (
-              <tr key={post.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-3 py-2 whitespace-nowrap">{post.authorDisplayName || post.authorId}</td>
-                <td className="px-3 py-2">
+              <tr key={post.id} className="bg-white/80 rounded-md shadow-sm">
+                <td className="px-4 py-3 whitespace-nowrap">{post.authorDisplayName || post.authorId}</td>
+                <td className="px-4 py-3">
                   <Link href={`/admin/posts/detail?id=${post.id}`} className="text-blue-600 hover:underline truncate inline-block max-w-[220px] align-middle">
                     {post.id}
                   </Link>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-4 py-3">
                   <span
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
-                      post.isDeleted ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"
+                      post.isDeleted ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-700"
                     }`}
                   >
-                    ● {post.isDeleted ? "1" : "0"}
+                    ● {post.isDeleted ? "下架中" : "上架中"}
                   </span>
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap">{post.postType || "text"}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{new Date(post.createdAt).toLocaleString()}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{post.postType || "text"}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{new Date(post.createdAt).toLocaleString()}</td>
               </tr>
             ))}
             {posts.length === 0 && !loading && (
               <tr>
-                <td className="px-3 py-4 text-slate-600" colSpan={5}>
+                <td className="px-4 py-4 text-slate-600" colSpan={5}>
                   目前沒有資料
                 </td>
               </tr>
