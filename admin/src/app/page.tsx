@@ -16,6 +16,7 @@ export default function DashboardPage() {
 
   const d1Status = useMemo<"success" | "warn">(() => (health?.d1 ? "success" : "warn"), [health]);
   const r2Status = useMemo<"success" | "warn">(() => (health?.r2 ? "success" : "warn"), [health]);
+  const cfStatus = useMemo<"success" | "warn">(() => (health?.cfMedia ? "success" : "warn"), [health]);
 
   useEffect(() => {
     void refreshHealth();
@@ -43,7 +44,7 @@ export default function DashboardPage() {
       const summary = await apiFetch<ReviewSummary>("/admin/review/summary");
       setReviewSummary(summary);
     } catch (err) {
-      setErrorReview((err as Error).message || "無法取得審核佇列");
+      setErrorReview((err as Error).message || "無法取得審核資料");
       setReviewSummary(null);
     } finally {
       setLoadingReview(false);
@@ -52,8 +53,8 @@ export default function DashboardPage() {
 
   return (
     <AppShell
-      title="Rubypets 控制台"
-      intro="用 admin.rubypets.com 管理 API 狀態與審核佇列。"
+      title="Rubypets 運維控台"
+      intro="在 admin.rubypets.com 管理 API 與審核作業"
       actions={
         <>
           <button className="btn" onClick={refreshHealth} disabled={loadingHealth}>
@@ -67,31 +68,37 @@ export default function DashboardPage() {
     >
       <div className="grid-3">
         <section className="card stat">
-          <div className="value">{reviewSummary?.pending ?? "—"}</div>
-          <div className="label">待審核飼主</div>
+          <div className="value">{reviewSummary?.pending ?? "?"}</div>
+          <div className="label">待審核數</div>
           <p>來自 D1 accounts.is_verified = 2</p>
           {errorReview ? <p className="helper" style={{ color: "#fecdd3" }}>{errorReview}</p> : null}
         </section>
         <section className="card stat">
-          <div className="value">{health ? (health.d1 ? "OK" : "異常") : "—"}</div>
+          <div className="value">{health ? (health.d1 ? "OK" : "異常") : "?"}</div>
           <div className="label">D1</div>
-          <p>D1 ping 狀態</p>
+          <p>D1 ping 測試</p>
         </section>
         <section className="card stat">
-          <div className="value">{health ? (health.r2 ? "OK" : "異常") : "—"}</div>
+          <div className="value">{health ? (health.r2 ? "OK" : "異常") : "?"}</div>
           <div className="label">R2</div>
-          <p>R2 簽章/媒體</p>
+          <p>R2 儲存/媒體</p>
+        </section>
+        <section className="card stat">
+          <div className="value">{health ? (health.cfMedia ? "OK" : "異常") : "?"}</div>
+          <div className="label">Cloudflare Media</div>
+          <p>Images / Stream API</p>
         </section>
       </div>
 
       <div className="split" style={{ marginTop: 14 }}>
         <section className="card">
           <h3>API 健康檢查</h3>
-          <p className="meta">/health 同時檢查 D1 與 R2</p>
+          <p className="meta">/health 同時檢查 D1 / R2 / Cloudflare Media</p>
           <div className="pill-grid">
             <StatusPill label={health?.ok ? "一切正常" : "需要注意"} tone={health?.ok ? "success" : "warn"} />
             <StatusPill label={`D1 ${health?.d1 ? "OK" : "異常"}`} tone={d1Status} hint="DB ping" />
-            <StatusPill label={`R2 ${health?.r2 ? "OK" : "異常"}`} tone={r2Status} hint="簽章/媒體" />
+            <StatusPill label={`R2 ${health?.r2 ? "OK" : "異常"}`} tone={r2Status} hint="儲存/媒體" />
+            <StatusPill label={`CF Media ${health?.cfMedia ? "OK" : "異常"}`} tone={cfStatus} hint="Images/Stream API" />
             <StatusPill label={`環境 ${health?.environment ?? "未知"}`} tone="neutral" />
           </div>
           {health?.ts ? <p style={{ marginTop: 10 }}>最近一次：{new Date(health.ts).toLocaleString()}</p> : null}
@@ -104,19 +111,19 @@ export default function DashboardPage() {
 
         <section className="card">
           <h3>佈署待辦</h3>
-          <p className="meta">Cloudflare Pages → admin.rubypets.com</p>
+          <p className="meta">Cloudflare Pages for admin.rubypets.com</p>
           <ul className="list">
-            <li>確認 /health 連線無誤（D1 + R2）</li>
-            <li>檢查「審核管理」 pending 佇列</li>
-            <li>登入取得 token 後測 /api/me</li>
-            <li>DNS 綁定 Pages hostname</li>
+            <li>確認 /health 綠燈（D1 + R2 + CF Media）</li>
+            <li>檢查「審核管理」pending 數量</li>
+            <li>登入/Token 測試 /api/me</li>
+            <li>DNS 指向 Pages hostname</li>
           </ul>
         </section>
       </div>
 
       <section className="card" style={{ marginTop: 14 }}>
-        <h3>審核佇列概覽</h3>
-        <p>切換到「審核管理」可以查看詳情與實名審核列表。</p>
+        <h3>審核作業概覽</h3>
+        <p>點擊「審核管理」可查看詳細待審清單</p>
         {reviewSummary?.ts ? <p className="helper">最後更新：{new Date(reviewSummary.ts).toLocaleString()}</p> : null}
       </section>
     </AppShell>
