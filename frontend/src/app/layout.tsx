@@ -46,9 +46,6 @@ export default function RootLayout({
                   <Link href="/debug" className="hover:text-white">
                     Debug
                   </Link>
-                  <Link href="/admin/posts" className="hover:text-white">
-                    貼文管理
-                  </Link>
                   </nav>
                   <UserStatus />
                 </div>
