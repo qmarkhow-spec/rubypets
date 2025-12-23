@@ -58,14 +58,14 @@ export default function AdminPostsPage() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="card mt-3 overflow-x-auto w-full max-w-none">
-        <table className="w-full text-sm text-slate-800 border-separate border-spacing-y-2">
+        <table className="w-full text-sm text-slate-800 border-separate border-spacing-y-2 table-fixed">
           <thead className="text-xs font-semibold text-slate-500">
             <tr className="text-left">
-              <th className="px-4 py-2 w-1/5">作者</th>
-              <th className="px-4 py-2 w-2/5">貼文 ID</th>
-              <th className="px-4 py-2 w-1/6">狀態</th>
-              <th className="px-4 py-2 w-1/6">類型</th>
-              <th className="px-4 py-2 w-1/6">建立時間</th>
+              <th className="px-4 py-2 w-[18%]">作者</th>
+              <th className="px-4 py-2 w-[40%]">貼文 ID</th>
+              <th className="px-4 py-2 w-[12%]">狀態</th>
+              <th className="px-4 py-2 w-[12%]">類型</th>
+              <th className="px-4 py-2 w-[18%]">建立時間</th>
             </tr>
           </thead>
           <tbody>
