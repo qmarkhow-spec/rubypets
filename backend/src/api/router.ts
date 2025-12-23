@@ -449,7 +449,7 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
   const updated = await ctx.db.getPostById(postId);
   return okJson({ ok: true, data: latest, comment_count: updated?.commentCount ?? 0 }, 201);
 }
-}
+
 
 async function meRoute(ctx: HandlerContext): Promise<Response> {
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
