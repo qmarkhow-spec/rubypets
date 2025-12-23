@@ -57,7 +57,7 @@ export default function AdminPostsPage() {
       {loading && <p className="text-sm text-slate-600">載入中...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="card mt-3 overflow-x-auto">
+      <div className="card mt-3 overflow-x-auto w-full max-w-none">
         <table className="w-full text-sm text-slate-800 border-separate border-spacing-y-2">
           <thead className="text-xs font-semibold text-slate-500">
             <tr className="text-left">
