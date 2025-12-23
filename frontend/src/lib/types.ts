@@ -36,7 +36,15 @@ export interface Post {
   postType?: string | null;
   mediaCount?: number | null;
   mediaUrls?: string[];
-   isDeleted?: number;
+  isDeleted?: number;
+  likeCount?: number | null;
+  commentCount?: number | null;
+  latestComment?: {
+    ownerId: string;
+    content: string;
+    createdAt: string;
+  } | null;
+  isLiked?: boolean;
 }
 
 export interface ApiResult<T> {

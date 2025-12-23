@@ -23,11 +23,69 @@ export default function Home() {
     setError(null);
     try {
       const { data } = await apiFetch<{ data: Post[] }>("/api/posts?limit=20");
-      setPosts(data.data);
+      // Fetch latest comment for each post
+      const enriched = await Promise.all(
+        data.data.map(async (post) => {
+          try {
+            const res = await apiFetch<{ data: Post["latestComment"]; comment_count: number }>(
+              `/api/posts/${post.id}/comments`
+            );
+            return {
+              ...post,
+              latestComment: res.data ?? null,
+              commentCount: res.comment_count ?? post.commentCount ?? 0
+            };
+          } catch {
+            return post;
+          }
+        })
+      );
+      setPosts(enriched);
     } catch (err) {
       setError(readError(err));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function toggleLike(postId: string) {
+    const idx = posts.findIndex((p) => p.id === postId);
+    if (idx < 0) return;
+    const target = posts[idx];
+    const isLiked = !!target.isLiked;
+    try {
+      const resp = await apiFetch<{ like_count?: number }>(
+        `/api/posts/${postId}/like`,
+        {
+          method: isLiked ? "DELETE" : "POST"
+        }
+      );
+      const nextCount = resp.like_count ?? (target.likeCount ?? 0) + (isLiked ? -1 : 1);
+      const next = [...posts];
+      next[idx] = { ...target, isLiked: !isLiked, likeCount: Math.max(0, nextCount) };
+      setPosts(next);
+    } catch (err) {
+      setError(readError(err));
+    }
+  }
+
+  async function addComment(postId: string, content: string) {
+    const idx = posts.findIndex((p) => p.id === postId);
+    if (idx < 0) return;
+    try {
+      const resp = await apiFetch<{ data: Post["latestComment"]; comment_count?: number }>(
+        `/api/posts/${postId}/comments`,
+        { method: "POST", body: JSON.stringify({ content }) }
+      );
+      const next = [...posts];
+      next[idx] = {
+        ...next[idx],
+        latestComment: resp.data ?? null,
+        commentCount: resp.comment_count ?? (next[idx].commentCount ?? 0) + 1
+      };
+      setPosts(next);
+    } catch (err) {
+      setError(readError(err));
     }
   }
 
@@ -74,6 +132,29 @@ export default function Home() {
               </div>
               <p className="mt-2 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
               {renderMedia(post)}
+              <div className="mt-2 flex items-center gap-3 text-sm text-slate-600">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 hover:text-rose-500"
+                  onClick={() => toggleLike(post.id)}
+                >
+                  <span>{post.isLiked ? "❤️" : "🤍"}</span>
+                  <span>{post.likeCount ?? 0}</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 hover:text-slate-800"
+                  onClick={() => addComment(post.id, "我：留言")}
+                >
+                  <span>💬</span>
+                  <span>{post.commentCount ?? 0}</span>
+                </button>
+              </div>
+              {post.latestComment && (
+                <p className="mt-1 rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                  {post.latestComment.content}
+                </p>
+              )}
             </article>
           ))}
         </div>
