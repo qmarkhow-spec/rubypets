@@ -9,6 +9,8 @@ class FeedPost {
     this.likes = 0,
     this.comments = 0,
     this.shares = 0,
+    this.isLiked = false,
+    this.latestComment,
   });
 
   final String ownerDisplayName;
@@ -20,6 +22,8 @@ class FeedPost {
   final int likes;
   final int comments;
   final int shares;
+  final bool isLiked;
+  final String? latestComment;
 
   FeedPost copyWith({
     String? ownerDisplayName,
@@ -31,6 +35,8 @@ class FeedPost {
     int? likes,
     int? comments,
     int? shares,
+    bool? isLiked,
+    String? latestComment,
   }) {
     return FeedPost(
       ownerDisplayName: ownerDisplayName ?? this.ownerDisplayName,
@@ -42,6 +48,8 @@ class FeedPost {
       likes: likes ?? this.likes,
       comments: comments ?? this.comments,
       shares: shares ?? this.shares,
+      isLiked: isLiked ?? this.isLiked,
+      latestComment: latestComment ?? this.latestComment,
     );
   }
 }
@@ -57,6 +65,7 @@ const List<FeedPost> mockFeedPosts = [
     likes: 128,
     comments: 16,
     shares: 5,
+    latestComment: 'Ben：Mochi 太可愛了！',
   ),
   FeedPost(
     ownerDisplayName: 'Ben',
@@ -67,6 +76,7 @@ const List<FeedPost> mockFeedPosts = [
     likes: 96,
     comments: 12,
     shares: 4,
+    latestComment: 'Sophie：自製零食好厲害！',
   ),
   FeedPost(
     ownerDisplayName: 'Mia',
@@ -78,5 +88,6 @@ const List<FeedPost> mockFeedPosts = [
     likes: 210,
     comments: 33,
     shares: 11,
+    latestComment: 'Leo：這張太療癒了',
   ),
 ];

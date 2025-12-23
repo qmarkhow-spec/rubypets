@@ -8,6 +8,8 @@ type PostRow = {
   visibility: string;
   post_type: string;
   media_count: number;
+  like_count?: number | null;
+  comment_count?: number | null;
   media_key?: string | null;
   created_at: string;
   is_deleted?: number | null;
@@ -138,6 +140,8 @@ export class D1Client implements DBClient {
                 p.visibility,
                 p.post_type,
                 p.media_count,
+                p.like_count,
+                p.comment_count,
                 p.is_deleted,
                 p.created_at,
                 o.display_name as author_display_name
@@ -167,6 +171,8 @@ export class D1Client implements DBClient {
                 p.visibility,
                 p.post_type,
                 p.media_count,
+                p.like_count,
+                p.comment_count,
                 p.is_deleted,
                 p.created_at,
                 o.display_name as author_display_name
@@ -196,6 +202,8 @@ export class D1Client implements DBClient {
             p.visibility,
             p.post_type,
             p.media_count,
+            p.like_count,
+            p.comment_count,
             p.is_deleted,
             p.created_at,
             o.display_name as author_display_name
@@ -381,6 +389,64 @@ export class D1Client implements DBClient {
     await this.db.prepare(`delete from post_comments where post_id = ?`).bind(postId).run();
     await this.db.prepare(`delete from post_shares where post_id = ?`).bind(postId).run();
     await this.db.prepare(`delete from posts where id = ?`).bind(postId).run();
+  }
+
+  async hasLiked(postId: string, ownerId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(`select id from post_likes where post_id = ? and owner_id = ?`)
+      .bind(postId, ownerId)
+      .first();
+    return !!row;
+  }
+
+  async likePost(postId: string, ownerId: string): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into post_likes (id, post_id, owner_id, created_at)
+          values (?, ?, ?, ?)
+        `
+      )
+      .bind(crypto.randomUUID(), postId, ownerId, now)
+      .run();
+    await this.db.prepare(`update posts set like_count = like_count + 1 where id = ?`).bind(postId).run();
+  }
+
+  async unlikePost(postId: string, ownerId: string): Promise<void> {
+    await this.db.prepare(`delete from post_likes where post_id = ? and owner_id = ?`).bind(postId, ownerId).run();
+    await this.db.prepare(`update posts set like_count = max(like_count - 1, 0) where id = ?`).bind(postId).run();
+  }
+
+  async createComment(postId: string, ownerId: string, content: string): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into post_comments (post_id, owner_id, content_text, created_at, updated_at, is_deleted, like_count)
+          values (?, ?, ?, ?, ?, 0, 0)
+        `
+      )
+      .bind(postId, ownerId, content, now, now)
+      .run();
+    await this.db.prepare(`update posts set comment_count = comment_count + 1 where id = ?`).bind(postId).run();
+  }
+
+  async getLatestComment(postId: string): Promise<{ ownerId: string; content: string; createdAt: string } | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select owner_id, content_text, created_at
+          from post_comments
+          where post_id = ? and is_deleted = 0
+          order by created_at desc
+          limit 1
+        `
+      )
+      .bind(postId)
+      .first<{ owner_id: string; content_text: string; created_at: string }>();
+    if (!row) return null;
+    return { ownerId: row.owner_id, content: row.content_text, createdAt: row.created_at };
   }
 
   private async populateMedia(posts: Post[]): Promise<void> {
@@ -808,6 +874,8 @@ function mapPostRow(row: PostRow): Post {
     visibility: row.visibility,
     postType: row.post_type,
     mediaCount: row.media_count,
+    likeCount: row.like_count ?? 0,
+    commentCount: row.comment_count ?? 0,
     isDeleted: row.is_deleted ?? 0
   };
 }

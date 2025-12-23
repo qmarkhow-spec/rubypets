@@ -398,6 +398,56 @@ async function loginRoute(ctx: HandlerContext): Promise<Response> {
     const status = message === "invalid credentials" ? 401 : 400;
     return errorJson(message, status);
   }
+
+async function likeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+  const postId = params.id;
+  const post = await ctx.db.getPostById(postId);
+  if (!post) return errorJson("post not found", 404);
+
+  const already = await ctx.db.hasLiked(postId, user.uuid);
+  if (already) return okJson({ ok: true, like_count: post.likeCount ?? 0 }, 200);
+
+  await ctx.db.likePost(postId, user.uuid);
+  const updated = await ctx.db.getPostById(postId);
+  return okJson({ ok: true, like_count: updated?.likeCount ?? 0 }, 200);
+}
+
+async function unlikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+  const postId = params.id;
+  const post = await ctx.db.getPostById(postId);
+  if (!post) return errorJson("post not found", 404);
+
+  await ctx.db.unlikePost(postId, user.uuid);
+  const updated = await ctx.db.getPostById(postId);
+  return okJson({ ok: true, like_count: updated?.likeCount ?? 0 }, 200);
+}
+
+async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const post = await ctx.db.getPostById(params.id);
+  if (!post) return errorJson("post not found", 404);
+  const latest = await ctx.db.getLatestComment(params.id);
+  return okJson({ data: latest, comment_count: post.commentCount ?? 0 }, 200);
+}
+
+async function createCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+  const postId = params.id;
+  const body = (await ctx.request.json().catch(() => ({}))) as { content?: string };
+  const content = (body.content ?? "").trim();
+  if (!content) return errorJson("content required", 400);
+  const post = await ctx.db.getPostById(postId);
+  if (!post) return errorJson("post not found", 404);
+
+  await ctx.db.createComment(postId, user.uuid, content);
+  const latest = await ctx.db.getLatestComment(postId);
+  const updated = await ctx.db.getPostById(postId);
+  return okJson({ ok: true, data: latest, comment_count: updated?.commentCount ?? 0 }, 201);
+}
 }
 
 async function meRoute(ctx: HandlerContext): Promise<Response> {
@@ -621,6 +671,10 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/admin\/posts\/([^/]+)$/, handler: adminPostDetailRoute },
   { method: "POST", pattern: /^\/admin\/posts\/([^/]+)\/moderate$/, handler: adminPostModerateRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/media\/attach$/, handler: attachMediaRoute },
+  { method: "POST", pattern: /^\/posts\/([^/]+)\/like$/, handler: likeRoute },
+  { method: "DELETE", pattern: /^\/posts\/([^/]+)\/like$/, handler: unlikeRoute },
+  { method: "GET", pattern: /^\/posts\/([^/]+)\/comments$/, handler: listLatestCommentRoute },
+  { method: "POST", pattern: /^\/posts\/([^/]+)\/comments$/, handler: createCommentRoute },
   { method: "POST", pattern: /^\/media\/upload\/([^/]+)$/, handler: mediaUploadStubRoute }
 ];
 

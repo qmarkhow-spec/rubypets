@@ -23,6 +23,8 @@ class FeedPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final likeIcon = post.isLiked ? Icons.favorite : Icons.favorite_border;
+    final likeColor = post.isLiked ? Colors.redAccent : null;
 
     return Card(
       child: Padding(
@@ -97,12 +99,29 @@ class FeedPostCard extends StatelessWidget {
                     .toList(),
               ),
             ],
+            if (post.latestComment != null && post.latestComment!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.chat_bubble_outline, size: 16, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      post.latestComment!,
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _ActionButton(
-                  icon: Icons.favorite_border,
+                  icon: likeIcon,
+                  iconColor: likeColor,
                   label: post.likes.toString(),
                   onPressed: onLike,
                 ),
@@ -132,11 +151,13 @@ class FeedPostCard extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
+    this.iconColor,
     required this.label,
     required this.onPressed,
   });
 
   final IconData icon;
+  final Color? iconColor;
   final String label;
   final VoidCallback? onPressed;
 
@@ -144,7 +165,7 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon),
+      icon: Icon(icon, color: iconColor),
       label: Text(label),
     );
   }
