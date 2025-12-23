@@ -27,13 +27,13 @@ export default function Home() {
       const enriched = await Promise.all(
         data.data.map(async (post) => {
           try {
-            const res = await apiFetch<{ data: Post["latestComment"]; comment_count: number }>(
+            const { data: commentData } = await apiFetch<{ data: Post["latestComment"]; comment_count: number }>(
               `/api/posts/${post.id}/comments`
             );
             return {
               ...post,
-              latestComment: res.data ?? null,
-              commentCount: res.comment_count ?? post.commentCount ?? 0
+              latestComment: commentData.data ?? null,
+              commentCount: commentData.comment_count ?? post.commentCount ?? 0
             };
           } catch {
             return post;
