@@ -21,6 +21,8 @@ export interface Post {
   mediaCount?: number;
   mediaUrls?: string[];
   isDeleted?: number;
+  likeCount?: number;
+  commentCount?: number;
 }
 
 export interface MediaAsset {
