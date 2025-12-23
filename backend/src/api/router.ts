@@ -398,6 +398,7 @@ async function loginRoute(ctx: HandlerContext): Promise<Response> {
     const status = message === "invalid credentials" ? 401 : 400;
     return errorJson(message, status);
   }
+}
 
 async function likeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
