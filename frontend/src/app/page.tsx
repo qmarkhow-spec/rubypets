@@ -54,13 +54,10 @@ export default function Home() {
     const target = posts[idx];
     const isLiked = !!target.isLiked;
     try {
-      const resp = await apiFetch<{ like_count?: number }>(
-        `/api/posts/${postId}/like`,
-        {
-          method: isLiked ? "DELETE" : "POST"
-        }
-      );
-      const nextCount = resp.like_count ?? (target.likeCount ?? 0) + (isLiked ? -1 : 1);
+      const { data } = await apiFetch<{ like_count?: number }>(`/api/posts/${postId}/like`, {
+        method: isLiked ? "DELETE" : "POST"
+      });
+      const nextCount = data.like_count ?? (target.likeCount ?? 0) + (isLiked ? -1 : 1);
       const next = [...posts];
       next[idx] = { ...target, isLiked: !isLiked, likeCount: Math.max(0, nextCount) };
       setPosts(next);
@@ -73,15 +70,15 @@ export default function Home() {
     const idx = posts.findIndex((p) => p.id === postId);
     if (idx < 0) return;
     try {
-      const resp = await apiFetch<{ data: Post["latestComment"]; comment_count?: number }>(
-        `/api/posts/${postId}/comments`,
-        { method: "POST", body: JSON.stringify({ content }) }
-      );
+      const { data } = await apiFetch<{ data: Post["latestComment"]; comment_count?: number }>(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ content })
+      });
       const next = [...posts];
       next[idx] = {
         ...next[idx],
-        latestComment: resp.data ?? null,
-        commentCount: resp.comment_count ?? (next[idx].commentCount ?? 0) + 1
+        latestComment: data.data ?? null,
+        commentCount: data.comment_count ?? (next[idx].commentCount ?? 0) + 1
       };
       setPosts(next);
     } catch (err) {
