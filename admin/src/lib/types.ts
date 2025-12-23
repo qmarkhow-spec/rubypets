@@ -3,6 +3,7 @@ export type HealthStatus = {
   environment: string;
   d1: boolean;
   r2: boolean;
+  cfMedia?: boolean;
   ts: string;
 };
 
