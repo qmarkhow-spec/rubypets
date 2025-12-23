@@ -3,7 +3,7 @@ import { HandlerContext } from "../types";
 const DEFAULT_CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "content-type, authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400"
 };
 
