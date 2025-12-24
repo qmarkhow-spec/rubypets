@@ -93,14 +93,9 @@ async function postsListRoute(ctx: HandlerContext): Promise<Response> {
   const userId = url.searchParams.get("userId");
 
   const currentUser = await getUserFromAuthHeader(ctx.db, ctx.request).catch(() => null);
-  const posts = userId ? await getPostsByOwner(ctx.db, userId, limit) : await listRecentPosts(ctx.db, limit);
-
-  if (currentUser) {
-    // Mark which posts the current user has liked so UI can render filled hearts.
-    for (const p of posts) {
-      p.isLiked = await ctx.db.hasLiked(p.id, currentUser.uuid);
-    }
-  }
+  const posts = userId
+    ? await getPostsByOwner(ctx.db, userId, limit, currentUser?.uuid)
+    : await listRecentPosts(ctx.db, limit, currentUser?.uuid);
 
   return new Response(JSON.stringify({ data: posts }), {
     status: 200,
@@ -416,12 +411,8 @@ async function likeRoute(ctx: HandlerContext, params: Record<string, string>): P
   const post = await ctx.db.getPostById(postId);
   if (!post) return errorJson("post not found", 404);
 
-  const already = await ctx.db.hasLiked(postId, user.uuid);
-  if (already) return okJson({ ok: true, like_count: post.likeCount ?? 0 }, 200);
-
-  await ctx.db.likePost(postId, user.uuid);
-  const updated = await ctx.db.getPostById(postId);
-  return okJson({ ok: true, like_count: updated?.likeCount ?? 0 }, 200);
+  const result = await ctx.db.toggleLike(postId, user.uuid);
+  return okJson({ ok: true, isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
 
 async function unlikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {

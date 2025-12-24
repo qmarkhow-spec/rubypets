@@ -178,7 +178,6 @@ CREATE INDEX IF NOT EXISTS idx_media_tags_media_id ON post_media_pet_tags(media_
 CREATE INDEX IF NOT EXISTS idx_media_tags_pet_id ON post_media_pet_tags(pet_id);
 
 CREATE TABLE IF NOT EXISTS post_likes (
-  id         TEXT PRIMARY KEY,
   post_id    TEXT NOT NULL,
   owner_id   TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
