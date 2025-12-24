@@ -22,8 +22,11 @@ export default function AdminPostsPage() {
 
   // Grid List 欄位比例（含「操作欄」）
   // 你可依實際習慣微調各欄 fr 比例
-  const gridColumns =
-    "grid grid-cols-[1.4fr_3.6fr_1.1fr_1fr_1.8fr_160px]";
+  const gridClass = "grid w-full";
+  const gridStyle: React.CSSProperties = {
+    gridTemplateColumns: "1.4fr 3.6fr 1.1fr 1fr 1.8fr 160px",
+  };
+
 
   useEffect(() => {
     void load(page);
@@ -65,7 +68,7 @@ export default function AdminPostsPage() {
 
       <div className="card mt-3 w-full max-w-none">
         {/* Header */}
-        <div className={`${gridColumns} px-4 py-2 text-xs font-semibold text-slate-500`}>
+        <div className={`${gridClass} px-4 py-2 text-xs font-semibold text-slate-500`} style={gridStyle}>
           <div className="pr-2">作者</div>
           <div className="pr-2">貼文 ID</div>
           <div className="pr-2">狀態</div>
@@ -78,7 +81,7 @@ export default function AdminPostsPage() {
           {posts.map((post) => (
             <div
               key={post.id}
-              className={`${gridColumns} items-center bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition`}
+              className={`${gridClass} items-center bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition`} style={gridStyle}
             >
               {/* 作者 */}
               <div className="min-w-0 pr-2">
