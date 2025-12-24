@@ -19,8 +19,11 @@ export default function AdminPostsPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const tableColumns =
-    "grid grid-cols-[minmax(180px,1.2fr)_minmax(360px,2.6fr)_minmax(150px,1fr)_minmax(130px,1fr)_minmax(240px,1.4fr)]";
+
+  // Grid List 欄位比例（含「操作欄」）
+  // 你可依實際習慣微調各欄 fr 比例
+  const gridColumns =
+    "grid grid-cols-[1.4fr_3.6fr_1.1fr_1fr_1.8fr_160px]";
 
   useEffect(() => {
     void load(page);
@@ -60,45 +63,71 @@ export default function AdminPostsPage() {
       {loading && <p className="text-sm text-slate-600">載入中...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="card mt-3 w-full overflow-x-auto max-w-full max-w-none">
-        <table className="w-full min-w-full text-sm text-slate-800 border-separate border-spacing-y-2">
-          <thead className="text-xs font-semibold text-slate-500">
-            <tr className={`text-left ${tableColumns}`}>
-              <th className="px-4 py-2">作者</th>
-              <th className="px-4 py-2">貼文 ID</th>
-              <th className="px-4 py-2">狀態</th>
-              <th className="px-4 py-2">類型</th>
-              <th className="px-4 py-2">建立時間</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts.map((post) => (
-              <tr key={post.id} className={`bg-white/80 rounded-md shadow-sm ${tableColumns}`}>
-                <td className="px-4 py-3 whitespace-nowrap">{post.authorDisplayName || post.authorId}</td>
-                <td className="px-4 py-3 min-w-0">
-                  <Link
-                    href={`/admin/posts/detail?id=${post.id}`}
-                    className="text-blue-600 hover:underline truncate block w-full"
-                  >
-                    {post.id}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  <StatusPill label={post.isDeleted ? "下架中" : "上架中"} tone={post.isDeleted ? "neutral" : "success"} />
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">{post.postType || "text"}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{new Date(post.createdAt).toLocaleString()}</td>
-              </tr>
-            ))}
-            {posts.length === 0 && !loading && (
-              <tr>
-                <td className="px-4 py-4 text-slate-600" colSpan={5}>
-                  目前沒有資料
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="card mt-3 w-full max-w-none">
+        {/* Header */}
+        <div className={`${gridColumns} px-4 py-2 text-xs font-semibold text-slate-500`}>
+          <div className="pr-2">作者</div>
+          <div className="pr-2">貼文 ID</div>
+          <div className="pr-2">狀態</div>
+          <div className="pr-2">類型</div>
+          <div className="pr-2">建立時間</div>
+          <div className="text-right">操作</div>
+        </div>
+
+        <div className="space-y-2 px-2 pb-3">
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              className={`${gridColumns} items-center bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition`}
+            >
+              {/* 作者 */}
+              <div className="min-w-0 pr-2">
+                <div className="truncate whitespace-nowrap text-slate-800">
+                  {post.authorDisplayName || post.authorId}
+                </div>
+              </div>
+
+              {/* 貼文 ID */}
+              <div className="min-w-0 pr-2">
+                <Link
+                  href={`/admin/posts/detail?id=${post.id}`}
+                  className="text-blue-600 hover:underline truncate block w-full"
+                >
+                  {post.id}
+                </Link>
+              </div>
+
+              {/* 狀態 */}
+              <div className="pr-2">
+                <StatusPill
+                  label={post.isDeleted ? "下架中" : "上架中"}
+                  tone={post.isDeleted ? "neutral" : "success"}
+                />
+              </div>
+
+              {/* 類型 */}
+              <div className="pr-2 whitespace-nowrap text-slate-700">
+                {post.postType || "text"}
+              </div>
+
+              {/* 建立時間 */}
+              <div className="pr-2 whitespace-nowrap text-slate-700">
+                {new Date(post.createdAt).toLocaleString()}
+              </div>
+
+              {/* 操作欄（先留空） */}
+              <div className="flex justify-end">
+                <div className="h-9 w-[120px]" aria-label="actions-placeholder" />
+              </div>
+            </div>
+          ))}
+
+          {posts.length === 0 && !loading && (
+            <div className="px-4 py-6 text-sm text-slate-600">
+              目前沒有資料
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );
