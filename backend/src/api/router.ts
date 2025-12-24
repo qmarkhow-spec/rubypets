@@ -92,7 +92,16 @@ async function postsListRoute(ctx: HandlerContext): Promise<Response> {
   const limit = asNumber(url.searchParams.get("limit"), 20);
   const userId = url.searchParams.get("userId");
 
+  const currentUser = await getUserFromAuthHeader(ctx.db, ctx.request).catch(() => null);
   const posts = userId ? await getPostsByOwner(ctx.db, userId, limit) : await listRecentPosts(ctx.db, limit);
+
+  if (currentUser) {
+    // Mark which posts the current user has liked so UI can render filled hearts.
+    for (const p of posts) {
+      p.isLiked = await ctx.db.hasLiked(p.id, currentUser.uuid);
+    }
+  }
+
   return new Response(JSON.stringify({ data: posts }), {
     status: 200,
     headers: { "content-type": "application/json; charset=utf-8" }

@@ -23,6 +23,7 @@ export interface Post {
   isDeleted?: number;
   likeCount?: number;
   commentCount?: number;
+  isLiked?: boolean;
 }
 
 export interface MediaAsset {
