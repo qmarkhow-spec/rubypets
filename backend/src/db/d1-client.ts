@@ -392,12 +392,9 @@ export class D1Client implements DBClient {
   }
 
   async hasLiked(postId: string, ownerId: string): Promise<boolean> {
-    // Primary check by owner uuid; fall back to legacy numeric owner_id if any existed
-    const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
-    const numericOwnerId = ownerRow?.id ?? -1;
     const row = await this.db
-      .prepare(`select id from post_likes where post_id = ? and (owner_id = ? or owner_id = ?) limit 1`)
-      .bind(postId, ownerId, numericOwnerId)
+      .prepare(`select id from post_likes where post_id = ? and owner_id = ? limit 1`)
+      .bind(postId, ownerId)
       .first();
     return !!row;
   }
@@ -426,12 +423,23 @@ export class D1Client implements DBClient {
   }
 
   async unlikePost(postId: string, ownerId: string): Promise<void> {
-    const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
-    const numericOwnerId = ownerRow?.id ?? -1;
-    await this.db
-      .prepare(`delete from post_likes where post_id = ? and (owner_id = ? or owner_id = ?)`)
-      .bind(postId, ownerId, numericOwnerId)
+    const primaryResult = await this.db
+      .prepare(`delete from post_likes where post_id = ? and owner_id = ?`)
+      .bind(postId, ownerId)
       .run();
+
+    // Fallback: clean up legacy rows that might still store numeric owner_id
+    const deleted = (primaryResult as any)?.meta?.changes ?? 0;
+    if (deleted === 0) {
+      const legacyOwner = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
+      if (legacyOwner) {
+        await this.db
+          .prepare(`delete from post_likes where post_id = ? and owner_id = ?`)
+          .bind(postId, legacyOwner.id)
+          .run();
+      }
+    }
+
     await this.db
       .prepare(
         `
