@@ -396,7 +396,7 @@ export class D1Client implements DBClient {
     const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
     const numericOwnerId = ownerRow?.id ?? -1;
     const row = await this.db
-      .prepare(`select id from post_likes where post_id = ? and (owner_id = ? or owner_id = ?) limit 1`)
+      .prepare(`select id from post_likes where post_id = ? and owner_id = ? limit 1`)
       .bind(postId, ownerId, numericOwnerId)
       .first();
     return !!row;
@@ -431,7 +431,7 @@ export class D1Client implements DBClient {
     const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
     const numericOwnerId = ownerRow?.id ?? -1;
     await this.db
-      .prepare(`delete from post_likes where post_id = ? and (owner_id = ? or owner_id = ?)`)
+      .prepare(`delete from post_likes where post_id = ? and owner_id = ? `)
       .bind(postId, ownerId, numericOwnerId)
       .run();
     await this.db
