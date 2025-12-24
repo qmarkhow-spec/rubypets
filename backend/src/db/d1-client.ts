@@ -392,9 +392,12 @@ export class D1Client implements DBClient {
   }
 
   async hasLiked(postId: string, ownerId: string): Promise<boolean> {
+    // Handle legacy rows that may have stored the numeric owners.id instead of uuid
+    const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
+    const numericOwnerId = ownerRow?.id ?? -1;
     const row = await this.db
-      .prepare(`select id from post_likes where post_id = ? and owner_id = ?`)
-      .bind(postId, ownerId)
+      .prepare(`select id from post_likes where post_id = ? and (owner_id = ? or owner_id = ?) limit 1`)
+      .bind(postId, ownerId, numericOwnerId)
       .first();
     return !!row;
   }
@@ -410,12 +413,35 @@ export class D1Client implements DBClient {
       )
       .bind(crypto.randomUUID(), postId, ownerId, now)
       .run();
-    await this.db.prepare(`update posts set like_count = like_count + 1 where id = ?`).bind(postId).run();
+    await this.db
+      .prepare(
+        `
+          update posts
+          set like_count = (select count(*) from post_likes where post_id = ?)
+          where id = ?
+        `
+      )
+      .bind(postId, postId)
+      .run();
   }
 
   async unlikePost(postId: string, ownerId: string): Promise<void> {
-    await this.db.prepare(`delete from post_likes where post_id = ? and owner_id = ?`).bind(postId, ownerId).run();
-    await this.db.prepare(`update posts set like_count = max(like_count - 1, 0) where id = ?`).bind(postId).run();
+    const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
+    const numericOwnerId = ownerRow?.id ?? -1;
+    await this.db
+      .prepare(`delete from post_likes where post_id = ? and (owner_id = ? or owner_id = ?)`)
+      .bind(postId, ownerId, numericOwnerId)
+      .run();
+    await this.db
+      .prepare(
+        `
+          update posts
+          set like_count = (select count(*) from post_likes where post_id = ?)
+          where id = ?
+        `
+      )
+      .bind(postId, postId)
+      .run();
   }
 
   async createComment(postId: string, ownerId: string, content: string): Promise<void> {
