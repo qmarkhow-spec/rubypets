@@ -403,8 +403,6 @@ export class D1Client implements DBClient {
   }
 
   async likePost(postId: string, ownerId: string): Promise<void> {
-    const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
-    if (!ownerRow) throw new Error("owner not found");
     const now = new Date().toISOString();
     await this.db
       .prepare(
@@ -413,7 +411,7 @@ export class D1Client implements DBClient {
           values (?, ?, ?, ?)
         `
       )
-      .bind(crypto.randomUUID(), postId, ownerRow.id, now)
+      .bind(crypto.randomUUID(), postId, ownerId, now)
       .run();
     await this.db
       .prepare(
@@ -447,8 +445,6 @@ export class D1Client implements DBClient {
   }
 
   async createComment(postId: string, ownerId: string, content: string): Promise<void> {
-    const ownerRow = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
-    if (!ownerRow) throw new Error("owner not found");
     const now = new Date().toISOString();
     await this.db
       .prepare(
@@ -457,7 +453,7 @@ export class D1Client implements DBClient {
           values (?, ?, ?, ?, ?, 0, 0)
         `
       )
-      .bind(postId, ownerRow.id, content, now, now)
+      .bind(postId, ownerId, content, now, now)
       .run();
     await this.db.prepare(`update posts set comment_count = comment_count + 1 where id = ?`).bind(postId).run();
   }
