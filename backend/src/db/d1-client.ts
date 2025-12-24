@@ -392,9 +392,18 @@ export class D1Client implements DBClient {
   }
 
   async hasLiked(postId: string, ownerId: string): Promise<boolean> {
+    const owner = await this.db
+      .prepare(`select account_id from owners where uuid = ?`)
+      .bind(ownerId)
+      .first<{ account_id?: string }>();
+    const accountId = owner?.account_id;
     const row = await this.db
-      .prepare(`select id from post_likes where post_id = ? and owner_id = ? limit 1`)
-      .bind(postId, ownerId)
+      .prepare(
+        accountId && accountId !== ownerId
+          ? `select id from post_likes where post_id = ? and owner_id in (?, ?) limit 1`
+          : `select id from post_likes where post_id = ? and owner_id = ? limit 1`
+      )
+      .bind(accountId && accountId !== ownerId ? [postId, ownerId, accountId] : [postId, ownerId])
       .first();
     return !!row;
   }
@@ -423,22 +432,20 @@ export class D1Client implements DBClient {
   }
 
   async unlikePost(postId: string, ownerId: string): Promise<void> {
-    const primaryResult = await this.db
-      .prepare(`delete from post_likes where post_id = ? and owner_id = ?`)
-      .bind(postId, ownerId)
-      .run();
+    const owner = await this.db
+      .prepare(`select account_id from owners where uuid = ?`)
+      .bind(ownerId)
+      .first<{ account_id?: string }>();
+    const accountId = owner?.account_id;
 
-    // Fallback: clean up legacy rows that might still store numeric owner_id
-    const deleted = (primaryResult as any)?.meta?.changes ?? 0;
-    if (deleted === 0) {
-      const legacyOwner = await this.db.prepare(`select id from owners where uuid = ?`).bind(ownerId).first<{ id: number }>();
-      if (legacyOwner) {
-        await this.db
-          .prepare(`delete from post_likes where post_id = ? and owner_id = ?`)
-          .bind(postId, legacyOwner.id)
-          .run();
-      }
-    }
+    await this.db
+      .prepare(
+        accountId && accountId !== ownerId
+          ? `delete from post_likes where post_id = ? and owner_id in (?, ?)`
+          : `delete from post_likes where post_id = ? and owner_id = ?`
+      )
+      .bind(accountId && accountId !== ownerId ? [postId, ownerId, accountId] : [postId, ownerId])
+      .run();
 
     await this.db
       .prepare(
