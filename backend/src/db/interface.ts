@@ -11,12 +11,16 @@ export interface CreatePostInput {
 export interface DBClient {
   ping(): Promise<boolean>;
   createPost(input: CreatePostInput): Promise<Post>;
-  getPostsByOwner(ownerUuid: string, limit?: number): Promise<Post[]>;
-  listRecentPosts(limit?: number): Promise<Post[]>;
+  getPostsByOwner(ownerUuid: string, limit?: number, currentOwnerUuid?: string): Promise<Post[]>;
+  listRecentPosts(limit?: number, currentOwnerUuid?: string): Promise<Post[]>;
   getPostById(id: string): Promise<Post | null>;
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   getOwnerByAccountId(accountId: string): Promise<import("./models").Owner | null>;
+  hasLiked(postId: string, ownerId: string): Promise<boolean>;
+  likePost(postId: string, ownerId: string): Promise<void>;
+  unlikePost(postId: string, ownerId: string): Promise<void>;
+  toggleLike(postId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }>;
   createOwner(input: {
     accountId: string;
     uuid: string;

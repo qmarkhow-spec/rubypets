@@ -15,6 +15,7 @@ type PostRow = {
   is_deleted?: number | null;
   author_handle?: string | null;
   author_display_name?: string | null;
+  is_liked?: number | null;
 };
 
 type MediaAssetRow = {
@@ -129,62 +130,62 @@ export class D1Client implements DBClient {
     };
   }
 
-  async getPostsByOwner(ownerUuid: string, limit = 20): Promise<Post[]> {
-    const { results } = await this.db
-      .prepare(
-        `
-              select
-                p.id,
-                p.owner_id,
-                p.content_text,
-                p.visibility,
-                p.post_type,
-                p.media_count,
-                p.like_count,
-                p.comment_count,
-                p.is_deleted,
-                p.created_at,
-                o.display_name as author_display_name
-              from posts p
-              left join owners o on o.uuid = p.owner_id
-              where p.owner_id = ? and p.is_deleted = 0
-              order by p.created_at desc
-              limit ?
-        `
-      )
-      .bind(ownerUuid, limit)
-      .all<PostRow>();
+  async getPostsByOwner(ownerUuid: string, limit = 20, currentOwnerUuid?: string): Promise<Post[]> {
+    const joinLiked = !!currentOwnerUuid;
+    const sql = `
+      select
+        p.id,
+        p.owner_id,
+        p.content_text,
+        p.visibility,
+        p.post_type,
+        p.media_count,
+        p.like_count,
+        p.comment_count,
+        p.is_deleted,
+        p.created_at,
+        o.display_name as author_display_name
+        ${joinLiked ? ", case when pl.owner_id is not null then 1 else 0 end as is_liked" : ""}
+      from posts p
+      left join owners o on o.uuid = p.owner_id
+      ${joinLiked ? "left join post_likes pl on pl.post_id = p.id and pl.owner_id = ?" : ""}
+      where p.owner_id = ? and p.is_deleted = 0
+      order by p.created_at desc
+      limit ?
+    `;
+    const params = joinLiked ? [currentOwnerUuid, ownerUuid, limit] : [ownerUuid, limit];
+    const { results } = await this.db.prepare(sql).bind(...params).all<PostRow>();
 
     const posts = (results ?? []).map(mapPostRow);
     await this.populateMedia(posts);
     return posts;
   }
 
-  async listRecentPosts(limit = 20): Promise<Post[]> {
-    const { results } = await this.db
-      .prepare(
-        `
-              select
-                p.id,
-                p.owner_id,
-                p.content_text,
-                p.visibility,
-                p.post_type,
-                p.media_count,
-                p.like_count,
-                p.comment_count,
-                p.is_deleted,
-                p.created_at,
-                o.display_name as author_display_name
-              from posts p
-              left join owners o on o.uuid = p.owner_id
-              where p.is_deleted = 0
-              order by p.created_at desc
-              limit ?
-        `
-      )
-      .bind(limit)
-      .all<PostRow>();
+  async listRecentPosts(limit = 20, currentOwnerUuid?: string): Promise<Post[]> {
+    const joinLiked = !!currentOwnerUuid;
+    const sql = `
+      select
+        p.id,
+        p.owner_id,
+        p.content_text,
+        p.visibility,
+        p.post_type,
+        p.media_count,
+        p.like_count,
+        p.comment_count,
+        p.is_deleted,
+        p.created_at,
+        o.display_name as author_display_name
+        ${joinLiked ? ", case when pl.owner_id is not null then 1 else 0 end as is_liked" : ""}
+      from posts p
+      left join owners o on o.uuid = p.owner_id
+      ${joinLiked ? "left join post_likes pl on pl.post_id = p.id and pl.owner_id = ?" : ""}
+      where p.is_deleted = 0
+      order by p.created_at desc
+      limit ?
+    `;
+    const params = joinLiked ? [currentOwnerUuid, limit] : [limit];
+    const { results } = await this.db.prepare(sql).bind(...params).all<PostRow>();
 
     const posts = (results ?? []).map(mapPostRow);
     await this.populateMedia(posts);
@@ -392,18 +393,9 @@ export class D1Client implements DBClient {
   }
 
   async hasLiked(postId: string, ownerId: string): Promise<boolean> {
-    const owner = await this.db
-      .prepare(`select account_id from owners where uuid = ?`)
-      .bind(ownerId)
-      .first<{ account_id?: string }>();
-    const accountId = owner?.account_id;
     const row = await this.db
-      .prepare(
-        accountId && accountId !== ownerId
-          ? `select id from post_likes where post_id = ? and owner_id in (?, ?) limit 1`
-          : `select id from post_likes where post_id = ? and owner_id = ? limit 1`
-      )
-      .bind(accountId && accountId !== ownerId ? [postId, ownerId, accountId] : [postId, ownerId])
+      .prepare(`select 1 from post_likes where post_id = ? and owner_id = ? limit 1`)
+      .bind(postId, ownerId)
       .first();
     return !!row;
   }
@@ -413,11 +405,11 @@ export class D1Client implements DBClient {
     await this.db
       .prepare(
         `
-          insert into post_likes (id, post_id, owner_id, created_at)
-          values (?, ?, ?, ?)
+          insert into post_likes (post_id, owner_id, created_at)
+          values (?, ?, ?)
         `
       )
-      .bind(crypto.randomUUID(), postId, ownerId, now)
+      .bind(postId, ownerId, now)
       .run();
     await this.db
       .prepare(
@@ -432,21 +424,7 @@ export class D1Client implements DBClient {
   }
 
   async unlikePost(postId: string, ownerId: string): Promise<void> {
-    const owner = await this.db
-      .prepare(`select account_id from owners where uuid = ?`)
-      .bind(ownerId)
-      .first<{ account_id?: string }>();
-    const accountId = owner?.account_id;
-
-    await this.db
-      .prepare(
-        accountId && accountId !== ownerId
-          ? `delete from post_likes where post_id = ? and owner_id in (?, ?)`
-          : `delete from post_likes where post_id = ? and owner_id = ?`
-      )
-      .bind(accountId && accountId !== ownerId ? [postId, ownerId, accountId] : [postId, ownerId])
-      .run();
-
+    await this.db.prepare(`delete from post_likes where post_id = ? and owner_id = ?`).bind(postId, ownerId).run();
     await this.db
       .prepare(
         `
@@ -457,6 +435,43 @@ export class D1Client implements DBClient {
       )
       .bind(postId, postId)
       .run();
+  }
+
+  async toggleLike(postId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }> {
+    const now = new Date().toISOString();
+    const insertResult = await this.db
+      .prepare(
+        `insert into post_likes (post_id, owner_id, created_at)
+         values (?, ?, ?)
+         on conflict(post_id, owner_id) do nothing`
+      )
+      .bind(postId, ownerId, now)
+      .run();
+
+    const inserted = (insertResult as any)?.meta?.changes ?? 0;
+
+    if (inserted === 0) {
+      // Already liked, toggle off
+      await this.db.prepare(`delete from post_likes where post_id = ? and owner_id = ?`).bind(postId, ownerId).run();
+    }
+
+    const countRow = await this.db
+      .prepare(`select count(*) as c from post_likes where post_id = ?`)
+      .bind(postId)
+      .first<{ c: number }>();
+    const likeCount = countRow?.c ?? 0;
+    await this.db
+      .prepare(
+        `
+          update posts
+          set like_count = ?
+          where id = ?
+        `
+      )
+      .bind(likeCount, postId)
+      .run();
+
+    return { isLiked: inserted > 0, likeCount };
   }
 
   async createComment(postId: string, ownerId: string, content: string): Promise<void> {
@@ -917,7 +932,8 @@ function mapPostRow(row: PostRow): Post {
     mediaCount: row.media_count,
     likeCount: row.like_count ?? 0,
     commentCount: row.comment_count ?? 0,
-    isDeleted: row.is_deleted ?? 0
+    isDeleted: row.is_deleted ?? 0,
+    isLiked: row.is_liked === 1
   };
 }
 

@@ -8,12 +8,12 @@ export interface CreatePostInput {
   postType?: string;
 }
 
-export async function listRecentPosts(db: DBClient, limit = 20): Promise<Post[]> {
-  return db.listRecentPosts(limit);
+export async function listRecentPosts(db: DBClient, limit = 20, currentOwnerUuid?: string): Promise<Post[]> {
+  return db.listRecentPosts(limit, currentOwnerUuid);
 }
 
-export async function getPostsByOwner(db: DBClient, ownerUuid: string, limit = 20): Promise<Post[]> {
-  return db.getPostsByOwner(ownerUuid, limit);
+export async function getPostsByOwner(db: DBClient, ownerUuid: string, limit = 20, currentOwnerUuid?: string): Promise<Post[]> {
+  return db.getPostsByOwner(ownerUuid, limit, currentOwnerUuid);
 }
 
 export async function createPost(db: DBClient, input: CreatePostInput): Promise<Post> {
