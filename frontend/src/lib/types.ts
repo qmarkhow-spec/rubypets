@@ -39,12 +39,18 @@ export interface Post {
   isDeleted?: number;
   likeCount?: number | null;
   commentCount?: number | null;
-  latestComment?: {
-    ownerId: string;
-    content: string;
-    createdAt: string;
-  } | null;
+  latestComment?: Comment | null;
   isLiked?: boolean;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  ownerId: string;
+  ownerDisplayName?: string | null;
+  content: string;
+  parentCommentId?: string | null;
+  createdAt: string;
 }
 
 export interface ApiResult<T> {

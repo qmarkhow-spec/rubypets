@@ -1,4 +1,4 @@
-import { Post } from "./models";
+import { Comment, CommentThread, Post } from "./models";
 
 export interface CreatePostInput {
   authorId: string; // owner uuid
@@ -14,13 +14,22 @@ export interface DBClient {
   getPostsByOwner(ownerUuid: string, limit?: number, currentOwnerUuid?: string): Promise<Post[]>;
   listRecentPosts(limit?: number, currentOwnerUuid?: string): Promise<Post[]>;
   getPostById(id: string): Promise<Post | null>;
+  getCommentById(commentId: string): Promise<Comment | null>;
+  getLatestComment(postId: string): Promise<Comment | null>;
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   getOwnerByAccountId(accountId: string): Promise<import("./models").Owner | null>;
+  isFriends(ownerId: string, friendId: string): Promise<boolean>;
   hasLiked(postId: string, ownerId: string): Promise<boolean>;
   likePost(postId: string, ownerId: string): Promise<void>;
   unlikePost(postId: string, ownerId: string): Promise<void>;
   toggleLike(postId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }>;
+  createComment(input: { postId: string; ownerId: string; content: string; parentCommentId?: string | null }): Promise<Comment>;
+  listPostCommentsThread(
+    postId: string,
+    limit: number,
+    cursor?: string | null
+  ): Promise<{ items: CommentThread[]; nextCursor: string | null; hasMore: boolean }>;
   createOwner(input: {
     accountId: string;
     uuid: string;

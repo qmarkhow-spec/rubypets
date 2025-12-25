@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Owner, Post, Account, AdminAccount, MediaAsset } from "./models";
+import { Owner, Post, Account, AdminAccount, MediaAsset, Comment, CommentThread } from "./models";
 
 type PostRow = {
   id: string;
@@ -16,6 +16,16 @@ type PostRow = {
   author_handle?: string | null;
   author_display_name?: string | null;
   is_liked?: number | null;
+};
+
+type CommentRow = {
+  id: string;
+  post_id: string;
+  owner_id: string;
+  parent_comment_id: string | null;
+  content_text: string;
+  created_at: string;
+  owner_display_name?: string | null;
 };
 
 type MediaAssetRow = {
@@ -379,7 +389,10 @@ export class D1Client implements DBClient {
   async deletePostMediaAndAssets(postId: string, assetIds: string[]): Promise<void> {
     if (assetIds.length === 0) return;
     const placeholders = assetIds.map(() => "?").join(",");
-    await this.db.prepare(`delete from post_media_pet_tags where post_id = ?`).bind(postId).run();
+    await this.db
+      .prepare(`delete from post_media_pet_tags where media_id in (select id from post_media where post_id = ?)`)
+      .bind(postId)
+      .run();
     await this.db.prepare(`delete from post_media where post_id = ?`).bind(postId).run();
     await this.db.prepare(`delete from media_assets where id in (${placeholders})`).bind(...assetIds).run();
   }
@@ -474,35 +487,198 @@ export class D1Client implements DBClient {
     return { isLiked: inserted > 0, likeCount };
   }
 
-  async createComment(postId: string, ownerId: string, content: string): Promise<void> {
+  async createComment(input: {
+    postId: string;
+    ownerId: string;
+    content: string;
+    parentCommentId?: string | null;
+  }): Promise<Comment> {
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await this.db
       .prepare(
         `
-          insert into post_comments (post_id, owner_id, content_text, created_at, updated_at, is_deleted, like_count)
-          values (?, ?, ?, ?, ?, 0, 0)
+          insert into post_comments (
+            id, post_id, owner_id, parent_comment_id, content_text, created_at, updated_at, is_deleted, like_count
+          )
+          values (?, ?, ?, ?, ?, ?, ?, 0, 0)
         `
       )
-      .bind(postId, ownerId, content, now, now)
+      .bind(id, input.postId, input.ownerId, input.parentCommentId ?? null, input.content, now, now)
       .run();
-    await this.db.prepare(`update posts set comment_count = comment_count + 1 where id = ?`).bind(postId).run();
-  }
 
-  async getLatestComment(postId: string): Promise<{ ownerId: string; content: string; createdAt: string } | null> {
+    await this.db.prepare(`update posts set comment_count = comment_count + 1 where id = ?`).bind(input.postId).run();
+
     const row = await this.db
       .prepare(
         `
-          select owner_id, content_text, created_at
-          from post_comments
-          where post_id = ? and is_deleted = 0
-          order by created_at desc
+          select
+            c.id,
+            c.post_id,
+            c.owner_id,
+            c.parent_comment_id,
+            c.content_text,
+            c.created_at,
+            o.display_name as owner_display_name
+          from post_comments c
+          left join owners o on o.uuid = c.owner_id
+          where c.id = ?
+        `
+      )
+      .bind(id)
+      .first<CommentRow>();
+
+    if (!row) throw new Error("Failed to create comment");
+    return mapCommentRow(row);
+  }
+
+  async getLatestComment(postId: string): Promise<Comment | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            c.id,
+            c.post_id,
+            c.owner_id,
+            c.parent_comment_id,
+            c.content_text,
+            c.created_at,
+            o.display_name as owner_display_name
+          from post_comments c
+          left join owners o on o.uuid = c.owner_id
+          where c.post_id = ? and c.is_deleted = 0
+          order by c.created_at desc, c.id desc
           limit 1
         `
       )
       .bind(postId)
-      .first<{ owner_id: string; content_text: string; created_at: string }>();
+      .first<CommentRow>();
     if (!row) return null;
-    return { ownerId: row.owner_id, content: row.content_text, createdAt: row.created_at };
+    return mapCommentRow(row);
+  }
+
+  async getCommentById(commentId: string): Promise<Comment | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            c.id,
+            c.post_id,
+            c.owner_id,
+            c.parent_comment_id,
+            c.content_text,
+            c.created_at,
+            o.display_name as owner_display_name
+          from post_comments c
+          left join owners o on o.uuid = c.owner_id
+          where c.id = ? and c.is_deleted = 0
+        `
+      )
+      .bind(commentId)
+      .first<CommentRow>();
+    if (!row) return null;
+    return mapCommentRow(row);
+  }
+
+  async listPostCommentsThread(
+    postId: string,
+    limit: number,
+    cursor?: string | null
+  ): Promise<{ items: CommentThread[]; nextCursor: string | null; hasMore: boolean }> {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const parsed = parseCommentCursor(cursor);
+    const clauses: string[] = ["c.post_id = ?", "c.parent_comment_id is null", "c.is_deleted = 0"];
+    const params: Array<string | number> = [postId];
+
+    if (parsed) {
+      clauses.push("(c.created_at < ? or (c.created_at = ? and c.id < ?))");
+      params.push(parsed.createdAt, parsed.createdAt, parsed.id);
+    }
+
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            c.id,
+            c.post_id,
+            c.owner_id,
+            c.parent_comment_id,
+            c.content_text,
+            c.created_at,
+            o.display_name as owner_display_name
+          from post_comments c
+          left join owners o on o.uuid = c.owner_id
+          where ${clauses.join(" and ")}
+          order by c.created_at desc, c.id desc
+          limit ?
+        `
+      )
+      .bind(...params, safeLimit + 1)
+      .all<CommentRow>();
+
+    const rows = results ?? [];
+    const hasMore = rows.length > safeLimit;
+    const pageRows = hasMore ? rows.slice(0, safeLimit) : rows;
+    const nextCursor = hasMore && pageRows.length > 0 ? toCommentCursor(pageRows[pageRows.length - 1]) : null;
+
+    if (pageRows.length === 0) {
+      return { items: [], nextCursor, hasMore };
+    }
+
+    const parentIds = pageRows.map((row) => row.id);
+    const placeholders = parentIds.map(() => "?").join(",");
+    const { results: replyRows } = await this.db
+      .prepare(
+        `
+          select
+            c.id,
+            c.post_id,
+            c.owner_id,
+            c.parent_comment_id,
+            c.content_text,
+            c.created_at,
+            o.display_name as owner_display_name
+          from post_comments c
+          left join owners o on o.uuid = c.owner_id
+          where c.post_id = ? and c.parent_comment_id in (${placeholders}) and c.is_deleted = 0
+          order by c.created_at asc, c.id asc
+        `
+      )
+      .bind(postId, ...parentIds)
+      .all<CommentRow>();
+
+    const repliesByParent = new Map<string, Comment[]>();
+    for (const row of replyRows ?? []) {
+      const mapped = mapCommentRow(row);
+      const parentId = mapped.parentCommentId;
+      if (!parentId) continue;
+      const list = repliesByParent.get(parentId) ?? [];
+      list.push(mapped);
+      repliesByParent.set(parentId, list);
+    }
+
+    const items = pageRows.map((row) => {
+      const mapped = mapCommentRow(row);
+      return { ...mapped, replies: repliesByParent.get(mapped.id) ?? [] };
+    });
+
+    return { items, nextCursor, hasMore };
+  }
+
+  async isFriends(ownerId: string, friendId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(
+        `
+          select 1
+          from owner_friendships
+          where status = 'accepted'
+            and ((owner_id = ? and friend_id = ?) or (owner_id = ? and friend_id = ?))
+          limit 1
+        `
+      )
+      .bind(ownerId, friendId, friendId, ownerId)
+      .first();
+    return !!row;
   }
 
   private async populateMedia(posts: Post[]): Promise<void> {
@@ -935,6 +1111,29 @@ function mapPostRow(row: PostRow): Post {
     isDeleted: row.is_deleted ?? 0,
     isLiked: row.is_liked === 1
   };
+}
+
+function mapCommentRow(row: CommentRow): Comment {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    ownerId: row.owner_id,
+    ownerDisplayName: row.owner_display_name ?? null,
+    content: row.content_text,
+    parentCommentId: row.parent_comment_id ?? null,
+    createdAt: row.created_at
+  };
+}
+
+function parseCommentCursor(cursor?: string | null): { createdAt: string; id: string } | null {
+  if (!cursor) return null;
+  const [createdAt, id] = cursor.split("|");
+  if (!createdAt || !id) return null;
+  return { createdAt, id };
+}
+
+function toCommentCursor(row: CommentRow): string {
+  return `${row.created_at}|${row.id}`;
 }
 
 function mapOwnerRow(row: OwnerRow): Owner {
