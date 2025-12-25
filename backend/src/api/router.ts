@@ -427,27 +427,107 @@ async function unlikeRoute(ctx: HandlerContext, params: Record<string, string>):
   return okJson({ ok: true, like_count: updated?.likeCount ?? 0 }, 200);
 }
 
+async function ensureCommentAccess(
+  ctx: HandlerContext,
+  postId: string,
+  user: { uuid: string }
+): Promise<Response | { post: import("../db/models").Post }> {
+  const post = await ctx.db.getPostById(postId);
+  if (!post || post.isDeleted === 1) return errorJson("post not found", 404);
+
+  const visibility = post.visibility ?? "public";
+  if (visibility === "private" && post.authorId !== user.uuid) {
+    return errorJson("forbidden", 403);
+  }
+  if (visibility === "friends" && post.authorId !== user.uuid) {
+    const ok = await ctx.db.isFriends(post.authorId, user.uuid);
+    if (!ok) return errorJson("forbidden", 403);
+  }
+
+  return { post };
+}
+
+function formatReplyContent(content: string, targetDisplayName: string | null): string {
+  const trimmed = content.trim();
+  if (!targetDisplayName) return trimmed;
+  const prefix = `@${targetDisplayName}`;
+  let base = trimmed;
+  if (trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
+    base = trimmed.slice(prefix.length).trimStart();
+  }
+  return base ? `${prefix} ${base}` : prefix;
+}
+
 async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const post = await ctx.db.getPostById(params.id);
-  if (!post) return errorJson("post not found", 404);
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+  const access = await ensureCommentAccess(ctx, params.id, user);
+  if (access instanceof Response) return access;
   const latest = await ctx.db.getLatestComment(params.id);
-  return okJson({ data: latest, comment_count: post.commentCount ?? 0 }, 200);
+  return okJson({ data: latest, comment_count: access.post.commentCount ?? 0 }, 200);
 }
 
 async function createCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
   if (!user) return errorJson("Unauthorized", 401);
   const postId = params.id;
-  const body = (await ctx.request.json().catch(() => ({}))) as { content?: string };
+  const body = (await ctx.request.json().catch(() => ({}))) as {
+    content?: string;
+    parent_comment_id?: string | null;
+    reply_to_comment_id?: string | null;
+  };
   const content = (body.content ?? "").trim();
   if (!content) return errorJson("content required", 400);
-  const post = await ctx.db.getPostById(postId);
-  if (!post) return errorJson("post not found", 404);
 
-  await ctx.db.createComment(postId, user.uuid, content);
-  const latest = await ctx.db.getLatestComment(postId);
+  const access = await ensureCommentAccess(ctx, postId, user);
+  if (access instanceof Response) return access;
+
+  const replyToId = (body.reply_to_comment_id ?? "").trim() || null;
+  const parentId = (body.parent_comment_id ?? "").trim() || null;
+
+  let finalParentId: string | null = null;
+  let finalContent = content;
+
+  if (replyToId) {
+    const target = await ctx.db.getCommentById(replyToId);
+    if (!target) return errorJson("comment not found", 404);
+    if (target.postId !== postId) return errorJson("comment not in post", 400);
+    finalParentId = target.parentCommentId ?? target.id;
+    finalContent = formatReplyContent(content, target.ownerDisplayName ?? null);
+  } else if (parentId) {
+    const parent = await ctx.db.getCommentById(parentId);
+    if (!parent) return errorJson("comment not found", 404);
+    if (parent.postId !== postId) return errorJson("comment not in post", 400);
+    if (parent.parentCommentId) return errorJson("invalid parent_comment_id", 400);
+    finalParentId = parent.id;
+  }
+
+  const created = await ctx.db.createComment({
+    postId,
+    ownerId: user.uuid,
+    content: finalContent,
+    parentCommentId: finalParentId
+  });
+
   const updated = await ctx.db.getPostById(postId);
-  return okJson({ ok: true, data: latest, comment_count: updated?.commentCount ?? 0 }, 201);
+  return okJson(
+    { ok: true, data: created, comment_count: updated?.commentCount ?? (access.post.commentCount ?? 0) + 1 },
+    201
+  );
+}
+
+async function listCommentsRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+  const access = await ensureCommentAccess(ctx, params.id, user);
+  if (access instanceof Response) return access;
+
+  const url = new URL(ctx.request.url);
+  const limit = asNumber(url.searchParams.get("limit"), 20);
+  const cursor = url.searchParams.get("cursor");
+
+  const page = await ctx.db.listPostCommentsThread(params.id, limit, cursor);
+  return okJson({ data: page.items, nextCursor: page.nextCursor, hasMore: page.hasMore }, 200);
 }
 
 
@@ -674,6 +754,7 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "POST", pattern: /^\/posts\/([^/]+)\/media\/attach$/, handler: attachMediaRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/like$/, handler: likeRoute },
   { method: "DELETE", pattern: /^\/posts\/([^/]+)\/like$/, handler: unlikeRoute },
+  { method: "GET", pattern: /^\/posts\/([^/]+)\/comments\/list$/, handler: listCommentsRoute },
   { method: "GET", pattern: /^\/posts\/([^/]+)\/comments$/, handler: listLatestCommentRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/comments$/, handler: createCommentRoute },
   { method: "POST", pattern: /^\/media\/upload\/([^/]+)$/, handler: mediaUploadStubRoute }

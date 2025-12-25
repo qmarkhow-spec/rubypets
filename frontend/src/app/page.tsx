@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { Post } from "@/lib/types";
+import { Comment, Post } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
+import { CommentComposerSheet } from "@/components/comment-composer-sheet";
+
+type ReplyTarget = {
+  commentId: string;
+  ownerDisplayName: string | null;
+};
 
 export default function Home() {
   const { user } = useAuth();
@@ -12,22 +18,31 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerPostId, setComposerPostId] = useState<string | null>(null);
+  const [composerReplyTarget, setComposerReplyTarget] = useState<ReplyTarget | null>(null);
+  const [composerText, setComposerText] = useState("");
+  const [composerSubmitting, setComposerSubmitting] = useState(false);
 
   useEffect(() => {
     loadPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
 
   async function loadPosts() {
     setLoading(true);
     setError(null);
     try {
       const { data } = await apiFetch<{ data: Post[] }>("/api/posts?limit=20");
+      if (!user) {
+        setPosts(data.data);
+        return;
+      }
       // Fetch latest comment for each post
       const enriched = await Promise.all(
         data.data.map(async (post) => {
           try {
-            const { data: commentData } = await apiFetch<{ data: Post["latestComment"]; comment_count: number }>(
+            const { data: commentData } = await apiFetch<{ data: Comment | null; comment_count: number }>(
               `/api/posts/${post.id}/comments`
             );
             return {
@@ -66,23 +81,103 @@ export default function Home() {
     }
   }
 
-  async function addComment(postId: string, content: string) {
+  async function addComment(postId: string, content: string, replyTarget?: ReplyTarget | null) {
+    if (!user) {
+      setError("Unauthorized");
+      return;
+    }
+    const trimmed = content.trim();
+    if (!trimmed) return;
     const idx = posts.findIndex((p) => p.id === postId);
     if (idx < 0) return;
-    try {
-      const { data } = await apiFetch<{ data: Post["latestComment"]; comment_count?: number }>(`/api/posts/${postId}/comments`, {
-        method: "POST",
-        body: JSON.stringify({ content })
-      });
-      const next = [...posts];
-      next[idx] = {
-        ...next[idx],
-        latestComment: data.data ?? null,
-        commentCount: data.comment_count ?? (next[idx].commentCount ?? 0) + 1
+
+    const displayName = user.displayName || user.handle || "You";
+    const replyPrefix = replyTarget?.ownerDisplayName ? `@${replyTarget.ownerDisplayName} ` : "";
+    const optimistic: Comment = {
+      id: `optimistic-${Date.now()}`,
+      postId,
+      ownerId: user.id,
+      ownerDisplayName: displayName,
+      content: `${replyPrefix}${trimmed}`.trim(),
+      parentCommentId: replyTarget?.commentId ?? null,
+      createdAt: new Date().toISOString()
+    };
+
+    let previousPost: Post | null = null;
+    setPosts((current) => {
+      const index = current.findIndex((p) => p.id === postId);
+      if (index < 0) return current;
+      const next = [...current];
+      previousPost = next[index];
+      next[index] = {
+        ...next[index],
+        latestComment: optimistic,
+        commentCount: (next[index].commentCount ?? 0) + 1
       };
-      setPosts(next);
+      return next;
+    });
+
+    try {
+      const payload: { content: string; reply_to_comment_id?: string } = { content: trimmed };
+      if (replyTarget?.commentId) {
+        payload.reply_to_comment_id = replyTarget.commentId;
+      }
+      const { data } = await apiFetch<{ data: Comment; comment_count?: number }>(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      setPosts((current) => {
+        const index = current.findIndex((p) => p.id === postId);
+        if (index < 0) return current;
+        const next = [...current];
+        next[index] = {
+          ...next[index],
+          latestComment: data.data ?? null,
+          commentCount: data.comment_count ?? next[index].commentCount ?? 0
+        };
+        return next;
+      });
     } catch (err) {
+      if (previousPost) {
+        setPosts((current) => {
+          const index = current.findIndex((p) => p.id === postId);
+          if (index < 0) return current;
+          const next = [...current];
+          next[index] = previousPost as Post;
+          return next;
+        });
+      }
       setError(readError(err));
+    }
+  }
+
+  function openComposer(postId: string, replyTarget?: ReplyTarget | null) {
+    setComposerPostId(postId);
+    setComposerReplyTarget(replyTarget ?? null);
+    setComposerText("");
+    setComposerOpen(true);
+    setError(null);
+  }
+
+  function closeComposer() {
+    if (composerSubmitting) return;
+    setComposerOpen(false);
+    setComposerPostId(null);
+    setComposerReplyTarget(null);
+    setComposerText("");
+  }
+
+  async function submitComposer() {
+    if (!composerPostId || composerSubmitting) return;
+    setComposerSubmitting(true);
+    try {
+      await addComment(composerPostId, composerText, composerReplyTarget);
+      setComposerOpen(false);
+      setComposerPostId(null);
+      setComposerReplyTarget(null);
+      setComposerText("");
+    } finally {
+      setComposerSubmitting(false);
     }
   }
 
@@ -141,7 +236,7 @@ export default function Home() {
                 <button
                   type="button"
                   className="flex items-center gap-1 hover:text-slate-800"
-                  onClick={() => addComment(post.id, "我：留言")}
+                  onClick={() => openComposer(post.id)}
                 >
                   <span>💬</span>
                   <span>{post.commentCount ?? 0}</span>
@@ -149,13 +244,22 @@ export default function Home() {
               </div>
               {post.latestComment && (
                 <p className="mt-1 rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
-                  {post.latestComment.content}
+                  {formatLatestComment(post.latestComment)}
                 </p>
               )}
             </article>
           ))}
         </div>
       </section>
+      <CommentComposerSheet
+        open={composerOpen}
+        value={composerText}
+        submitting={composerSubmitting}
+        replyLabel={composerReplyTarget?.ownerDisplayName ?? null}
+        onChange={setComposerText}
+        onClose={closeComposer}
+        onSubmit={submitComposer}
+      />
     </div>
   );
 }
@@ -169,6 +273,11 @@ function readError(err: unknown): string {
     return `${status ?? ""} ${(details as { error?: string }).error ?? "發生錯誤"}`;
   }
   return status ? `HTTP ${status}` : "發生錯誤";
+}
+
+function formatLatestComment(comment: Comment): string {
+  const name = comment.ownerDisplayName;
+  return name ? `${name}: ${comment.content}` : comment.content;
 }
 
 function renderMedia(post: Post) {

@@ -26,6 +26,20 @@ export interface Post {
   isLiked?: boolean;
 }
 
+export interface Comment {
+  id: string;
+  postId: string;
+  ownerId: string;
+  ownerDisplayName?: string | null;
+  content: string;
+  parentCommentId: string | null;
+  createdAt: string;
+}
+
+export interface CommentThread extends Comment {
+  replies: Comment[];
+}
+
 export interface MediaAsset {
   id: string;
   ownerId: string;
