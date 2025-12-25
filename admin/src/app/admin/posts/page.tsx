@@ -66,72 +66,74 @@ export default function AdminPostsPage() {
       {loading && <p className="text-sm text-slate-600">載入中...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="card mt-3 w-full max-w-none">
-        {/* Header */}
-        <div className={`${gridClass} px-4 py-2 text-xs font-semibold text-slate-500`} style={gridStyle}>
-          <div className="pr-2">作者</div>
-          <div className="pr-2">貼文 ID</div>
-          <div className="pr-2">狀態</div>
-          <div className="pr-2">類型</div>
-          <div className="pr-2">建立時間</div>
-          <div className="text-right">操作</div>
-        </div>
+      <div className="card mt-3 w-full max-w-none overflow-x-auto">
+    {/* Header */}
+    <div
+      className="w-full px-4 py-2 text-xs font-semibold text-slate-500"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1.4fr 3.6fr 1.1fr 1fr 1.8fr 160px",
+        gap: "12px",
+        alignItems: "center",
+      }}
+    >
+      <div>作者</div>
+      <div>貼文 ID</div>
+      <div>狀態</div>
+      <div>類型</div>
+      <div>建立時間</div>
+      <div style={{ textAlign: "right" }}>操作</div>
+    </div>
 
-        <div className="space-y-2 px-2 pb-3">
-          {posts.map((post) => (
-            <div
-              key={post.id}
-              className={`${gridClass} items-center bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition`} style={gridStyle}
+    <div className="space-y-2 px-2 pb-3">
+      {posts.map((post) => (
+        <div
+          key={post.id}
+          className="w-full bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.4fr 3.6fr 1.1fr 1fr 1.8fr 160px",
+            gap: "12px",
+            alignItems: "center",
+          }}
+        >
+          <div className="min-w-0 truncate whitespace-nowrap">
+            {post.authorDisplayName || post.authorId}
+          </div>
+
+          <div className="min-w-0">
+            <Link
+              href={`/admin/posts/detail?id=${post.id}`}
+              className="text-blue-600 hover:underline truncate block w-full"
             >
-              {/* 作者 */}
-              <div className="min-w-0 pr-2">
-                <div className="truncate whitespace-nowrap text-slate-800">
-                  {post.authorDisplayName || post.authorId}
-                </div>
-              </div>
+              {post.id}
+            </Link>
+          </div>
 
-              {/* 貼文 ID */}
-              <div className="min-w-0 pr-2">
-                <Link
-                  href={`/admin/posts/detail?id=${post.id}`}
-                  className="text-blue-600 hover:underline truncate block w-full"
-                >
-                  {post.id}
-                </Link>
-              </div>
+          <div>
+            <StatusPill
+              label={post.isDeleted ? "下架中" : "上架中"}
+              tone={post.isDeleted ? "neutral" : "success"}
+            />
+          </div>
 
-              {/* 狀態 */}
-              <div className="pr-2">
-                <StatusPill
-                  label={post.isDeleted ? "下架中" : "上架中"}
-                  tone={post.isDeleted ? "neutral" : "success"}
-                />
-              </div>
+          <div className="whitespace-nowrap">{post.postType || "text"}</div>
 
-              {/* 類型 */}
-              <div className="pr-2 whitespace-nowrap text-slate-700">
-                {post.postType || "text"}
-              </div>
+          <div className="whitespace-nowrap">{new Date(post.createdAt).toLocaleString()}</div>
 
-              {/* 建立時間 */}
-              <div className="pr-2 whitespace-nowrap text-slate-700">
-                {new Date(post.createdAt).toLocaleString()}
-              </div>
-
-              {/* 操作欄（先留空） */}
-              <div className="flex justify-end">
-                <div className="h-9 w-[120px]" aria-label="actions-placeholder" />
-              </div>
-            </div>
-          ))}
-
-          {posts.length === 0 && !loading && (
-            <div className="px-4 py-6 text-sm text-slate-600">
-              目前沒有資料
-            </div>
-          )}
+          {/* 操作欄先留空 */}
+          <div className="flex justify-end">
+            <div className="h-9 w-[120px]" />
+          </div>
         </div>
-      </div>
+      ))}
+
+      {posts.length === 0 && !loading && (
+        <div className="px-4 py-6 text-sm text-slate-600">目前沒有資料</div>
+      )}
+    </div>
+  </div>
+
     </AppShell>
   );
 }
