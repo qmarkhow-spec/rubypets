@@ -72,7 +72,7 @@ export default function AdminPostsPage() {
       className="w-full px-4 py-2 text-xs font-semibold text-slate-500"
       style={{
         display: "grid",
-        gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 1.6fr 160px",
+        gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 60px",
         gap: "12px",
         alignItems: "center",
       }}
@@ -92,7 +92,7 @@ export default function AdminPostsPage() {
           className="w-full bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition"
           style={{
             display: "grid",
-            gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 1.6fr 160px",
+            gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 60px",
             gap: "12px",
             alignItems: "center",
           }}
