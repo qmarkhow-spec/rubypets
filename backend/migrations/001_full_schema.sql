@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS post_comments (
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON post_comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_post_created_at ON post_comments(post_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON post_comments(parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_comments_post_parent_created_at ON post_comments (post_id, parent_comment_id, created_at);
 
 CREATE TABLE IF NOT EXISTS post_shares (
   id            TEXT PRIMARY KEY,
