@@ -127,7 +127,7 @@ export default function DebugPage() {
     }
     setCommentSubmitting(true);
     const tokens = loadTokens();
-    appendLog(tokens?.accessToken - "Auth token found" : "Auth token missing");
+    appendLog(tokens?.accessToken ? "Auth token found" : "Auth token missing");
     appendLog(`Sending test comment for post ${selectedPostId}`);
     try {
       const payload = { content: "test comment", parent_comment_id: null as string | null };
