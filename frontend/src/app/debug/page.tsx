@@ -9,6 +9,8 @@ type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
 
 export default function DebugPage() {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
+
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
 
@@ -127,20 +129,38 @@ export default function DebugPage() {
     }
     setCommentSubmitting(true);
     const tokens = loadTokens();
+    const path = `/api/posts/${selectedPostId}/comments`;
+    const base = apiBase.replace(/\/$/, "");
+    const target = base.startsWith("http") ? `${base}${path}` : path;
     appendLog(tokens?.accessToken ? "Auth token found" : "Auth token missing");
+    appendLog(`API base: ${apiBase}`);
+    appendLog(`Request target: ${target}`);
     appendLog(`Sending test comment for post ${selectedPostId}`);
     try {
       const payload = { content: "test comment", parent_comment_id: null as string | null };
-      const { status, data } = await apiFetch(`/api/posts/${selectedPostId}/comments`, {
+      const headers = new Headers();
+      headers.set("content-type", "application/json");
+      if (tokens?.accessToken) {
+        headers.set("authorization", `Bearer ${tokens.accessToken}`);
+      }
+      const response = await fetch(target, {
         method: "POST",
+        headers,
         body: JSON.stringify(payload)
       });
-      appendLog(`Response HTTP ${status}`);
-      appendLog(`Response body: ${JSON.stringify(data)}`);
+      appendLog(`Response HTTP ${response.status}`);
+      appendLog(`Response redirected: ${response.redirected}`);
+      appendLog(`Response url: ${response.url}`);
+      const text = await response.text();
+      let parsed = text;
+      try {
+        parsed = JSON.stringify(JSON.parse(text));
+      } catch {
+        // keep raw text
+      }
+      appendLog(`Response body: ${parsed || "<empty>"}`);
     } catch (err) {
-      const status = (err as { status?: number }).status;
-      const details = (err as { details?: unknown }).details;
-      appendLog(`Request failed: HTTP ${status ?? "?"} ${JSON.stringify(details)}`);
+      appendLog(`Request failed: ${String(err)}`);
     } finally {
       setCommentSubmitting(false);
     }
