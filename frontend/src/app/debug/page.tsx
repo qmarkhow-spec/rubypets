@@ -425,5 +425,5 @@ function readError(err: unknown): string {
   if (details && typeof details === "object" && "error" in details) {
     return `${status ?? ""} ${(details as { error?: string }).error ?? "發生錯誤"}`;
   }
-  return status - `HTTP ${status}` : "發生錯誤";
+  return status ? `HTTP ${status}` : "error";
 }
