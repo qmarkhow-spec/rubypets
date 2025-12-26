@@ -509,11 +509,20 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
     parentCommentId: finalParentId
   });
 
+  // 立即用剛插入的 id 再查一次
+  const check = await ctx.db.getCommentById(created.id);
+  if (!check) {
+    console.error("COMMENT_WRITE_VERIFY_FAILED", { createdId: created.id, postId });
+    return errorJson("comment write verify failed", 500);
+  }
+
   const updated = await ctx.db.getPostById(postId);
+  
   return okJson(
     { ok: true, data: created, comment_count: updated?.commentCount ?? (access.post.commentCount ?? 0) + 1 },
     201
   );
+  
 }
 
 async function listCommentsRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
