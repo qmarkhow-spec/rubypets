@@ -12,6 +12,10 @@ type ReplyTarget = {
   ownerDisplayName: string | null;
 };
 
+type CommentThread = Comment & {
+  replies: Comment[];
+};
+
 export default function Home() {
   const { user } = useAuth();
 
@@ -23,6 +27,12 @@ export default function Home() {
   const [composerReplyTarget, setComposerReplyTarget] = useState<ReplyTarget | null>(null);
   const [composerText, setComposerText] = useState("");
   const [composerSubmitting, setComposerSubmitting] = useState(false);
+  const [commentsPostId, setCommentsPostId] = useState<string | null>(null);
+  const [commentThreads, setCommentThreads] = useState<CommentThread[]>([]);
+  const [commentCursor, setCommentCursor] = useState<string | null>(null);
+  const [commentHasMore, setCommentHasMore] = useState(false);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPosts();
@@ -126,6 +136,7 @@ export default function Home() {
         method: "POST",
         body: JSON.stringify(payload)
       });
+      applyCommentToThreads(postId, data.data);
       setPosts((current) => {
         const index = current.findIndex((p) => p.id === postId);
         if (index < 0) return current;
@@ -179,6 +190,59 @@ export default function Home() {
     } finally {
       setComposerSubmitting(false);
     }
+  }
+
+  function applyCommentToThreads(postId: string, comment: Comment) {
+    if (commentsPostId !== postId) return;
+    setCommentThreads((current) => {
+      if (!comment.parentCommentId) {
+        return [{ ...comment, replies: [] }, ...current];
+      }
+      return current.map((thread) => {
+        if (thread.id !== comment.parentCommentId) return thread;
+        return { ...thread, replies: [...thread.replies, comment] };
+      });
+    });
+  }
+
+  async function loadComments(postId: string, reset: boolean) {
+    if (!user) {
+      setCommentError("Unauthorized");
+      return;
+    }
+    setCommentLoading(true);
+    setCommentError(null);
+    try {
+      const params = new URLSearchParams({ limit: "20" });
+      if (!reset && commentCursor) params.set("cursor", commentCursor);
+      const { data } = await apiFetch<{ data: CommentThread[]; nextCursor: string | null; hasMore: boolean }>(
+        `/api/posts/${postId}/comments/list?${params.toString()}`
+      );
+      setCommentThreads((current) => (reset ? data.data : [...current, ...data.data]));
+      setCommentCursor(data.nextCursor);
+      setCommentHasMore(data.hasMore);
+    } catch (err) {
+      setCommentError(readError(err));
+    } finally {
+      setCommentLoading(false);
+    }
+  }
+
+  function openComments(postId: string) {
+    setCommentsPostId(postId);
+    setCommentThreads([]);
+    setCommentCursor(null);
+    setCommentHasMore(false);
+    void loadComments(postId, true);
+  }
+
+  function closeComments() {
+    if (commentLoading) return;
+    setCommentsPostId(null);
+    setCommentThreads([]);
+    setCommentCursor(null);
+    setCommentHasMore(false);
+    setCommentError(null);
   }
 
   return (
@@ -243,14 +307,116 @@ export default function Home() {
                 </button>
               </div>
               {post.latestComment && (
-                <p className="mt-1 rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                <button
+                  type="button"
+                  className="mt-1 w-full rounded bg-slate-100 px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-200"
+                  onClick={() => openComments(post.id)}
+                >
                   {formatLatestComment(post.latestComment)}
-                </p>
+                </button>
+              )}
+              {!post.latestComment && (post.commentCount ?? 0) > 0 && (
+                <button
+                  type="button"
+                  className="mt-1 w-full rounded bg-slate-100 px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-200"
+                  onClick={() => openComments(post.id)}
+                >
+                  View comments
+                </button>
               )}
             </article>
           ))}
         </div>
       </section>
+      {commentsPostId && (
+        <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
+          <button
+            type="button"
+            className="absolute inset-0 cursor-default bg-slate-900/50"
+            aria-label="Close comments"
+            onClick={closeComments}
+            disabled={commentLoading}
+          />
+          <div className="relative w-full max-w-2xl rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Comments</h3>
+              <button
+                type="button"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-800"
+                onClick={closeComments}
+                disabled={commentLoading}
+              >
+                Close
+              </button>
+            </div>
+            {commentError && <p className="mt-2 text-sm text-red-600">{commentError}</p>}
+            {commentLoading && commentThreads.length === 0 && (
+              <p className="mt-2 text-sm text-slate-500">Loading comments...</p>
+            )}
+            <div className="mt-3 max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+              {commentThreads.length === 0 && !commentLoading && !commentError && (
+                <p className="text-sm text-slate-500">No comments yet.</p>
+              )}
+              {commentThreads.map((comment) => (
+                <div key={comment.id} className="rounded border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{comment.ownerDisplayName || comment.ownerId}</span>
+                    <span>{new Date(comment.createdAt).toLocaleString()}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-800">{comment.content}</p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    onClick={() =>
+                      openComposer(commentsPostId, {
+                        commentId: comment.id,
+                        ownerDisplayName: comment.ownerDisplayName ?? null
+                      })
+                    }
+                  >
+                    Reply
+                  </button>
+                  {comment.replies.length > 0 && (
+                    <div className="mt-2 space-y-2 border-l border-slate-200 pl-3">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id}>
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span>{reply.ownerDisplayName || reply.ownerId}</span>
+                            <span>{new Date(reply.createdAt).toLocaleString()}</span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-700">{reply.content}</p>
+                          <button
+                            type="button"
+                            className="mt-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                            onClick={() =>
+                              openComposer(commentsPostId, {
+                                commentId: reply.id,
+                                ownerDisplayName: reply.ownerDisplayName ?? null
+                              })
+                            }
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {commentHasMore && (
+              <button
+                type="button"
+                className="mt-3 w-full rounded border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                onClick={() => commentsPostId && loadComments(commentsPostId, false)}
+                disabled={commentLoading}
+              >
+                Load more
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <CommentComposerSheet
         open={composerOpen}
         value={composerText}
