@@ -34,6 +34,8 @@ export interface Comment {
   content: string;
   parentCommentId: string | null;
   createdAt: string;
+  likeCount?: number;
+  isLiked?: boolean;
 }
 
 export interface CommentThread extends Comment {

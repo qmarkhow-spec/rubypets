@@ -110,7 +110,9 @@ export default function Home() {
       ownerDisplayName: displayName,
       content: trimmed,
       parentCommentId: replyTarget?.commentId ?? null,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      likeCount: 0,
+      isLiked: false
     };
 
     let previousPost: Post | null = null;
@@ -249,6 +251,70 @@ export default function Home() {
     setCommentError(null);
   }
 
+  function findCommentInThreads(commentId: string): Comment | null {
+    for (const thread of commentThreads) {
+      if (thread.id === commentId) return thread;
+      const reply = thread.replies.find((item) => item.id === commentId);
+      if (reply) return reply;
+    }
+    return null;
+  }
+
+  function updateCommentInThreads(commentId: string, updater: (comment: Comment) => Comment) {
+    setCommentThreads((current) =>
+      current.map((thread) => {
+        if (thread.id === commentId) {
+          const updated = updater(thread);
+          return { ...updated, replies: thread.replies };
+        }
+        let changed = false;
+        const replies = thread.replies.map((reply) => {
+          if (reply.id !== commentId) return reply;
+          changed = true;
+          return updater(reply);
+        });
+        return changed ? { ...thread, replies } : thread;
+      })
+    );
+  }
+
+  async function toggleCommentLike(commentId: string) {
+    if (!user) {
+      setError("Unauthorized");
+      return;
+    }
+    const current = findCommentInThreads(commentId);
+    if (!current) return;
+    const prevIsLiked = !!current.isLiked;
+    const prevCount = current.likeCount ?? 0;
+    const nextIsLiked = !prevIsLiked;
+    const nextCount = Math.max(0, prevCount + (prevIsLiked ? -1 : 1));
+    updateCommentInThreads(commentId, (comment) => ({
+      ...comment,
+      isLiked: nextIsLiked,
+      likeCount: nextCount
+    }));
+
+    try {
+      const { data } = await apiFetch<{ ok: boolean; isLiked: boolean; like_count: number }>(
+        `/api/comments/${commentId}/like`,
+        { method: "POST" }
+      );
+      updateCommentInThreads(commentId, (comment) => ({
+        ...comment,
+        isLiked: data.isLiked,
+        likeCount: data.like_count
+      }));
+    } catch (err) {
+      updateCommentInThreads(commentId, (comment) => ({
+        ...comment,
+        isLiked: prevIsLiked,
+        likeCount: prevCount
+      }));
+      setError(readError(err));
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -368,18 +434,28 @@ export default function Home() {
                     <span>{new Date(comment.createdAt).toLocaleString()}</span>
                   </div>
                   <p className="mt-1 text-sm text-slate-800">{comment.content}</p>
-                  <button
-                    type="button"
-                    className="mt-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                    onClick={() =>
-                      openComposer(commentsPostId, {
-                        commentId: comment.id,
-                        ownerDisplayName: comment.ownerDisplayName ?? comment.ownerId
-                      })
-                    }
-                  >
-                    Reply
-                  </button>
+                  <div className="mt-2 flex items-center gap-4 text-xs font-semibold text-slate-600">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 hover:text-rose-500"
+                      onClick={() => toggleCommentLike(comment.id)}
+                    >
+                      <span>{comment.isLiked ? "❤️" : "🤍"}</span>
+                      <span>{comment.likeCount ?? 0}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="hover:text-slate-900"
+                      onClick={() =>
+                        openComposer(commentsPostId, {
+                          commentId: comment.id,
+                          ownerDisplayName: comment.ownerDisplayName ?? comment.ownerId
+                        })
+                      }
+                    >
+                      Reply
+                    </button>
+                  </div>
                   {comment.replies.length > 0 && (
                     <div className="mt-2 space-y-2 border-l border-slate-200 pl-3">
                       {comment.replies.map((reply) => (
@@ -389,18 +465,28 @@ export default function Home() {
                             <span>{new Date(reply.createdAt).toLocaleString()}</span>
                           </div>
                           <p className="mt-1 text-sm text-slate-700">{reply.content}</p>
-                          <button
-                            type="button"
-                            className="mt-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                            onClick={() =>
-                              openComposer(commentsPostId, {
-                                commentId: reply.id,
-                                ownerDisplayName: reply.ownerDisplayName ?? reply.ownerId
-                              })
-                            }
-                          >
-                            Reply
-                          </button>
+                          <div className="mt-1 flex items-center gap-4 text-xs font-semibold text-slate-600">
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 hover:text-rose-500"
+                              onClick={() => toggleCommentLike(reply.id)}
+                            >
+                              <span>{reply.isLiked ? "❤️" : "🤍"}</span>
+                              <span>{reply.likeCount ?? 0}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="hover:text-slate-900"
+                              onClick={() =>
+                                openComposer(commentsPostId, {
+                                  commentId: reply.id,
+                                  ownerDisplayName: reply.ownerDisplayName ?? reply.ownerId
+                                })
+                              }
+                            >
+                              Reply
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

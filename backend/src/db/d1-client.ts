@@ -25,7 +25,9 @@ type CommentRow = {
   parent_comment_id: string | null;
   content_text: string;
   created_at: string;
+  like_count?: number | null;
   owner_display_name?: string | null;
+  is_liked?: number | null;
 };
 
 type MediaAssetRow = {
@@ -519,6 +521,7 @@ export class D1Client implements DBClient {
             c.parent_comment_id,
             c.content_text,
             c.created_at,
+            c.like_count,
             o.display_name as owner_display_name
           from post_comments c
           left join owners o on o.uuid = c.owner_id
@@ -532,7 +535,8 @@ export class D1Client implements DBClient {
     return mapCommentRow(row);
   }
 
-  async getLatestComment(postId: string): Promise<Comment | null> {
+  async getLatestComment(postId: string, currentOwnerUuid?: string): Promise<Comment | null> {
+    const joinLiked = !!currentOwnerUuid;
     const row = await this.db
       .prepare(
         `
@@ -543,21 +547,25 @@ export class D1Client implements DBClient {
             c.parent_comment_id,
             c.content_text,
             c.created_at,
+            c.like_count,
             o.display_name as owner_display_name
+            ${joinLiked ? ", case when cl.owner_id is not null then 1 else 0 end as is_liked" : ""}
           from post_comments c
           left join owners o on o.uuid = c.owner_id
+          ${joinLiked ? "left join comment_likes cl on cl.comment_id = c.id and cl.owner_id = ?" : ""}
           where c.post_id = ? and c.is_deleted = 0
           order by c.created_at desc, c.id desc
           limit 1
         `
       )
-      .bind(postId)
+      .bind(...(joinLiked ? [currentOwnerUuid, postId] : [postId]))
       .first<CommentRow>();
     if (!row) return null;
     return mapCommentRow(row);
   }
 
-  async getCommentById(commentId: string): Promise<Comment | null> {
+  async getCommentById(commentId: string, currentOwnerUuid?: string): Promise<Comment | null> {
+    const joinLiked = !!currentOwnerUuid;
     const row = await this.db
       .prepare(
         `
@@ -568,13 +576,16 @@ export class D1Client implements DBClient {
             c.parent_comment_id,
             c.content_text,
             c.created_at,
+            c.like_count,
             o.display_name as owner_display_name
+            ${joinLiked ? ", case when cl.owner_id is not null then 1 else 0 end as is_liked" : ""}
           from post_comments c
           left join owners o on o.uuid = c.owner_id
+          ${joinLiked ? "left join comment_likes cl on cl.comment_id = c.id and cl.owner_id = ?" : ""}
           where c.id = ? and c.is_deleted = 0
         `
       )
-      .bind(commentId)
+      .bind(...(joinLiked ? [currentOwnerUuid, commentId] : [commentId]))
       .first<CommentRow>();
     if (!row) return null;
     return mapCommentRow(row);
@@ -583,12 +594,16 @@ export class D1Client implements DBClient {
   async listPostCommentsThread(
     postId: string,
     limit: number,
-    cursor?: string | null
+    cursor?: string | null,
+    currentOwnerUuid?: string
   ): Promise<{ items: CommentThread[]; nextCursor: string | null; hasMore: boolean }> {
     const safeLimit = Math.min(Math.max(limit, 1), 50);
     const parsed = parseCommentCursor(cursor);
+    const joinLiked = !!currentOwnerUuid;
     const clauses: string[] = ["c.post_id = ?", "c.parent_comment_id is null", "c.is_deleted = 0"];
-    const params: Array<string | number> = [postId];
+    const params: Array<string | number> = [];
+    if (joinLiked && currentOwnerUuid) params.push(currentOwnerUuid);
+    params.push(postId);
 
     if (parsed) {
       clauses.push("(c.created_at < ? or (c.created_at = ? and c.id < ?))");
@@ -605,9 +620,12 @@ export class D1Client implements DBClient {
             c.parent_comment_id,
             c.content_text,
             c.created_at,
+            c.like_count,
             o.display_name as owner_display_name
+            ${joinLiked ? ", case when cl.owner_id is not null then 1 else 0 end as is_liked" : ""}
           from post_comments c
           left join owners o on o.uuid = c.owner_id
+          ${joinLiked ? "left join comment_likes cl on cl.comment_id = c.id and cl.owner_id = ?" : ""}
           where ${clauses.join(" and ")}
           order by c.created_at desc, c.id desc
           limit ?
@@ -637,14 +655,17 @@ export class D1Client implements DBClient {
             c.parent_comment_id,
             c.content_text,
             c.created_at,
+            c.like_count,
             o.display_name as owner_display_name
+            ${joinLiked ? ", case when cl.owner_id is not null then 1 else 0 end as is_liked" : ""}
           from post_comments c
           left join owners o on o.uuid = c.owner_id
+          ${joinLiked ? "left join comment_likes cl on cl.comment_id = c.id and cl.owner_id = ?" : ""}
           where c.post_id = ? and c.parent_comment_id in (${placeholders}) and c.is_deleted = 0
           order by c.created_at asc, c.id asc
         `
       )
-      .bind(postId, ...parentIds)
+      .bind(...(joinLiked && currentOwnerUuid ? [currentOwnerUuid, postId] : [postId]), ...parentIds)
       .all<CommentRow>();
 
     const repliesByParent = new Map<string, Comment[]>();
@@ -663,6 +684,32 @@ export class D1Client implements DBClient {
     });
 
     return { items, nextCursor, hasMore };
+  }
+
+  async toggleCommentLike(commentId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }> {
+    const now = new Date().toISOString();
+    const insertResult = await this.db
+      .prepare(
+        `insert into comment_likes (comment_id, owner_id, created_at)
+         values (?, ?, ?)
+         on conflict(comment_id, owner_id) do nothing`
+      )
+      .bind(commentId, ownerId, now)
+      .run();
+
+    const inserted = (insertResult as any)?.meta?.changes ?? 0;
+    if (inserted === 0) {
+      await this.db.prepare(`delete from comment_likes where comment_id = ? and owner_id = ?`).bind(commentId, ownerId).run();
+    }
+
+    const countRow = await this.db
+      .prepare(`select count(*) as c from comment_likes where comment_id = ?`)
+      .bind(commentId)
+      .first<{ c: number }>();
+    const likeCount = countRow?.c ?? 0;
+    await this.db.prepare(`update post_comments set like_count = ? where id = ?`).bind(likeCount, commentId).run();
+
+    return { isLiked: inserted > 0, likeCount };
   }
 
   async isFriends(ownerId: string, friendId: string): Promise<boolean> {
@@ -1121,7 +1168,9 @@ function mapCommentRow(row: CommentRow): Comment {
     ownerDisplayName: row.owner_display_name ?? null,
     content: row.content_text,
     parentCommentId: row.parent_comment_id ?? null,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    likeCount: row.like_count ?? 0,
+    isLiked: row.is_liked === 1
   };
 }
 

@@ -51,6 +51,8 @@ export interface Comment {
   content: string;
   parentCommentId?: string | null;
   createdAt: string;
+  likeCount?: number | null;
+  isLiked?: boolean;
 }
 
 export interface ApiResult<T> {
