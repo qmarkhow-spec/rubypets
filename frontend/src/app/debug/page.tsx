@@ -1,8 +1,9 @@
 'use client';
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { HealthStatus, Post } from "@/lib/types";
+import { loadTokens } from "@/lib/auth-storage";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
@@ -27,6 +28,12 @@ export default function DebugPage() {
   const [postsLimit, setPostsLimit] = useState(10);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsError, setPostsError] = useState<string | null>(null);
+
+  const [recentPosts, setRecentPosts] = useState<Post[]>([]);
+  const [recentPostsError, setRecentPostsError] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string>("");
+  const [commentLogs, setCommentLogs] = useState<string[]>([]);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   const [method, setMethod] = useState<HttpMethod>("GET");
   const [path, setPath] = useState("/api/health");
@@ -91,6 +98,59 @@ export default function DebugPage() {
     }
   }
 
+  function appendLog(message: string) {
+    const ts = new Date().toISOString();
+    setCommentLogs((prev) => [...prev, `[${ts}] ${message}`]);
+  }
+
+  async function loadRecentPosts() {
+    setRecentPostsError(null);
+    appendLog("Loading recent posts (limit=5)");
+    try {
+      const { data } = await apiFetch<{ data: Post[] }>("/api/posts?limit=5");
+      setRecentPosts(data.data);
+      const firstId = data.data[0]?.id ?? "";
+      setSelectedPostId((current) => current || firstId);
+      appendLog(`Loaded ${data.data.length} posts`);
+    } catch (err) {
+      const message = readError(err);
+      setRecentPostsError(message);
+      appendLog(`Failed to load posts: ${message}`);
+    }
+  }
+
+  async function sendTestComment() {
+    if (commentSubmitting) return;
+    if (!selectedPostId) {
+      appendLog("No post selected");
+      return;
+    }
+    setCommentSubmitting(true);
+    const tokens = loadTokens();
+    appendLog(tokens?.accessToken - "Auth token found" : "Auth token missing");
+    appendLog(`Sending test comment for post ${selectedPostId}`);
+    try {
+      const payload = { content: "test comment", parent_comment_id: null as string | null };
+      const { status, data } = await apiFetch(`/api/posts/${selectedPostId}/comments`, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      appendLog(`Response HTTP ${status}`);
+      appendLog(`Response body: ${JSON.stringify(data)}`);
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      const details = (err as { details?: unknown }).details;
+      appendLog(`Request failed: HTTP ${status ?? "?"} ${JSON.stringify(details)}`);
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadRecentPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function sendRequest(e: FormEvent) {
     e.preventDefault();
     setRequestError(null);
@@ -105,7 +165,7 @@ export default function DebugPage() {
     } catch (err) {
       const status = (err as { status?: number }).status;
       const details = (err as { details?: unknown }).details;
-      setRequestError(`HTTP ${status ?? "?"} ${typeof details === "object" ? JSON.stringify(details) : String(details ?? err)}`);
+      setRequestError(`HTTP ${status ?? "?"} ${typeof details === "object" - JSON.stringify(details) : String(details ?? err)}`);
     }
   }
 
@@ -254,6 +314,62 @@ export default function DebugPage() {
         </div>
       </section>
 
+      
+      <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Test Comment</h2>
+          <button
+            type="button"
+            onClick={loadRecentPosts}
+            className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+          >
+            Refresh posts
+          </button>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-sm text-slate-700">Recent posts (limit 5)</label>
+            <select
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              value={selectedPostId}
+              onChange={(e) => setSelectedPostId(e.target.value)}
+            >
+              <option value="">Select a post</option>
+              {recentPosts.map((post) => (
+                <option key={post.id} value={post.id}>
+                  {post.authorDisplayName || post.authorHandle || post.authorId} - {post.id.slice(0, 8)}
+                </option>
+              ))}
+            </select>
+            {recentPostsError && <p className="text-sm text-red-600">{recentPostsError}</p>}
+          </div>
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={sendTestComment}
+              className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+              disabled={commentSubmitting}
+            >
+              Test comment
+            </button>
+            <button
+              type="button"
+              onClick={() => setCommentLogs([])}
+              className="rounded border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+              disabled={commentSubmitting}
+            >
+              Clear logs
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          {commentLogs.length === 0 && <p className="text-slate-500">No logs yet.</p>}
+          {commentLogs.length > 0 && (
+            <pre className="whitespace-pre-wrap">{commentLogs.join("\n")}</pre>
+          )}
+        </div>
+      </section>
+
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <h2 className="text-base font-semibold text-slate-900">自訂 API 測試</h2>
         <form className="mt-3 space-y-3" onSubmit={sendRequest}>
@@ -309,5 +425,5 @@ function readError(err: unknown): string {
   if (details && typeof details === "object" && "error" in details) {
     return `${status ?? ""} ${(details as { error?: string }).error ?? "發生錯誤"}`;
   }
-  return status ? `HTTP ${status}` : "發生錯誤";
+  return status - `HTTP ${status}` : "發生錯誤";
 }
