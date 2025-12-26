@@ -7,6 +7,7 @@ interface CommentComposerSheetProps {
   value: string;
   submitting?: boolean;
   replyLabel?: string | null;
+  cursorPosition?: number | null;
   onChange: (value: string) => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -17,6 +18,7 @@ export function CommentComposerSheet({
   value,
   submitting,
   replyLabel,
+  cursorPosition,
   onChange,
   onClose,
   onSubmit
@@ -25,9 +27,15 @@ export function CommentComposerSheet({
 
   useEffect(() => {
     if (open) {
-      requestAnimationFrame(() => textareaRef.current?.focus());
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const pos = cursorPosition ?? el.value.length;
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      });
     }
-  }, [open]);
+  }, [open, cursorPosition]);
 
   if (!open) return null;
 

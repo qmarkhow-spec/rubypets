@@ -27,6 +27,7 @@ export default function Home() {
   const [composerReplyTarget, setComposerReplyTarget] = useState<ReplyTarget | null>(null);
   const [composerText, setComposerText] = useState("");
   const [composerSubmitting, setComposerSubmitting] = useState(false);
+  const [composerCursorPos, setComposerCursorPos] = useState<number | null>(null);
   const [commentsPostId, setCommentsPostId] = useState<string | null>(null);
   const [commentThreads, setCommentThreads] = useState<CommentThread[]>([]);
   const [commentCursor, setCommentCursor] = useState<string | null>(null);
@@ -166,6 +167,7 @@ export default function Home() {
     setComposerPostId(postId);
     setComposerReplyTarget(replyTarget ?? null);
     setComposerText(mention);
+    setComposerCursorPos(mention.length);
     setComposerOpen(true);
     setError(null);
   }
@@ -176,6 +178,7 @@ export default function Home() {
     setComposerPostId(null);
     setComposerReplyTarget(null);
     setComposerText("");
+    setComposerCursorPos(null);
   }
 
   async function submitComposer() {
@@ -187,6 +190,7 @@ export default function Home() {
       setComposerPostId(null);
       setComposerReplyTarget(null);
       setComposerText("");
+      setComposerCursorPos(null);
     } finally {
       setComposerSubmitting(false);
     }
@@ -422,6 +426,7 @@ export default function Home() {
         value={composerText}
         submitting={composerSubmitting}
         replyLabel={composerReplyTarget?.ownerDisplayName ?? null}
+        cursorPosition={composerCursorPos}
         onChange={setComposerText}
         onClose={closeComposer}
         onSubmit={submitComposer}
