@@ -452,7 +452,7 @@ async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string
   if (!user) return errorJson("Unauthorized", 401);
   const access = await ensureCommentAccess(ctx, params.id, user);
   if (access instanceof Response) return access;
-  const latest = await ctx.db.getLatestComment(params.id);
+  const latest = await ctx.db.getLatestComment(params.id, user.uuid);
   return okJson({ data: latest, comment_count: access.post.commentCount ?? 0 }, 200);
 }
 
@@ -523,8 +523,20 @@ async function listCommentsRoute(ctx: HandlerContext, params: Record<string, str
   const limit = asNumber(url.searchParams.get("limit"), 20);
   const cursor = url.searchParams.get("cursor");
 
-  const page = await ctx.db.listPostCommentsThread(params.id, limit, cursor);
+  const page = await ctx.db.listPostCommentsThread(params.id, limit, cursor, user.uuid);
   return okJson({ data: page.items, nextCursor: page.nextCursor, hasMore: page.hasMore }, 200);
+}
+
+async function toggleCommentLikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+  const comment = await ctx.db.getCommentById(params.id);
+  if (!comment) return errorJson("comment not found", 404);
+  const access = await ensureCommentAccess(ctx, comment.postId, user);
+  if (access instanceof Response) return access;
+
+  const result = await ctx.db.toggleCommentLike(comment.id, user.uuid);
+  return okJson({ ok: true, isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
 
 
@@ -754,6 +766,7 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/posts\/([^/]+)\/comments\/list$/, handler: listCommentsRoute },
   { method: "GET", pattern: /^\/posts\/([^/]+)\/comments$/, handler: listLatestCommentRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/comments$/, handler: createCommentRoute },
+  { method: "POST", pattern: /^\/comments\/([^/]+)\/like$/, handler: toggleCommentLikeRoute },
   { method: "POST", pattern: /^\/media\/upload\/([^/]+)$/, handler: mediaUploadStubRoute }
 ];
 

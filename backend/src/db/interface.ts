@@ -14,8 +14,8 @@ export interface DBClient {
   getPostsByOwner(ownerUuid: string, limit?: number, currentOwnerUuid?: string): Promise<Post[]>;
   listRecentPosts(limit?: number, currentOwnerUuid?: string): Promise<Post[]>;
   getPostById(id: string): Promise<Post | null>;
-  getCommentById(commentId: string): Promise<Comment | null>;
-  getLatestComment(postId: string): Promise<Comment | null>;
+  getCommentById(commentId: string, currentOwnerUuid?: string): Promise<Comment | null>;
+  getLatestComment(postId: string, currentOwnerUuid?: string): Promise<Comment | null>;
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   getOwnerByAccountId(accountId: string): Promise<import("./models").Owner | null>;
@@ -25,10 +25,12 @@ export interface DBClient {
   unlikePost(postId: string, ownerId: string): Promise<void>;
   toggleLike(postId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }>;
   createComment(input: { postId: string; ownerId: string; content: string; parentCommentId?: string | null }): Promise<Comment>;
+  toggleCommentLike(commentId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }>;
   listPostCommentsThread(
     postId: string,
     limit: number,
-    cursor?: string | null
+    cursor?: string | null,
+    currentOwnerUuid?: string
   ): Promise<{ items: CommentThread[]; nextCursor: string | null; hasMore: boolean }>;
   createOwner(input: {
     accountId: string;
