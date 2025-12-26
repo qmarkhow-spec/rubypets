@@ -509,7 +509,7 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
     parentCommentId: finalParentId
   });
 
-  // 立即用剛插入的 id 再查一次
+  // Verify the comment was written by fetching it back by id.
   const check = await ctx.db.getCommentById(created.id);
   if (!check) {
     console.error("COMMENT_WRITE_VERIFY_FAILED", { createdId: created.id, postId });
