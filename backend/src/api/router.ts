@@ -49,7 +49,7 @@ export async function handleRequest(request: Request, env: HandlerContext["env"]
 
   const url = new URL(request.url);
   const pathname = normalizePath(stripApiPrefix(url.pathname));
-  const dynamic = matchDynamicRoute(pathname);
+  const dynamic = matchDynamicRoute(request.method, pathname);
 
   if (dynamic) {
     const db = createDB(env);
@@ -769,10 +769,14 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "POST", pattern: /^\/media\/upload\/([^/]+)$/, handler: mediaUploadStubRoute }
 ];
 
-function matchDynamicRoute(pathname: string):
+function matchDynamicRoute(
+  method: string,
+  pathname: string
+):
   | { handler: (ctx: HandlerContext, params: Record<string, string>) => Promise<Response>; params: Record<string, string> }
   | null {
   for (const route of dynamicRoutes) {
+    if (route.method !== method) continue;
     const m = pathname.match(route.pattern);
     if (m) {
       return { handler: route.handler, params: { id: m[1] } };
