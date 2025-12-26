@@ -447,17 +447,6 @@ async function ensureCommentAccess(
   return { post };
 }
 
-function formatReplyContent(content: string, targetDisplayName: string | null): string {
-  const trimmed = content.trim();
-  if (!targetDisplayName) return trimmed;
-  const prefix = `@${targetDisplayName}`;
-  let base = trimmed;
-  if (trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
-    base = trimmed.slice(prefix.length).trimStart();
-  }
-  return base ? `${prefix} ${base}` : prefix;
-}
-
 async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const user = await getUserFromAuthHeader(ctx.db, ctx.request);
   if (!user) return errorJson("Unauthorized", 401);
@@ -493,7 +482,6 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
     if (!target) return errorJson("comment not found", 404);
     if (target.postId !== postId) return errorJson("comment not in post", 400);
     finalParentId = target.parentCommentId ?? target.id;
-    finalContent = formatReplyContent(content, target.ownerDisplayName ?? null);
   } else if (parentId) {
     const parent = await ctx.db.getCommentById(parentId);
     if (!parent) return errorJson("comment not found", 404);

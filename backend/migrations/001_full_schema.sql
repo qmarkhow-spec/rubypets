@@ -209,6 +209,28 @@ CREATE INDEX IF NOT EXISTS idx_comments_post_created_at ON post_comments(post_id
 CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON post_comments(parent_comment_id);
 CREATE INDEX IF NOT EXISTS idx_comments_post_parent_created_at ON post_comments (post_id, parent_comment_id, created_at);
 
+CREATE TABLE IF NOT EXISTS comment_likes (
+  comment_id TEXT NOT NULL,
+  owner_id   TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+  CONSTRAINT fk_comment_likes_comment
+    FOREIGN KEY (comment_id)
+    REFERENCES post_comments(id)
+    ON DELETE CASCADE,
+
+  CONSTRAINT fk_comment_likes_owner
+    FOREIGN KEY (owner_id)
+    REFERENCES owners(uuid)
+    ON DELETE CASCADE,
+
+  UNIQUE (comment_id, owner_id)
+);
+CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id ON comment_likes(comment_id);
+
+CREATE INDEX IF NOT EXISTS idx_comment_likes_owner_id ON comment_likes(owner_id);
+
+
 CREATE TABLE IF NOT EXISTS post_shares (
   id            TEXT PRIMARY KEY,
   post_id        TEXT NOT NULL,
