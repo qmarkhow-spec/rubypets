@@ -162,9 +162,10 @@ export default function Home() {
   }
 
   function openComposer(postId: string, replyTarget?: ReplyTarget | null) {
+    const mention = replyTarget?.ownerDisplayName ? `@${replyTarget.ownerDisplayName} ` : "";
     setComposerPostId(postId);
     setComposerReplyTarget(replyTarget ?? null);
-    setComposerText("");
+    setComposerText(mention);
     setComposerOpen(true);
     setError(null);
   }
