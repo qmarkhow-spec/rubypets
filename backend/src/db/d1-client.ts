@@ -970,7 +970,7 @@ export class D1Client implements DBClient {
         `
           update accounts
           set is_verified = ?, updated_at = ?
-          where account_id = ?
+          where id = ?
         `
       )
       .bind(status, updatedAt, accountId)
