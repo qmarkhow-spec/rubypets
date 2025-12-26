@@ -22,6 +22,7 @@ export function CommentComposerSheet({
   onSubmit
 }: CommentComposerSheetProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const placeholder = replyLabel ? `@${replyLabel}\n` : "Write a comment";
 
   useEffect(() => {
     if (open) {
@@ -58,8 +59,8 @@ export function CommentComposerSheet({
           rows={3}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Write a comment"
-          className="mt-3 w-full resize-none rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+          placeholder={placeholder}
+          className="mt-3 w-full resize-none rounded-md border border-slate-200 px-3 py-2 text-sm leading-6 text-slate-900 focus:border-slate-400 focus:outline-none"
           disabled={submitting}
         />
         <div className="mt-3 flex justify-end gap-2">

@@ -102,13 +102,12 @@ export default function Home() {
     if (idx < 0) return;
 
     const displayName = user.displayName || user.handle || "You";
-    const replyPrefix = replyTarget?.ownerDisplayName ? `@${replyTarget.ownerDisplayName} ` : "";
     const optimistic: Comment = {
       id: `optimistic-${Date.now()}`,
       postId,
       ownerId: user.id,
       ownerDisplayName: displayName,
-      content: `${replyPrefix}${trimmed}`.trim(),
+      content: trimmed,
       parentCommentId: replyTarget?.commentId ?? null,
       createdAt: new Date().toISOString()
     };
@@ -370,7 +369,7 @@ export default function Home() {
                     onClick={() =>
                       openComposer(commentsPostId, {
                         commentId: comment.id,
-                        ownerDisplayName: comment.ownerDisplayName ?? null
+                        ownerDisplayName: comment.ownerDisplayName ?? comment.ownerId
                       })
                     }
                   >
@@ -391,7 +390,7 @@ export default function Home() {
                             onClick={() =>
                               openComposer(commentsPostId, {
                                 commentId: reply.id,
-                                ownerDisplayName: reply.ownerDisplayName ?? null
+                                ownerDisplayName: reply.ownerDisplayName ?? reply.ownerId
                               })
                             }
                           >
