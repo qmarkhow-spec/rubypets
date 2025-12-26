@@ -165,7 +165,7 @@ export default function DebugPage() {
     } catch (err) {
       const status = (err as { status?: number }).status;
       const details = (err as { details?: unknown }).details;
-      setRequestError(`HTTP ${status ?? "?"} ${typeof details === "object" - JSON.stringify(details) : String(details ?? err)}`);
+      setRequestError(`HTTP ${status ?? "?"} ${typeof details === "object" ? JSON.stringify(details) : String(details ?? err)}`);
     }
   }
 
