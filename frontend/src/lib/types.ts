@@ -33,12 +33,16 @@ export interface Post {
   createdAt: string;
   authorHandle?: string | null;
   authorDisplayName?: string | null;
+  visibility?: string | null;
   postType?: string | null;
   mediaCount?: number | null;
   mediaUrls?: string[];
   isDeleted?: number;
   likeCount?: number | null;
   commentCount?: number | null;
+  repostCount?: number | null;
+  originPostId?: string | null;
+  originPost?: Post | null;
   latestComment?: Comment | null;
   isLiked?: boolean;
 }

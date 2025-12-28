@@ -16,6 +16,8 @@ type CommentThread = Comment & {
   replies: Comment[];
 };
 
+type RepostVisibility = "public" | "friends" | "private";
+
 export default function Home() {
   const { user } = useAuth();
 
@@ -34,6 +36,12 @@ export default function Home() {
   const [commentHasMore, setCommentHasMore] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [repostOpen, setRepostOpen] = useState(false);
+  const [repostTarget, setRepostTarget] = useState<Post | null>(null);
+  const [repostText, setRepostText] = useState("");
+  const [repostVisibility, setRepostVisibility] = useState<RepostVisibility>("public");
+  const [repostSubmitting, setRepostSubmitting] = useState(false);
+  const [repostError, setRepostError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPosts();
@@ -315,6 +323,109 @@ export default function Home() {
     }
   }
 
+  function openRepost(post: Post) {
+    setRepostTarget(post);
+    setRepostText("");
+    setRepostVisibility("public");
+    setRepostOpen(true);
+    setRepostError(null);
+  }
+
+  function closeRepost() {
+    if (repostSubmitting) return;
+    setRepostOpen(false);
+    setRepostTarget(null);
+    setRepostText("");
+    setRepostError(null);
+  }
+
+  async function submitRepost() {
+    if (!repostTarget || repostSubmitting) return;
+    if (!user) {
+      setRepostError("Unauthorized");
+      return;
+    }
+
+    setRepostSubmitting(true);
+    setRepostError(null);
+
+    const trimmed = repostText.trim();
+    const content = trimmed ? trimmed : null;
+    const optimisticId = `optimistic-repost-${Date.now()}`;
+    const displayName = user.displayName || user.handle || user.id;
+    const optimistic: Post = {
+      id: optimisticId,
+      authorId: user.id,
+      authorHandle: user.handle ?? null,
+      authorDisplayName: displayName,
+      body: content,
+      createdAt: new Date().toISOString(),
+      postType: "text",
+      visibility: repostVisibility,
+      mediaCount: 0,
+      mediaUrls: [],
+      likeCount: 0,
+      commentCount: 0,
+      repostCount: 0,
+      isLiked: false,
+      latestComment: null,
+      originPostId: repostTarget.id,
+      originPost: repostTarget
+    };
+
+    setPosts((current) => {
+      const bumped = current.map((post) =>
+        post.id === repostTarget.id ? { ...post, repostCount: Math.max(0, (post.repostCount ?? 0) + 1) } : post
+      );
+      return [optimistic, ...bumped];
+    });
+
+    try {
+      const { data } = await apiFetch<{ data: Post; origin: { id: string; repost_count: number } }>(
+        `/api/posts/${repostTarget.id}/repost`,
+        {
+          method: "POST",
+          body: JSON.stringify({ content, visibility: repostVisibility })
+        }
+      );
+
+      setPosts((current) => {
+        let replaced = false;
+        const next = current.map((post) => {
+          if (post.id === optimisticId) {
+            replaced = true;
+            return data.data;
+          }
+          if (post.id === data.origin.id) {
+            return { ...post, repostCount: data.origin.repost_count };
+          }
+          return post;
+        });
+        if (!replaced) {
+          next.unshift(data.data);
+        }
+        return next;
+      });
+
+      setRepostOpen(false);
+      setRepostTarget(null);
+      setRepostText("");
+    } catch (err) {
+      setPosts((current) => {
+        const without = current.filter((post) => post.id !== optimisticId);
+        return without.map((post) => {
+          if (post.id === repostTarget.id) {
+            return { ...post, repostCount: Math.max(0, (post.repostCount ?? 0) - 1) };
+          }
+          return post;
+        });
+      });
+      setRepostError(readError(err));
+    } finally {
+      setRepostSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -358,6 +469,11 @@ export default function Home() {
               </div>
               <p className="mt-2 text-sm text-slate-800">{post.body ?? post.content ?? "(無內容)"}</p>
               {renderMedia(post)}
+              {post.originPostId && (
+                <div className="mt-3 rounded border border-slate-200 bg-white p-3">
+                  {renderPostSummary(post.originPost)}
+                </div>
+              )}
               <div className="mt-2 flex items-center gap-3 text-sm text-slate-600">
                 <button
                   type="button"
@@ -374,6 +490,14 @@ export default function Home() {
                 >
                   <span>💬</span>
                   <span>{post.commentCount ?? 0}</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 hover:text-emerald-600"
+                  onClick={() => openRepost(post)}
+                >
+                  <span>Repost</span>
+                  <span>{post.repostCount ?? 0}</span>
                 </button>
               </div>
               {post.latestComment && (
@@ -507,6 +631,72 @@ export default function Home() {
           </div>
         </div>
       )}
+      {repostOpen && repostTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <button
+            type="button"
+            className="absolute inset-0 cursor-default bg-slate-900/50"
+            aria-label="Close repost"
+            onClick={closeRepost}
+            disabled={repostSubmitting}
+          />
+          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Repost</h3>
+              <button
+                type="button"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-800"
+                onClick={closeRepost}
+                disabled={repostSubmitting}
+              >
+                Close
+              </button>
+            </div>
+            {repostError && <p className="mt-2 text-sm text-red-600">{repostError}</p>}
+            <textarea
+              className="mt-3 w-full rounded border border-slate-200 px-3 py-2 text-sm text-slate-900"
+              placeholder="Add a note (optional)"
+              rows={3}
+              value={repostText}
+              onChange={(event) => setRepostText(event.target.value)}
+            />
+            <div className="mt-3 flex items-center gap-3 text-xs text-slate-600">
+              <label htmlFor="repost-visibility" className="font-semibold">Visibility</label>
+              <select
+                id="repost-visibility"
+                className="rounded border border-slate-200 px-2 py-1 text-sm text-slate-800"
+                value={repostVisibility}
+                onChange={(event) => setRepostVisibility(event.target.value as RepostVisibility)}
+              >
+                <option value="public">public</option>
+                <option value="friends">friends</option>
+                <option value="private">private</option>
+              </select>
+            </div>
+            <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+              {renderPostSummary(repostTarget)}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+                onClick={closeRepost}
+                disabled={repostSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
+                onClick={submitRepost}
+                disabled={repostSubmitting}
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <CommentComposerSheet
         open={composerOpen}
         value={composerText}
@@ -535,6 +725,23 @@ function readError(err: unknown): string {
 function formatLatestComment(comment: Comment): string {
   const name = comment.ownerDisplayName;
   return name ? `${name}: ${comment.content}` : comment.content;
+}
+
+function renderPostSummary(post: Post | null | undefined) {
+  if (!post || post.isDeleted === 1) {
+    return <p className="text-xs text-slate-500">Original post deleted.</p>;
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span>{post.authorDisplayName || post.authorHandle || post.authorId}</span>
+        <span>{new Date(post.createdAt).toLocaleString()}</span>
+      </div>
+      <p className="mt-1 text-sm text-slate-700">{post.body ?? post.content ?? "(no content)"}</p>
+      {renderMedia(post)}
+    </>
+  );
 }
 
 function renderMedia(post: Post) {

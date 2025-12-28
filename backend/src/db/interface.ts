@@ -6,6 +6,7 @@ export interface CreatePostInput {
   visibility?: string;
   postType?: string;
   mediaCount?: number;
+  originPostId?: string | null;
 }
 
 export interface DBClient {
@@ -24,6 +25,7 @@ export interface DBClient {
   likePost(postId: string, ownerId: string): Promise<void>;
   unlikePost(postId: string, ownerId: string): Promise<void>;
   toggleLike(postId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }>;
+  updateRepostCount(postId: string): Promise<number>;
   createComment(input: { postId: string; ownerId: string; content: string; parentCommentId?: string | null }): Promise<Comment>;
   toggleCommentLike(commentId: string, ownerId: string): Promise<{ isLiked: boolean; likeCount: number }>;
   listPostCommentsThread(
