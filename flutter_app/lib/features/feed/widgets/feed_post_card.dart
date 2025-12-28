@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
-import '../models/feed_post.dart';
+import 'package:rubypets_flutter/models/comment.dart';
+import 'package:rubypets_flutter/models/post.dart';
 
 class FeedPostCard extends StatelessWidget {
   const FeedPostCard({
@@ -25,6 +26,7 @@ class FeedPostCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final likeIcon = post.isLiked ? Icons.favorite : Icons.favorite_border;
     final likeColor = post.isLiked ? Colors.redAccent : null;
+    final content = post.body ?? '';
 
     return Card(
       child: Padding(
@@ -44,14 +46,14 @@ class FeedPostCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.ownerDisplayName,
+                        post.displayName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
-                        '${post.petDisplayName} · ${post.timeLabel}',
+                        _formatTime(post.createdAt),
                         style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
@@ -63,57 +65,21 @@ class FeedPostCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(post.content),
-            if (post.mediaLabel != null) ...[
+            if (content.isNotEmpty) ...[
               const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  height: 180,
-                  color: colorScheme.primaryContainer.withValues(alpha: 102),
-                  child: Center(
-                    child: Text(
-                      post.mediaLabel!,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              Text(content),
             ],
-            if (post.tags.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: post.tags
-                    .map(
-                      (tag) => Chip(
-                        label: Text(tag),
-                        avatar: const Icon(Icons.tag, size: 16),
-                      ),
-                    )
-                    .toList(),
-              ),
+            if (post.originPostId != null) ...[
+              const SizedBox(height: 12),
+              _OriginCard(post: post.originPost),
             ],
-            if (post.latestComment != null && post.latestComment!.isNotEmpty) ...[
+            if (post.mediaUrls.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _MediaGrid(post: post),
+            ],
+            if (post.latestComment != null) ...[
               const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.chat_bubble_outline, size: 16, color: colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      post.latestComment!,
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                ],
-              ),
+              _LatestCommentPreview(comment: post.latestComment!),
             ],
             const SizedBox(height: 12),
             Row(
@@ -122,17 +88,17 @@ class FeedPostCard extends StatelessWidget {
                 _ActionButton(
                   icon: likeIcon,
                   iconColor: likeColor,
-                  label: post.likes.toString(),
+                  label: post.likeCount.toString(),
                   onPressed: onLike,
                 ),
                 _ActionButton(
                   icon: Icons.chat_bubble_outline,
-                  label: post.comments.toString(),
+                  label: post.commentCount.toString(),
                   onPressed: onComment,
                 ),
                 _ActionButton(
                   icon: Icons.repeat,
-                  label: post.shares.toString(),
+                  label: post.repostCount.toString(),
                   onPressed: onRepost,
                 ),
                 IconButton(
@@ -169,4 +135,135 @@ class _ActionButton extends StatelessWidget {
       label: Text(label),
     );
   }
+}
+
+class _OriginCard extends StatelessWidget {
+  const _OriginCard({required this.post});
+
+  final FeedPost? post;
+
+  @override
+  Widget build(BuildContext context) {
+    if (post == null || post!.isDeleted == 1) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text('Original post deleted'),
+      );
+    }
+
+    final content = post!.body ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            post!.displayName,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          if (content.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(content),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MediaGrid extends StatelessWidget {
+  const _MediaGrid({required this.post});
+
+  final FeedPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    if (post.postType == 'video') {
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(child: Icon(Icons.play_circle_outline, size: 48)),
+      );
+    }
+
+    if (post.mediaUrls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          post.mediaUrls.first,
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: post.mediaUrls.length,
+      itemBuilder: (context, index) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            post.mediaUrls[index],
+            fit: BoxFit.cover,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LatestCommentPreview extends StatelessWidget {
+  const _LatestCommentPreview({required this.comment});
+
+  final FeedComment comment;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.chat_bubble_outline, size: 16, color: colorScheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            '${comment.displayName}: ${comment.content}',
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatTime(String iso) {
+  final parsed = DateTime.tryParse(iso);
+  if (parsed == null) return iso;
+  final now = DateTime.now();
+  final diff = now.difference(parsed.toLocal());
+  if (diff.inMinutes < 1) return 'just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+  if (diff.inHours < 24) return '${diff.inHours}h';
+  return '${diff.inDays}d';
 }
