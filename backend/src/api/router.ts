@@ -171,10 +171,11 @@ async function repostRoute(ctx: HandlerContext, params: Record<string, string>):
   });
 
   const repostCount = await ctx.db.updateRepostCount(origin.id);
+  const repostWithAuthor = (await ctx.db.getPostById(repost.id)) ?? repost;
 
   return okJson(
     {
-      data: { ...repost, originPost: origin },
+      data: { ...repostWithAuthor, originPost: origin },
       origin: { id: origin.id, repost_count: repostCount }
     },
     201
