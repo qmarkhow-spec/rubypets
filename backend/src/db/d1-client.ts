@@ -10,6 +10,9 @@ type PostRow = {
   media_count: number;
   like_count?: number | null;
   comment_count?: number | null;
+  repost_count?: number | null;
+  origin_post_id?: string | null;
+  repost_count_calc?: number | null;
   media_key?: string | null;
   created_at: string;
   is_deleted?: number | null;
@@ -119,15 +122,18 @@ export class D1Client implements DBClient {
     const visibility = input.visibility ?? "public";
     const postType = input.postType ?? "text";
     const mediaCount = input.mediaCount ?? 0;
+    const originPostId = input.originPostId ?? null;
 
     await this.db
       .prepare(
         `
-          insert into posts (id, owner_id, content_text, visibility, post_type, media_count, created_at, updated_at)
-          values (?, ?, ?, ?, ?, ?, ?, ?)
+          insert into posts (
+            id, owner_id, content_text, visibility, post_type, media_count, origin_post_id, created_at, updated_at
+          )
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .bind(id, input.authorId, input.body ?? null, visibility, postType, mediaCount, createdAt, createdAt)
+      .bind(id, input.authorId, input.body ?? null, visibility, postType, mediaCount, originPostId, createdAt, createdAt)
       .run();
 
     return {
@@ -138,7 +144,9 @@ export class D1Client implements DBClient {
       createdAt,
       visibility,
       postType,
-      mediaCount
+      mediaCount,
+      originPostId,
+      repostCount: 0
     };
   }
 
@@ -154,6 +162,9 @@ export class D1Client implements DBClient {
         p.media_count,
         p.like_count,
         p.comment_count,
+        p.repost_count,
+        p.origin_post_id,
+        (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
         p.is_deleted,
         p.created_at,
         o.display_name as author_display_name
@@ -170,6 +181,7 @@ export class D1Client implements DBClient {
 
     const posts = (results ?? []).map(mapPostRow);
     await this.populateMedia(posts);
+    await this.populateOriginPosts(posts);
     return posts;
   }
 
@@ -185,6 +197,9 @@ export class D1Client implements DBClient {
         p.media_count,
         p.like_count,
         p.comment_count,
+        p.repost_count,
+        p.origin_post_id,
+        (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
         p.is_deleted,
         p.created_at,
         o.display_name as author_display_name
@@ -201,6 +216,7 @@ export class D1Client implements DBClient {
 
     const posts = (results ?? []).map(mapPostRow);
     await this.populateMedia(posts);
+    await this.populateOriginPosts(posts);
     return posts;
   }
 
@@ -217,6 +233,9 @@ export class D1Client implements DBClient {
             p.media_count,
             p.like_count,
             p.comment_count,
+            p.repost_count,
+            p.origin_post_id,
+            (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
             p.is_deleted,
             p.created_at,
             o.display_name as author_display_name
@@ -712,6 +731,17 @@ export class D1Client implements DBClient {
     return { isLiked: inserted > 0, likeCount };
   }
 
+  async updateRepostCount(postId: string): Promise<number> {
+    const countRow = await this.db
+      .prepare(`select count(*) as c from posts where origin_post_id = ? and is_deleted = 0`)
+      .bind(postId)
+      .first<{ c: number }>();
+    const repostCount = countRow?.c ?? 0;
+    const now = new Date().toISOString();
+    await this.db.prepare(`update posts set repost_count = ?, updated_at = ? where id = ?`).bind(repostCount, now, postId).run();
+    return repostCount;
+  }
+
   async isFriends(ownerId: string, friendId: string): Promise<boolean> {
     const row = await this.db
       .prepare(
@@ -726,6 +756,60 @@ export class D1Client implements DBClient {
       .bind(ownerId, friendId, friendId, ownerId)
       .first();
     return !!row;
+  }
+
+  private async populateOriginPosts(posts: Post[]): Promise<void> {
+    const originIds = Array.from(new Set(posts.map((post) => post.originPostId).filter((id): id is string => !!id)));
+    if (originIds.length === 0) return;
+    const placeholders = originIds.map(() => "?").join(",");
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            p.id,
+            p.owner_id,
+            p.content_text,
+            p.visibility,
+            p.post_type,
+            p.media_count,
+            p.like_count,
+            p.comment_count,
+            p.repost_count,
+            p.origin_post_id,
+            (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
+            p.is_deleted,
+            p.created_at,
+            o.display_name as author_display_name
+          from posts p
+          left join owners o on o.uuid = p.owner_id
+          where p.id in (${placeholders})
+        `
+      )
+      .bind(...originIds)
+      .all<PostRow>();
+
+    const originPosts = (results ?? []).map(mapPostRow);
+    await this.populateMedia(originPosts);
+
+    const byId = new Map(originPosts.map((post) => [post.id, post]));
+    for (const post of posts) {
+      const originId = post.originPostId ?? null;
+      if (!originId) continue;
+      const origin = byId.get(originId);
+      if (origin) {
+        post.originPost = origin;
+      } else {
+        post.originPost = {
+          id: originId,
+          authorId: "",
+          body: null,
+          mediaKey: null,
+          createdAt: "",
+          isDeleted: 1,
+          repostCount: 0
+        };
+      }
+    }
   }
 
   private async populateMedia(posts: Post[]): Promise<void> {
@@ -1143,6 +1227,7 @@ export class D1Client implements DBClient {
 }
 
 function mapPostRow(row: PostRow): Post {
+  const repostCount = row.repost_count_calc ?? row.repost_count ?? 0;
   return {
     id: row.id,
     authorId: row.owner_id,
@@ -1155,6 +1240,8 @@ function mapPostRow(row: PostRow): Post {
     mediaCount: row.media_count,
     likeCount: row.like_count ?? 0,
     commentCount: row.comment_count ?? 0,
+    repostCount,
+    originPostId: row.origin_post_id ?? null,
     isDeleted: row.is_deleted ?? 0,
     isLiked: row.is_liked === 1
   };

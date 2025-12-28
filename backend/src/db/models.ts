@@ -23,6 +23,9 @@ export interface Post {
   isDeleted?: number;
   likeCount?: number;
   commentCount?: number;
+  repostCount?: number;
+  originPostId?: string | null;
+  originPost?: Post | null;
   isLiked?: boolean;
 }
 

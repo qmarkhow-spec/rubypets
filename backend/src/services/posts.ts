@@ -6,6 +6,7 @@ export interface CreatePostInput {
   content: string;
   visibility?: string;
   postType?: string;
+  originPostId?: string | null;
 }
 
 export async function listRecentPosts(db: DBClient, limit = 20, currentOwnerUuid?: string): Promise<Post[]> {
@@ -22,6 +23,7 @@ export async function createPost(db: DBClient, input: CreatePostInput): Promise<
     body: input.content,
     visibility: input.visibility ?? "public",
     postType: input.postType ?? "text",
-    mediaCount: 0
+    mediaCount: 0,
+    originPostId: input.originPostId ?? null
   });
 }

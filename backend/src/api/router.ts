@@ -142,6 +142,45 @@ async function createPostRoute(ctx: HandlerContext): Promise<Response> {
   });
 }
 
+async function repostRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!user) return errorJson("Unauthorized", 401);
+
+  const origin = await ctx.db.getPostById(params.id);
+  if (!origin) return errorJson("post not found", 404);
+  if (origin.isDeleted === 1) return errorJson("origin post deleted", 409);
+  if ((origin.visibility ?? "public") !== "public") return errorJson("forbidden", 403);
+
+  const payload = (await ctx.request.json().catch(() => ({}))) as { content?: string | null; visibility?: string };
+  const visibility = (payload.visibility ?? "public").trim();
+  if (!["public", "friends", "private"].includes(visibility)) {
+    return errorJson("invalid visibility", 400);
+  }
+
+  const rawContent = typeof payload.content === "string" ? payload.content : "";
+  const trimmed = rawContent.trim();
+  const content = trimmed ? trimmed : null;
+
+  const repost = await ctx.db.createPost({
+    authorId: user.uuid,
+    body: content,
+    visibility,
+    postType: "text",
+    mediaCount: 0,
+    originPostId: origin.id
+  });
+
+  const repostCount = await ctx.db.updateRepostCount(origin.id);
+
+  return okJson(
+    {
+      data: { ...repost, originPost: origin },
+      origin: { id: origin.id, repost_count: repostCount }
+    },
+    201
+  );
+}
+
 async function rootRoute(): Promise<Response> {
   return new Response(
     JSON.stringify({
@@ -763,6 +802,7 @@ const dynamicRoutes: DynamicRoute[] = [
   { method: "POST", pattern: /^\/posts\/([^/]+)\/media\/attach$/, handler: attachMediaRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/like$/, handler: likeRoute },
   { method: "DELETE", pattern: /^\/posts\/([^/]+)\/like$/, handler: unlikeRoute },
+  { method: "POST", pattern: /^\/posts\/([^/]+)\/repost$/, handler: repostRoute },
   { method: "GET", pattern: /^\/posts\/([^/]+)\/comments\/list$/, handler: listCommentsRoute },
   { method: "GET", pattern: /^\/posts\/([^/]+)\/comments$/, handler: listLatestCommentRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/comments$/, handler: createCommentRoute },
