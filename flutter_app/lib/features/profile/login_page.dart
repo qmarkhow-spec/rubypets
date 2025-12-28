@@ -1,4 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+
+import 'package:rubypets_flutter/services/api_client.dart';
+import 'package:rubypets_flutter/services/session_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,12 +13,43 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final SessionController _session = SessionController.instance;
+  bool _submitting = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      _showSnack('Email and password are required');
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await _session.login(email: email, password: password);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _showSnack('Logged in');
+    } catch (err) {
+      if (!mounted) return;
+      final message = err is ApiException ? err.message : 'Login failed';
+      _showSnack(message);
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -26,7 +60,7 @@ class _LoginPageState extends State<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '登入',
+            'Login',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
@@ -42,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
           TextField(
             controller: _passwordController,
             decoration: const InputDecoration(
-              labelText: '密碼',
+              labelText: 'Password',
               prefixIcon: Icon(Icons.lock_outline),
             ),
             obscureText: true,
@@ -51,14 +85,14 @@ class _LoginPageState extends State<LoginPage> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('登入流程待串接：${_emailController.text}'),
-                  ),
-                );
-              },
-              child: const Text('登入'),
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Login'),
             ),
           ),
         ],
