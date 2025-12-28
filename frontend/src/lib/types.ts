@@ -27,8 +27,8 @@ export interface User {
 export interface Post {
   id: string;
   authorId: string;
-  content?: string;
-  body?: string;
+  content?: string | null;
+  body?: string | null;
   mediaKey?: string | null;
   createdAt: string;
   authorHandle?: string | null;
