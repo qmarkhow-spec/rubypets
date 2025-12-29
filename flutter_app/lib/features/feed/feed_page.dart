@@ -101,14 +101,14 @@ class _FeedPageState extends State<FeedPage> {
       );
     });
     try {
-      final likeCount = await _session.api.togglePostLike(postId: postId, shouldLike: shouldLike);
+      final result = await _session.api.togglePostLike(postId: postId, shouldLike: shouldLike);
       if (!mounted) return;
       final refreshedIndex = _indexForPost(postId);
       if (refreshedIndex < 0) return;
       setState(() {
         _posts[refreshedIndex] = _posts[refreshedIndex].copyWith(
-          isLiked: shouldLike,
-          likeCount: likeCount,
+          isLiked: result.isLiked,
+          likeCount: result.likeCount,
         );
       });
     } catch (err) {

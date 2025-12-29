@@ -37,6 +37,13 @@ class ApiRepostResult {
   final int originRepostCount;
 }
 
+class PostLikeResult {
+  PostLikeResult({required this.isLiked, required this.likeCount});
+
+  final bool isLiked;
+  final int likeCount;
+}
+
 class ApiClient {
   ApiClient({String? baseUrl})
       : _baseUrl = baseUrl ?? const String.fromEnvironment(
@@ -92,12 +99,15 @@ class ApiClient {
     return FeedPost.fromJson(data);
   }
 
-  Future<int> togglePostLike({required String postId, required bool shouldLike}) async {
+  Future<PostLikeResult> togglePostLike({required String postId, required bool shouldLike}) async {
     final data = await _request(
       '/api/posts/$postId/like',
       method: shouldLike ? 'POST' : 'DELETE',
     ) as Map<String, dynamic>;
-    return (data['like_count'] as num?)?.toInt() ?? 0;
+    return PostLikeResult(
+      isLiked: data['isLiked'] == true,
+      likeCount: (data['like_count'] as num?)?.toInt() ?? 0,
+    );
   }
 
   Future<LatestCommentResult> fetchLatestComment({required String postId}) async {
