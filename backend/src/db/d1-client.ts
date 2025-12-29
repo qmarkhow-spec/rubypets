@@ -1,5 +1,5 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Owner, Post, Account, AdminAccount, MediaAsset, Comment, CommentThread } from "./models";
+import { Owner, Post, Account, AdminAccount, MediaAsset, Comment, CommentThread, OwnerPublic, FriendshipRequestItem } from "./models";
 
 type PostRow = {
   id: string;
@@ -70,6 +70,14 @@ type OwnerRow = {
   face_with_license_url: string | null;
 };
 
+type OwnerPublicRow = {
+  uuid: string;
+  display_name: string;
+  avatar_url: string | null;
+  city: string | null;
+  region: string | null;
+};
+
 type AccountRow = {
   account_id: string;
   email: string;
@@ -102,6 +110,11 @@ type AdminAccountRow = {
   created_at: string;
   last_at: string | null;
   updated_at: string;
+};
+
+type FriendshipRow = {
+  status: string;
+  requested_by: string;
 };
 
 export class D1Client implements DBClient {
@@ -946,6 +959,176 @@ export class D1Client implements DBClient {
     return row ? mapOwnerRow(row) : null;
   }
 
+  async searchOwnersByDisplayName(
+    keyword: string,
+    limit: number,
+    excludeOwnerUuid: string
+  ): Promise<OwnerPublic[]> {
+    const kw = keyword.trim().toLowerCase();
+    const rows = await this.db
+      .prepare(
+        `
+        select uuid, display_name, avatar_url, city, region
+        from owners
+        where uuid != ?
+          and (
+            display_name = ?
+            or display_name like (? || '%')
+            or display_name like ('%' || ? || '%')
+          )
+        order by
+          case
+            when display_name = ? then 0
+            when display_name like (? || '%') then 1
+            when display_name like ('%' || ? || '%') then 2
+            else 3
+          end,
+          length(display_name) asc,
+          display_name asc
+        limit ?
+        `
+      )
+      .bind(excludeOwnerUuid, kw, kw, kw, kw, kw, kw, limit)
+      .all<OwnerPublicRow>();
+
+    return (rows.results ?? []).map(mapOwnerPublicRow);
+  }
+
+  async getFriendshipRowByPairKey(pairKey: string): Promise<{ status: string; requestedBy: string } | null> {
+    const row = await this.db
+      .prepare(`select status, requested_by from owner_friendships where pair_key = ?`)
+      .bind(pairKey)
+      .first<FriendshipRow>();
+
+    return row ? { status: row.status, requestedBy: row.requested_by } : null;
+  }
+
+  async createFriendRequest(input: {
+    ownerA: string;
+    ownerB: string;
+    requestedBy: string;
+    pairKey: string;
+  }): Promise<void> {
+    await this.db
+      .prepare(
+        `
+        insert into owner_friendships (owner_id, friend_id, status, requested_by, pair_key)
+        values (?, ?, 'pending', ?, ?)
+        `
+      )
+      .bind(input.ownerA, input.ownerB, input.requestedBy, input.pairKey)
+      .run();
+  }
+
+  async deletePendingRequest(pairKey: string, requestedBy: string): Promise<number> {
+    const res = await this.db
+      .prepare(`delete from owner_friendships where pair_key = ? and status = 'pending' and requested_by = ?`)
+      .bind(pairKey, requestedBy)
+      .run();
+    return res.meta.changes ?? 0;
+  }
+
+  async deletePendingIncoming(pairKey: string, me: string): Promise<number> {
+    const res = await this.db
+      .prepare(`delete from owner_friendships where pair_key = ? and status = 'pending' and requested_by != ?`)
+      .bind(pairKey, me)
+      .run();
+    return res.meta.changes ?? 0;
+  }
+
+  async acceptPendingIncoming(pairKey: string, me: string): Promise<number> {
+    const res = await this.db
+      .prepare(
+        `
+        update owner_friendships
+        set status = 'accepted', updated_at = datetime('now')
+        where pair_key = ? and status = 'pending' and requested_by != ?
+        `
+      )
+      .bind(pairKey, me)
+      .run();
+    return res.meta.changes ?? 0;
+  }
+
+  async deleteFriendship(pairKey: string): Promise<number> {
+    const res = await this.db
+      .prepare(`delete from owner_friendships where pair_key = ? and status = 'accepted'`)
+      .bind(pairKey)
+      .run();
+    return res.meta.changes ?? 0;
+  }
+
+  async listIncomingRequests(
+    me: string,
+    limit: number
+  ): Promise<FriendshipRequestItem[]> {
+    const rows = await this.db
+      .prepare(
+        `
+        select
+          o.uuid, o.display_name, o.avatar_url, o.city, o.region,
+          f.created_at
+        from owner_friendships f
+        join owners o
+          on o.uuid = (case when f.owner_id = ? then f.friend_id else f.owner_id end)
+        where f.status = 'pending'
+          and (f.owner_id = ? or f.friend_id = ?)
+          and f.requested_by != ?
+        order by f.created_at desc
+        limit ?
+        `
+      )
+      .bind(me, me, me, me, limit)
+      .all<{
+        uuid: string;
+        display_name: string;
+        avatar_url: string | null;
+        city: string | null;
+        region: string | null;
+        created_at: string;
+      }>();
+
+    return (rows.results ?? []).map((row) => ({
+      otherOwner: mapOwnerPublicRow(row as OwnerPublicRow),
+      createdAt: row.created_at
+    }));
+  }
+
+  async listOutgoingRequests(
+    me: string,
+    limit: number
+  ): Promise<FriendshipRequestItem[]> {
+    const rows = await this.db
+      .prepare(
+        `
+        select
+          o.uuid, o.display_name, o.avatar_url, o.city, o.region,
+          f.created_at
+        from owner_friendships f
+        join owners o
+          on o.uuid = (case when f.owner_id = ? then f.friend_id else f.owner_id end)
+        where f.status = 'pending'
+          and f.requested_by = ?
+        order by f.created_at desc
+        limit ?
+        `
+      )
+      .bind(me, me, limit)
+      .all<{
+        uuid: string;
+        display_name: string;
+        avatar_url: string | null;
+        city: string | null;
+        region: string | null;
+        created_at: string;
+      }>();
+
+    return (rows.results ?? []).map((row) => ({
+      otherOwner: mapOwnerPublicRow(row as OwnerPublicRow),
+      createdAt: row.created_at
+    }));
+  }
+
   async createOwner(input: {
     accountId: string;
     uuid: string;
@@ -1270,6 +1453,16 @@ function parseCommentCursor(cursor?: string | null): { createdAt: string; id: st
 
 function toCommentCursor(row: CommentRow): string {
   return `${row.created_at}|${row.id}`;
+}
+
+function mapOwnerPublicRow(row: OwnerPublicRow) {
+  return {
+    uuid: row.uuid,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    city: row.city,
+    region: row.region
+  };
 }
 
 function mapOwnerRow(row: OwnerRow): Owner {

@@ -13,8 +13,9 @@ import {
   type SyntheticEvent
 } from "react";
 import { useSearchParams } from "next/navigation";
-import type { OwnerDetail } from "@/lib/types";
+import type { OwnerDetail, OwnerSearchResult, FriendshipListItem, FriendshipStatus } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import { TAIWAN_CITIES } from "@/data/taiwan-districts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
@@ -125,6 +126,16 @@ function PageShell({
     originY: number;
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const { user } = useAuth();
+  const isSelf = Boolean(user && user.id === ownerId);
+  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none");
+  const [friendshipLoading, setFriendshipLoading] = useState(false);
+  const [friendshipError, setFriendshipError] = useState<string | null>(null);
+  const [requestsTab, setRequestsTab] = useState<"incoming" | "outgoing">("incoming");
+  const [incomingRequests, setIncomingRequests] = useState<FriendshipListItem[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<FriendshipListItem[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!showForm || csvData.length > 0) return;
@@ -132,6 +143,35 @@ function PageShell({
       TAIWAN_CITIES.flatMap((c) => c.regions.map((r) => ({ city: c.code, region: r.code })))
     );
   }, [showForm, csvData.length]);
+
+  useEffect(() => {
+    if (!ownerId || !user || isSelf) {
+      setFriendshipStatus("none");
+      setFriendshipError(null);
+      setFriendshipLoading(false);
+      return;
+    }
+    setFriendshipLoading(true);
+    setFriendshipError(null);
+    apiFetch<{ status: FriendshipStatus }>(`/api/owners/${ownerId}/friendship/status`)
+      .then(({ data }) => setFriendshipStatus(data.status ?? "none"))
+      .catch((err) => {
+        const status = (err as { status?: number }).status;
+        setFriendshipError(`載入交友狀態失敗（${status ?? "?"}）`);
+      })
+      .finally(() => setFriendshipLoading(false));
+  }, [ownerId, user, isSelf]);
+
+  useEffect(() => {
+    if (!user || !isSelf) {
+      setIncomingRequests([]);
+      setOutgoingRequests([]);
+      setRequestsLoading(false);
+      setRequestsError(null);
+      return;
+    }
+    refreshFriendRequests();
+  }, [user, isSelf]);
 
   const cities = useMemo(() => TAIWAN_CITIES, []);
   const regions = useMemo(
@@ -151,6 +191,17 @@ function PageShell({
           maxHeight: "500px"
         }
       : { minHeight: "200px" };
+  const requestItems = requestsTab === "incoming" ? incomingRequests : outgoingRequests;
+  const otherOwner: OwnerSearchResult | null = owner
+    ? {
+        uuid: owner.uuid,
+        displayName: owner.displayName,
+        avatarUrl: owner.avatarUrl ?? null,
+        city: owner.city ?? null,
+        region: owner.region ?? null
+      }
+    : null;
+  const otherLocation = owner ? [owner.city, owner.region].filter(Boolean).join(" / ") : "";
 
   useEffect(() => {
     if (!isCropping) return;
@@ -416,6 +467,103 @@ function PageShell({
     }
   }
 
+  async function refreshFriendRequests() {
+    if (!user) return;
+    setRequestsLoading(true);
+    setRequestsError(null);
+    try {
+      const [incoming, outgoing] = await Promise.all([
+        apiFetch<{ items: FriendshipListItem[] }>("/api/friendships/incoming"),
+        apiFetch<{ items: FriendshipListItem[] }>("/api/friendships/outgoing")
+      ]);
+      setIncomingRequests(incoming.data.items ?? []);
+      setOutgoingRequests(outgoing.data.items ?? []);
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setRequestsError(`載入交友邀請失敗（${status ?? "?"}）`);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }
+
+  async function runFriendAction(method: "POST" | "DELETE", path: string, fallbackStatus: FriendshipStatus) {
+    setFriendshipLoading(true);
+    setFriendshipError(null);
+    try {
+      const { data } = await apiFetch<{ status: FriendshipStatus }>(path, { method });
+      setFriendshipStatus(data.status ?? fallbackStatus);
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setFriendshipError(`操作失敗（${status ?? "?"}）`);
+    } finally {
+      setFriendshipLoading(false);
+    }
+  }
+
+  async function handleSendRequest() {
+    await runFriendAction("POST", `/api/owners/${ownerId}/friend-request`, "pending_outgoing");
+  }
+
+  async function handleCancelRequest(target: OwnerSearchResult) {
+    const name = target.displayName || "對方";
+    if (!window.confirm(`是否要向 ${name} 收回好友邀請`)) return;
+    await runFriendAction("DELETE", `/api/owners/${target.uuid}/friend-request`, "none");
+  }
+
+  async function handleAcceptRequest(target: OwnerSearchResult) {
+    const name = target.displayName || "對方";
+    if (!window.confirm(`是否接受 ${name} 的好友邀請？`)) return;
+    await runFriendAction("POST", `/api/owners/${target.uuid}/friend-request/accept`, "friends");
+  }
+
+  async function handleRejectRequest(target: OwnerSearchResult) {
+    const name = target.displayName || "對方";
+    if (!window.confirm(`是否拒絕 ${name} 的好友邀請？`)) return;
+    await runFriendAction("DELETE", `/api/owners/${target.uuid}/friend-request/reject`, "none");
+  }
+
+  async function handleUnfriend(target: OwnerSearchResult) {
+    const name = target.displayName || "對方";
+    if (!window.confirm(`是否向 ${name} 解除好友關係?`)) return;
+    await runFriendAction("DELETE", `/api/owners/${target.uuid}/friendship`, "none");
+  }
+
+  async function handleIncomingItemAccept(item: FriendshipListItem) {
+    const name = item.otherOwner.displayName || "對方";
+    if (!window.confirm(`是否接受 ${name} 的好友邀請？`)) return;
+    try {
+      await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request/accept`, { method: "POST" });
+      await refreshFriendRequests();
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setRequestsError(`操作失敗（${status ?? "?"}）`);
+    }
+  }
+
+  async function handleIncomingItemReject(item: FriendshipListItem) {
+    const name = item.otherOwner.displayName || "對方";
+    if (!window.confirm(`是否拒絕 ${name} 的好友邀請？`)) return;
+    try {
+      await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request/reject`, { method: "DELETE" });
+      await refreshFriendRequests();
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setRequestsError(`操作失敗（${status ?? "?"}）`);
+    }
+  }
+
+  async function handleOutgoingItemCancel(item: FriendshipListItem) {
+    const name = item.otherOwner.displayName || "對方";
+    if (!window.confirm(`是否要向 ${name} 收回好友邀請`)) return;
+    try {
+      await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request`, { method: "DELETE" });
+      await refreshFriendRequests();
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setRequestsError(`操作失敗（${status ?? "?"}）`);
+    }
+  }
+
   async function saveLocation() {
     if (!city || !region || !ownerId) {
       setSaveError("請選擇縣市與行政區");
@@ -489,6 +637,163 @@ function PageShell({
           </div>
         )}
       </section>
+
+      {owner && !isSelf && otherOwner && (
+        <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-slate-900">交友狀態</h2>
+              <p className="text-sm text-slate-700">{owner.displayName}</p>
+              <p className="text-xs text-slate-500">{otherLocation || "尚未填寫地區"}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {!user && <span className="text-xs text-slate-500">請先登入才能交友</span>}
+              {user && friendshipStatus === "none" && (
+                <button
+                  type="button"
+                  onClick={handleSendRequest}
+                  disabled={friendshipLoading}
+                  className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  好友邀請
+                </button>
+              )}
+              {user && friendshipStatus === "pending_outgoing" && (
+                <button
+                  type="button"
+                  onClick={() => handleCancelRequest(otherOwner)}
+                  disabled={friendshipLoading}
+                  className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                >
+                  已發出好友邀請
+                </button>
+              )}
+              {user && friendshipStatus === "friends" && (
+                <button
+                  type="button"
+                  onClick={() => handleUnfriend(otherOwner)}
+                  disabled={friendshipLoading}
+                  className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                >
+                  好友狀態
+                </button>
+              )}
+              {user && friendshipStatus === "pending_incoming" && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAcceptRequest(otherOwner)}
+                    disabled={friendshipLoading}
+                    className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
+                  >
+                    接受
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRejectRequest(otherOwner)}
+                    disabled={friendshipLoading}
+                    className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                  >
+                    拒絕
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          {friendshipError && <p className="mt-2 text-sm text-red-600">{friendshipError}</p>}
+        </section>
+      )}
+
+      {owner && isSelf && (
+        <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">交友邀請</h2>
+              <p className="text-xs text-slate-600">管理收到與送出的邀請</p>
+            </div>
+            <div className="flex gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setRequestsTab("incoming")}
+                className={`rounded px-3 py-1.5 ${
+                  requestsTab === "incoming"
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                收到的邀請
+              </button>
+              <button
+                type="button"
+                onClick={() => setRequestsTab("outgoing")}
+                className={`rounded px-3 py-1.5 ${
+                  requestsTab === "outgoing"
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                等待接受
+              </button>
+            </div>
+          </div>
+          {requestsError && <p className="mt-2 text-sm text-red-600">{requestsError}</p>}
+          {requestsLoading && <p className="mt-2 text-sm text-slate-600">載入中...</p>}
+          {!requestsLoading && requestItems.length === 0 && (
+            <p className="mt-2 text-sm text-slate-600">目前沒有邀請。</p>
+          )}
+          <div className="mt-3 space-y-2">
+            {requestItems.map((item) => (
+              <div
+                key={item.otherOwner.uuid}
+                className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <div className="space-y-0.5">
+                  <Link
+                    href={`/owners?id=${encodeURIComponent(item.otherOwner.uuid)}`}
+                    className="font-medium text-slate-900 hover:text-slate-700"
+                  >
+                    {item.otherOwner.displayName}
+                  </Link>
+                  <div className="text-xs text-slate-500">
+                    {[item.otherOwner.city, item.otherOwner.region].filter(Boolean).join(" / ") || "尚未填寫地區"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {requestsTab === "incoming" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleIncomingItemAccept(item)}
+                        disabled={requestsLoading}
+                        className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
+                      >
+                        接受
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleIncomingItemReject(item)}
+                        disabled={requestsLoading}
+                        className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                      >
+                        拒絕
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleOutgoingItemCancel(item)}
+                      disabled={requestsLoading}
+                      className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                    >
+                      收回邀請
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <div className="flex items-center justify-between">

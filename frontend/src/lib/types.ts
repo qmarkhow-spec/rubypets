@@ -86,3 +86,18 @@ export interface OwnerDetail {
   idLicenseBackUrl?: string | null;
   faceWithLicenseUrl?: string | null;
 }
+
+export interface OwnerSearchResult {
+  uuid: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  city?: string | null;
+  region?: string | null;
+}
+
+export type FriendshipStatus = "none" | "pending_outgoing" | "pending_incoming" | "friends";
+
+export interface FriendshipListItem {
+  otherOwner: OwnerSearchResult;
+  createdAt: string;
+}

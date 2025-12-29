@@ -105,3 +105,16 @@ export interface AdminAccount {
   lastAt: string | null;
   updatedAt: string;
 }
+
+export interface OwnerPublic {
+  uuid: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  city?: string | null;
+  region?: string | null;
+}
+
+export interface FriendshipRequestItem {
+  otherOwner: OwnerPublic;
+  createdAt: string;
+}
