@@ -20,6 +20,24 @@ export interface DBClient {
   getOwnerByEmail(email: string): Promise<import("./models").Owner | null>;
   getOwnerByUuid(uuid: string): Promise<import("./models").Owner | null>;
   getOwnerByAccountId(accountId: string): Promise<import("./models").Owner | null>;
+  searchOwnersByDisplayName(
+    keyword: string,
+    limit: number,
+    excludeOwnerUuid: string
+  ): Promise<import("./models").OwnerPublic[]>;
+  getFriendshipRowByPairKey(pairKey: string): Promise<{ status: string; requestedBy: string } | null>;
+  createFriendRequest(input: {
+    ownerA: string;
+    ownerB: string;
+    requestedBy: string;
+    pairKey: string;
+  }): Promise<void>;
+  deletePendingRequest(pairKey: string, requestedBy: string): Promise<number>;
+  deletePendingIncoming(pairKey: string, me: string): Promise<number>;
+  acceptPendingIncoming(pairKey: string, me: string): Promise<number>;
+  deleteFriendship(pairKey: string): Promise<number>;
+  listIncomingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
+  listOutgoingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
   isFriends(ownerId: string, friendId: string): Promise<boolean>;
   hasLiked(postId: string, ownerId: string): Promise<boolean>;
   likePost(postId: string, ownerId: string): Promise<void>;

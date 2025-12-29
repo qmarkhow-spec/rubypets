@@ -48,7 +48,18 @@ CREATE TABLE IF NOT EXISTS accounts (
 CREATE TABLE IF NOT EXISTS owners (
   uuid TEXT PRIMARY KEY,
   account_id TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
+  display_name TEXT NOT NULL UNIQUE
+  CHECK (
+    length(display_name) BETWEEN 3 AND 20
+    AND display_name GLOB '[a-z0-9._]*'
+    AND display_name NOT GLOB '*[^a-z0-9._]*'
+    AND substr(display_name, 1, 1) NOT IN ('.', '_')
+    AND substr(display_name, length(display_name), 1) NOT IN ('.', '_')
+
+    -- 不可連續 .. 或 __
+    AND instr(display_name, '..') = 0
+    AND instr(display_name, '__') = 0
+  ),
   avatar_asset_id TEXT,
   avatar_url TEXT,
   max_pets INTEGER NOT NULL DEFAULT 2,
@@ -62,6 +73,8 @@ CREATE TABLE IF NOT EXISTS owners (
 );
 
 CREATE INDEX IF NOT EXISTS idx_owners_avatar_asset_id ON owners(avatar_asset_id);
+CREATE INDEX IF NOT EXISTS idx_owners_display_name ON owners(display_name);
+
 
 CREATE TABLE IF NOT EXISTS pets (
   id TEXT PRIMARY KEY,
@@ -103,22 +116,29 @@ CREATE TABLE IF NOT EXISTS owner_friendships (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   owner_id TEXT NOT NULL,
   friend_id TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected','blocked')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted')),
   requested_by TEXT NOT NULL,
-  pair_key TEXT NOT NULL CHECK (instr(pair_key, '#') > 1 AND instr(pair_key, '#') < length(pair_key)),
+  pair_key TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  CONSTRAINT fk_friend_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE CASCADE,
-  CONSTRAINT fk_friend_friend FOREIGN KEY (friend_id) REFERENCES owners(uuid) ON DELETE CASCADE,
+  CONSTRAINT fk_friend_owner        FOREIGN KEY (owner_id)     REFERENCES owners(uuid) ON DELETE CASCADE,
+  CONSTRAINT fk_friend_friend       FOREIGN KEY (friend_id)    REFERENCES owners(uuid) ON DELETE CASCADE,
   CONSTRAINT fk_friend_requested_by FOREIGN KEY (requested_by) REFERENCES owners(uuid) ON DELETE CASCADE,
-  CONSTRAINT uq_friend_pair UNIQUE (owner_id, friend_id),
-  CONSTRAINT chk_friend_order CHECK (owner_id != friend_id)
+  CONSTRAINT chk_not_self CHECK (owner_id != friend_id),
+  CONSTRAINT chk_canonical_order CHECK (owner_id < friend_id),
+  CONSTRAINT chk_requested_by_in_pair CHECK (requested_by = owner_id OR requested_by = friend_id),
+  CONSTRAINT chk_pair_key_format CHECK (
+    pair_key = owner_id || '#' || friend_id
+    AND instr(pair_key, '#') > 1
+    AND instr(pair_key, '#') < length(pair_key)
+  )
 );
 
-CREATE INDEX IF NOT EXISTS idx_friend_owner ON owner_friendships(owner_id);
-CREATE INDEX IF NOT EXISTS idx_friend_friend ON owner_friendships(friend_id);
-CREATE INDEX IF NOT EXISTS idx_friend_status ON owner_friendships(status);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_owner_friend_pair ON owner_friendships (pair_key);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_owner_friendships_pair_key ON owner_friendships(pair_key);
+CREATE INDEX IF NOT EXISTS idx_owner_friendships_status ON owner_friendships(status);
+CREATE INDEX IF NOT EXISTS idx_owner_friendships_requested_by_status ON owner_friendships(requested_by, status);
+CREATE INDEX IF NOT EXISTS idx_owner_friendships_owner_status ON owner_friendships(owner_id, status);
+CREATE INDEX IF NOT EXISTS idx_owner_friendships_friend_status ON owner_friendships(friend_id, status);
 
 CREATE TABLE IF NOT EXISTS posts (
   id               TEXT PRIMARY KEY,

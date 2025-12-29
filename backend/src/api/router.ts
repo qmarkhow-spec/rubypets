@@ -33,6 +33,9 @@ const routes: Route[] = [
   { method: "POST", path: "/auth/register/owner", handler: registerOwnerRoute },
   { method: "POST", path: "/auth/login", handler: loginRoute },
   { method: "GET", path: "/me", handler: meRoute },
+  { method: "GET", path: "/owners/search", handler: ownersSearchRoute },
+  { method: "GET", path: "/friendships/incoming", handler: incomingRequestsRoute },
+  { method: "GET", path: "/friendships/outgoing", handler: outgoingRequestsRoute },
   { method: "POST", path: "/media/images/init", handler: mediaImagesInitRoute },
   { method: "POST", path: "/media/videos/init", handler: mediaVideosInitRoute },
   { method: "GET", path: "/admin/review/summary", handler: reviewSummaryRoute },
@@ -57,6 +60,11 @@ export async function handleRequest(request: Request, env: HandlerContext["env"]
       const response = await dynamic.handler({ request, env, ctx, db }, dynamic.params);
       return withCors(response);
     } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status) {
+        const message = (err as Error).message || "Unexpected error";
+        return withCors(errorJson(message, status));
+      }
       console.error("Request failed", err);
       return withCors(errorJson("Unexpected error", 500));
     }
@@ -74,6 +82,11 @@ export async function handleRequest(request: Request, env: HandlerContext["env"]
     const response = await route.handler({ request, env, ctx, db });
     return withCors(response);
   } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status) {
+      const message = (err as Error).message || "Unexpected error";
+      return withCors(errorJson(message, status));
+    }
     console.error("Request failed", err);
     return withCors(errorJson("Unexpected error", 500));
   }
@@ -786,15 +799,21 @@ function stripApiPrefix(path: string): string {
 
 type DynamicRoute =
   | {
-      method: "GET" | "POST";
+      method: "GET" | "POST" | "DELETE";
       pattern: RegExp;
       handler: (ctx: HandlerContext, params: Record<string, string>) => Promise<Response>;
     };
 
 const dynamicRoutes: DynamicRoute[] = [
-  { method: "GET", pattern: /^\/owners\/([^/]+)$/, handler: ownerDetailRoute },
+  { method: "GET", pattern: /^\/owners\/(?!search$)([^/]+)$/, handler: ownerDetailRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/location$/, handler: ownerLocationRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/verification-docs$/, handler: ownerVerificationDocsRoute },
+  { method: "GET", pattern: /^\/owners\/([^/]+)\/friendship\/status$/, handler: friendshipStatusRoute },
+  { method: "POST", pattern: /^\/owners\/([^/]+)\/friend-request$/, handler: sendFriendRequestRoute },
+  { method: "DELETE", pattern: /^\/owners\/([^/]+)\/friend-request$/, handler: cancelFriendRequestRoute },
+  { method: "POST", pattern: /^\/owners\/([^/]+)\/friend-request\/accept$/, handler: acceptFriendRequestRoute },
+  { method: "DELETE", pattern: /^\/owners\/([^/]+)\/friend-request\/reject$/, handler: rejectFriendRequestRoute },
+  { method: "DELETE", pattern: /^\/owners\/([^/]+)\/friendship$/, handler: unfriendRoute },
   { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute },
   { method: "POST", pattern: /^\/admin\/review\/kyc\/([^/]+)\/decision$/, handler: kycDecisionRoute },
   { method: "POST", pattern: /^\/admin\/admin-accounts\/([^/]+)\/roll$/, handler: adminAccountRollRoute },
@@ -825,6 +844,125 @@ function matchDynamicRoute(
     }
   }
   return null;
+}
+
+function canonicalPair(a: string, b: string) {
+  if (a === b) return null;
+  const ownerA = a < b ? a : b;
+  const ownerB = a < b ? b : a;
+  return { ownerA, ownerB, pairKey: `${ownerA}#${ownerB}` };
+}
+
+async function requireAuthOwner(ctx: HandlerContext) {
+  const me = await getUserFromAuthHeader(ctx.db, ctx.request);
+  if (!me) throw Object.assign(new Error("Unauthorized"), { status: 401 });
+  return me;
+}
+
+async function ownersSearchRoute(ctx: HandlerContext): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const url = new URL(ctx.request.url);
+  const q = (url.searchParams.get("display_name") ?? "").trim().toLowerCase();
+  const limit = Math.min(50, Math.max(1, asNumber(url.searchParams.get("limit"), 20)));
+
+  if (!q) return okJson({ items: [] });
+
+  const items = await ctx.db.searchOwnersByDisplayName(q, limit, me.uuid);
+  return okJson({ items });
+}
+
+async function incomingRequestsRoute(ctx: HandlerContext): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const items = await ctx.db.listIncomingRequests(me.uuid, 50);
+  return okJson({ items });
+}
+
+async function outgoingRequestsRoute(ctx: HandlerContext): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const items = await ctx.db.listOutgoingRequests(me.uuid, 50);
+  return okJson({ items });
+}
+
+async function friendshipStatusRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const otherId = params.id;
+  const pair = canonicalPair(me.uuid, otherId);
+  if (!pair) return errorJson("Invalid target", 400);
+
+  const row = await ctx.db.getFriendshipRowByPairKey(pair.pairKey);
+  if (!row) return okJson({ status: "none" });
+
+  if (row.status === "accepted") return okJson({ status: "friends" });
+
+  if (row.requestedBy === me.uuid) return okJson({ status: "pending_outgoing" });
+  return okJson({ status: "pending_incoming" });
+}
+
+async function sendFriendRequestRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const otherId = params.id;
+  const pair = canonicalPair(me.uuid, otherId);
+  if (!pair) return errorJson("Invalid target", 400);
+
+  const existing = await ctx.db.getFriendshipRowByPairKey(pair.pairKey);
+  if (existing) {
+    if (existing.status === "accepted") return errorJson("Already friends", 409);
+    if (existing.requestedBy === me.uuid) return okJson({ status: "pending_outgoing" });
+    return okJson({ status: "pending_incoming" });
+  }
+
+  try {
+    await ctx.db.createFriendRequest({
+      ownerA: pair.ownerA,
+      ownerB: pair.ownerB,
+      requestedBy: me.uuid,
+      pairKey: pair.pairKey
+    });
+  } catch (err) {
+    return errorJson("Failed to create request", 500);
+  }
+
+  return okJson({ status: "pending_outgoing" });
+}
+
+async function cancelFriendRequestRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const pair = canonicalPair(me.uuid, params.id);
+  if (!pair) return errorJson("Invalid target", 400);
+
+  const changes = await ctx.db.deletePendingRequest(pair.pairKey, me.uuid);
+  if (!changes) return errorJson("Not found", 404);
+  return okJson({ status: "none" });
+}
+
+async function acceptFriendRequestRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const pair = canonicalPair(me.uuid, params.id);
+  if (!pair) return errorJson("Invalid target", 400);
+
+  const changes = await ctx.db.acceptPendingIncoming(pair.pairKey, me.uuid);
+  if (!changes) return errorJson("Not found", 404);
+  return okJson({ status: "friends" });
+}
+
+async function rejectFriendRequestRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const pair = canonicalPair(me.uuid, params.id);
+  if (!pair) return errorJson("Invalid target", 400);
+
+  const changes = await ctx.db.deletePendingIncoming(pair.pairKey, me.uuid);
+  if (!changes) return errorJson("Not found", 404);
+  return okJson({ status: "none" });
+}
+
+async function unfriendRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const pair = canonicalPair(me.uuid, params.id);
+  if (!pair) return errorJson("Invalid target", 400);
+
+  const changes = await ctx.db.deleteFriendship(pair.pairKey);
+  if (!changes) return errorJson("Not found", 404);
+  return okJson({ status: "none" });
 }
 
 async function ownerDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {

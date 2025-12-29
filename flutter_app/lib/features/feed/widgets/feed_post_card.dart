@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 
 import 'package:rubypets_flutter/models/comment.dart';
 import 'package:rubypets_flutter/models/post.dart';
@@ -75,7 +77,7 @@ class FeedPostCard extends StatelessWidget {
             ],
             if (post.mediaUrls.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _MediaGrid(post: post),
+              _MediaCarousel(post: post),
             ],
             if (post.latestComment != null) ...[
               const SizedBox(height: 8),
@@ -181,13 +183,57 @@ class _OriginCard extends StatelessWidget {
   }
 }
 
-class _MediaGrid extends StatelessWidget {
-  const _MediaGrid({required this.post});
+class _MediaCarousel extends StatefulWidget {
+  const _MediaCarousel({required this.post});
 
   final FeedPost post;
 
   @override
+  State<_MediaCarousel> createState() => _MediaCarouselState();
+}
+
+class _MediaCarouselState extends State<_MediaCarousel> {
+  late final PageController _controller;
+  Timer? _hideTimer;
+  int _index = 0;
+  bool _showOverlay = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+    _scheduleHide();
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _scheduleHide() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _showOverlay = false);
+    });
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _index = index;
+      _showOverlay = true;
+    });
+    _scheduleHide();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final post = widget.post;
+    final total = post.mediaUrls.length;
+    final showIndicators = total > 1 && _showOverlay;
+
     if (post.postType == 'video') {
       return Container(
         height: 180,
@@ -199,36 +245,63 @@ class _MediaGrid extends StatelessWidget {
       );
     }
 
-    if (post.mediaUrls.length == 1) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          post.mediaUrls.first,
-          height: 200,
-          width: double.infinity,
-          fit: BoxFit.cover,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _controller,
+              itemCount: total,
+              onPageChanged: _onPageChanged,
+              itemBuilder: (context, index) {
+                return Image.network(
+                  post.mediaUrls[index],
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                );
+              },
+            ),
+            if (showIndicators)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: _Bubble(
+                  child: Text(
+                    '${_index + 1}/$total',
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                  ),
+                ),
+              ),
+            if (showIndicators)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 8,
+                child: Center(
+                  child: _Bubble(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        total,
+                        (dotIndex) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: dotIndex == _index ? Colors.white : Colors.white54,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
-      );
-    }
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
       ),
-      itemCount: post.mediaUrls.length,
-      itemBuilder: (context, index) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            post.mediaUrls[index],
-            fit: BoxFit.cover,
-          ),
-        );
-      },
     );
   }
 }
@@ -266,4 +339,22 @@ String _formatTime(String iso) {
   if (diff.inMinutes < 60) return '${diff.inMinutes}m';
   if (diff.inHours < 24) return '${diff.inHours}h';
   return '${diff.inDays}d';
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
+    );
+  }
 }
