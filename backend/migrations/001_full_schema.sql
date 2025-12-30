@@ -55,8 +55,6 @@ CREATE TABLE IF NOT EXISTS owners (
     AND display_name NOT GLOB '*[^a-z0-9._]*'
     AND substr(display_name, 1, 1) NOT IN ('.', '_')
     AND substr(display_name, length(display_name), 1) NOT IN ('.', '_')
-
-    -- 不可連續 .. 或 __
     AND instr(display_name, '..') = 0
     AND instr(display_name, '__') = 0
   ),
