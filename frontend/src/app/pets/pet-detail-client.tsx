@@ -1,32 +1,27 @@
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import type { PetDetail, PetsCategoryData } from "@/lib/types";
 
-
-export default function PetDetailPage() {
-  const params = useParams<{ id: string }>();
-  const rawId = params?.id ?? "";
-  const petId = Array.isArray(rawId) ? rawId[0] : rawId;
+export default function PetDetailClient({ id }: { id: string }) {
   const [pet, setPet] = useState<PetDetail | null>(null);
   const [categories, setCategories] = useState<PetsCategoryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!petId) return;
+    if (!id) return;
     setLoading(true);
     setError(null);
-    apiFetch<{ data: PetDetail }>(`/api/pets/${petId}`)
+    apiFetch<{ data: PetDetail }>(`/api/pets/${id}`)
       .then(({ data }) => setPet(data.data))
       .catch((err) => {
         const status = (err as { status?: number }).status;
         setError(`載入失敗（${status ?? "?"}）`);
       })
       .finally(() => setLoading(false));
-  }, [petId]);
+  }, [id]);
 
   useEffect(() => {
     apiFetch<{ data: PetsCategoryData }>("/api/pets/categories")
