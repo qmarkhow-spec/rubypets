@@ -806,6 +806,20 @@ function PageShell({
             {showForm ? "收起" : "填寫所在地"}
           </button>
         </div>
+        {isSelf && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-white px-3 py-2">
+            <div>
+              <p className="text-sm font-medium text-slate-800">建立寵物資料</p>
+              <p className="text-xs text-slate-500">建立完成後可在寵物頁查看</p>
+            </div>
+            <Link
+              href="/pets/new"
+              className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500"
+            >
+              建立
+            </Link>
+          </div>
+        )}
         {showForm && (
           <div className="mt-4 space-y-3">
             <div className="space-y-1">

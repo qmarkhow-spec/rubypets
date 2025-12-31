@@ -8,10 +8,12 @@
     "deploy": "wrangler deploy",
     "build": "wrangler deploy --dry-run --outdir ./dist",
     "migrate": "wrangler d1 migrations apply rubypets_dev --remote",
-    "migrate:local": "wrangler d1 migrations apply rubypets_dev --local"
+    "migrate:local": "wrangler d1 migrations apply rubypets_dev --local",
+    "gen:pets-category": "node ./scripts/gen-pets-category.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
-    "wrangler": "^3.98.0"
+    "wrangler": "^3.98.0",
+    "xlsx": "^0.18.5"
   }
 }

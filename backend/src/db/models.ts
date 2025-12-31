@@ -118,3 +118,21 @@ export interface FriendshipRequestItem {
   otherOwner: OwnerPublic;
   createdAt: string;
 }
+
+export interface Pet {
+  id: string;
+  ownerId: string;
+  name: string;
+  class: string | null;
+  species: string | null;
+  breed: string | null;
+  gender: "male" | "female" | "unknown";
+  birthday: string | null;
+  avatarAssetId: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  followersCount: number;
+  createdAt: string;
+  updatedAt: string;
+  isActive: number;
+}

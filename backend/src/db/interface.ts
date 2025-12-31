@@ -38,6 +38,21 @@ export interface DBClient {
   deleteFriendship(pairKey: string): Promise<number>;
   listIncomingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
   listOutgoingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
+  countActivePetsByOwner(ownerId: string): Promise<number>;
+  createPet(input: {
+    id: string;
+    ownerId: string;
+    name: string;
+    class?: string | null;
+    species?: string | null;
+    breed?: string | null;
+    gender?: "male" | "female" | "unknown";
+    birthday?: string | null;
+    avatarAssetId?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+  }): Promise<import("./models").Pet>;
+  getPetById(id: string): Promise<import("./models").Pet | null>;
   isFriends(ownerId: string, friendId: string): Promise<boolean>;
   hasLiked(postId: string, ownerId: string): Promise<boolean>;
   likePost(postId: string, ownerId: string): Promise<void>;

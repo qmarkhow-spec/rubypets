@@ -8,4 +8,4 @@ export function createDB(env: DBEnv): DBClient {
 }
 
 export type { DBClient } from "./interface";
-export type { Post, User } from "./models";
+export type { Post, User, Pet } from "./models";
