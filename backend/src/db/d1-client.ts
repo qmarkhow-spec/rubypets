@@ -1,5 +1,16 @@
 import { DBClient, CreatePostInput } from "./interface";
-import { Owner, Post, Account, AdminAccount, MediaAsset, Comment, CommentThread, OwnerPublic, FriendshipRequestItem } from "./models";
+import {
+  Owner,
+  Post,
+  Account,
+  AdminAccount,
+  MediaAsset,
+  Comment,
+  CommentThread,
+  OwnerPublic,
+  FriendshipRequestItem,
+  Pet
+} from "./models";
 
 type PostRow = {
   id: string;
@@ -76,6 +87,24 @@ type OwnerPublicRow = {
   avatar_url: string | null;
   city: string | null;
   region: string | null;
+};
+
+type PetRow = {
+  id: string;
+  owner_id: string;
+  name: string;
+  class: string | null;
+  species: string | null;
+  breed: string | null;
+  gender: "male" | "female" | "unknown";
+  birthday: string | null;
+  avatar_asset_id: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  followers_count: number;
+  created_at: string;
+  updated_at: string;
+  is_active: number;
 };
 
 type AccountRow = {
@@ -1129,6 +1158,76 @@ export class D1Client implements DBClient {
     }));
   }
 
+  async countActivePetsByOwner(ownerId: string): Promise<number> {
+    const row = await this.db
+      .prepare(`select count(*) as c from pets where owner_id = ? and is_active = 1`)
+      .bind(ownerId)
+      .first<{ c: number }>();
+    return row?.c ?? 0;
+  }
+
+  async createPet(input: {
+    id: string;
+    ownerId: string;
+    name: string;
+    class?: string | null;
+    species?: string | null;
+    breed?: string | null;
+    gender?: "male" | "female" | "unknown";
+    birthday?: string | null;
+    avatarAssetId?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+  }): Promise<Pet> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(
+        `
+          insert into pets (
+            id, owner_id, name, class, species, breed, gender, birthday, avatar_asset_id,
+            avatar_url, bio, created_at, updated_at, is_active
+          )
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `
+      )
+      .bind(
+        input.id,
+        input.ownerId,
+        input.name,
+        input.class ?? null,
+        input.species ?? null,
+        input.breed ?? null,
+        input.gender ?? "unknown",
+        input.birthday ?? null,
+        input.avatarAssetId ?? null,
+        input.avatarUrl ?? null,
+        input.bio ?? null,
+        now,
+        now
+      )
+      .run();
+
+    const row = await this.getPetById(input.id);
+    if (!row) throw new Error("Failed to create pet");
+    return row;
+  }
+
+  async getPetById(id: string): Promise<Pet | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            id, owner_id, name, class, species, breed, gender, birthday,
+            avatar_asset_id, avatar_url, bio, followers_count, created_at, updated_at, is_active
+          from pets
+          where id = ?
+        `
+      )
+      .bind(id)
+      .first<PetRow>();
+    return row ? mapPetRow(row) : null;
+  }
+
   async createOwner(input: {
     accountId: string;
     uuid: string;
@@ -1483,6 +1582,26 @@ function mapOwnerRow(row: OwnerRow): Owner {
     idLicenseFrontUrl: row.id_license_front_url ?? null,
     idLicenseBackUrl: row.id_license_back_url ?? null,
     faceWithLicenseUrl: row.face_with_license_url ?? null
+  };
+}
+
+function mapPetRow(row: PetRow): Pet {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    name: row.name,
+    class: row.class ?? null,
+    species: row.species ?? null,
+    breed: row.breed ?? null,
+    gender: row.gender ?? "unknown",
+    birthday: row.birthday ?? null,
+    avatarAssetId: row.avatar_asset_id ?? null,
+    avatarUrl: row.avatar_url ?? null,
+    bio: row.bio ?? null,
+    followersCount: row.followers_count ?? 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    isActive: row.is_active ?? 1
   };
 }
 

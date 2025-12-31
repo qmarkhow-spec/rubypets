@@ -1,0 +1,1216 @@
+{
+  "classes": [
+    {
+      "key": "mammals",
+      "label": "mammals",
+      "species": [
+        {
+          "key": "dogs",
+          "label": "dogs",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Taiwan Dog",
+              "label": "Taiwan Dog"
+            },
+            {
+              "key": "Chihuahua",
+              "label": "Chihuahua"
+            },
+            {
+              "key": "Pomeranian",
+              "label": "Pomeranian"
+            },
+            {
+              "key": "Yorkshire Terrier",
+              "label": "Yorkshire Terrier"
+            },
+            {
+              "key": "Maltese",
+              "label": "Maltese"
+            },
+            {
+              "key": "Shih Tzu",
+              "label": "Shih Tzu"
+            },
+            {
+              "key": "Poodle",
+              "label": "Poodle"
+            },
+            {
+              "key": "Pug",
+              "label": "Pug"
+            },
+            {
+              "key": "Bichon Frise",
+              "label": "Bichon Frise"
+            },
+            {
+              "key": "Dachshund",
+              "label": "Dachshund"
+            },
+            {
+              "key": "Pembroke Welsh Corgi",
+              "label": "Pembroke Welsh Corgi"
+            },
+            {
+              "key": "Schnauzer",
+              "label": "Schnauzer"
+            },
+            {
+              "key": "Labrador Retriever",
+              "label": "Labrador Retriever"
+            },
+            {
+              "key": "Golden Retriever",
+              "label": "Golden Retriever"
+            },
+            {
+              "key": "Siberian Husky",
+              "label": "Siberian Husky"
+            },
+            {
+              "key": "Shiba Inu",
+              "label": "Shiba Inu"
+            },
+            {
+              "key": "Border Collie",
+              "label": "Border Collie"
+            },
+            {
+              "key": "English Bulldog",
+              "label": "English Bulldog"
+            },
+            {
+              "key": "French Bulldog",
+              "label": "French Bulldog"
+            },
+            {
+              "key": "Boxer",
+              "label": "Boxer"
+            },
+            {
+              "key": "German Shepherd",
+              "label": "German Shepherd"
+            },
+            {
+              "key": "Rottweiler",
+              "label": "Rottweiler"
+            },
+            {
+              "key": "Doberman Pinscher",
+              "label": "Doberman Pinscher"
+            },
+            {
+              "key": "Australian Shepherd",
+              "label": "Australian Shepherd"
+            },
+            {
+              "key": "Dalmatian",
+              "label": "Dalmatian"
+            },
+            {
+              "key": "Old English Sheepdog",
+              "label": "Old English Sheepdog"
+            },
+            {
+              "key": "Shetland Sheepdog",
+              "label": "Shetland Sheepdog"
+            },
+            {
+              "key": "Alaskan Malamute",
+              "label": "Alaskan Malamute"
+            },
+            {
+              "key": "Akita",
+              "label": "Akita"
+            },
+            {
+              "key": "Vizsla",
+              "label": "Vizsla"
+            },
+            {
+              "key": "American Pit Bull Terrier",
+              "label": "American Pit Bull Terrier"
+            },
+            {
+              "key": "American Bully",
+              "label": "American Bully"
+            },
+            {
+              "key": "Boston Terrier",
+              "label": "Boston Terrier"
+            },
+            {
+              "key": "Beagle",
+              "label": "Beagle"
+            },
+            {
+              "key": "Whippet",
+              "label": "Whippet"
+            },
+            {
+              "key": "Greyhound",
+              "label": "Greyhound"
+            },
+            {
+              "key": "Irish Setter",
+              "label": "Irish Setter"
+            },
+            {
+              "key": "English Cocker Spaniel",
+              "label": "English Cocker Spaniel"
+            },
+            {
+              "key": "American Cocker Spaniel",
+              "label": "American Cocker Spaniel"
+            },
+            {
+              "key": "Basset Hound",
+              "label": "Basset Hound"
+            },
+            {
+              "key": "Great Dane",
+              "label": "Great Dane"
+            },
+            {
+              "key": "Bernese Mountain Dog",
+              "label": "Bernese Mountain Dog"
+            },
+            {
+              "key": "Saint Bernard",
+              "label": "Saint Bernard"
+            },
+            {
+              "key": "Newfoundland",
+              "label": "Newfoundland"
+            },
+            {
+              "key": "Lhasa Apso",
+              "label": "Lhasa Apso"
+            },
+            {
+              "key": "Bull Terrier",
+              "label": "Bull Terrier"
+            },
+            {
+              "key": "Miniature Bull Terrier",
+              "label": "Miniature Bull Terrier"
+            },
+            {
+              "key": "Chinese Crested",
+              "label": "Chinese Crested"
+            },
+            {
+              "key": "West Highland White Terrier",
+              "label": "West Highland White Terrier"
+            },
+            {
+              "key": "Scottish Terrier",
+              "label": "Scottish Terrier"
+            },
+            {
+              "key": "Jack Russell Terrier",
+              "label": "Jack Russell Terrier"
+            },
+            {
+              "key": "Fox Terrier",
+              "label": "Fox Terrier"
+            },
+            {
+              "key": "Basenji",
+              "label": "Basenji"
+            },
+            {
+              "key": "Shar Pei",
+              "label": "Shar Pei"
+            },
+            {
+              "key": "Chow Chow",
+              "label": "Chow Chow"
+            },
+            {
+              "key": "Tibetan Mastiff",
+              "label": "Tibetan Mastiff"
+            },
+            {
+              "key": "Portuguese Water Dog",
+              "label": "Portuguese Water Dog"
+            },
+            {
+              "key": "Coton de Tulear",
+              "label": "Coton de Tulear"
+            },
+            {
+              "key": "Italian Greyhound",
+              "label": "Italian Greyhound"
+            },
+            {
+              "key": "Papillon",
+              "label": "Papillon"
+            },
+            {
+              "key": "Cavalier King Charles Spaniel",
+              "label": "Cavalier King Charles Spaniel"
+            },
+            {
+              "key": "American Eskimo Dog",
+              "label": "American Eskimo Dog"
+            },
+            {
+              "key": "Samoyed",
+              "label": "Samoyed"
+            },
+            {
+              "key": "Belgian Malinois",
+              "label": "Belgian Malinois"
+            },
+            {
+              "key": "Belgian Tervuren",
+              "label": "Belgian Tervuren"
+            },
+            {
+              "key": "Belgian Sheepdog",
+              "label": "Belgian Sheepdog"
+            },
+            {
+              "key": "Foxhound",
+              "label": "Foxhound"
+            },
+            {
+              "key": "American Foxhound",
+              "label": "American Foxhound"
+            },
+            {
+              "key": "Treeing Walker Coonhound",
+              "label": "Treeing Walker Coonhound"
+            },
+            {
+              "key": "Rough Collie",
+              "label": "Rough Collie"
+            },
+            {
+              "key": "Smooth Collie",
+              "label": "Smooth Collie"
+            },
+            {
+              "key": "English Setter",
+              "label": "English Setter"
+            },
+            {
+              "key": "Goldendoodle",
+              "label": "Goldendoodle"
+            },
+            {
+              "key": "Labradoodle",
+              "label": "Labradoodle"
+            },
+            {
+              "key": "Mixed",
+              "label": "Mixed"
+            }
+          ]
+        },
+        {
+          "key": "cats",
+          "label": "cats",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Mixed",
+              "label": "Mixed"
+            },
+            {
+              "key": "Persian",
+              "label": "Persian"
+            },
+            {
+              "key": "British Shorthair",
+              "label": "British Shorthair"
+            },
+            {
+              "key": "British Longhair",
+              "label": "British Longhair"
+            },
+            {
+              "key": "American Shorthair",
+              "label": "American Shorthair"
+            },
+            {
+              "key": "American Longhair",
+              "label": "American Longhair"
+            },
+            {
+              "key": "Tuxedo Cat",
+              "label": "Tuxedo Cat"
+            },
+            {
+              "key": "Orange Tabby",
+              "label": "Orange Tabby"
+            },
+            {
+              "key": "Tabby Cat",
+              "label": "Tabby Cat"
+            },
+            {
+              "key": "Calico",
+              "label": "Calico"
+            },
+            {
+              "key": "Tortoiseshell",
+              "label": "Tortoiseshell"
+            },
+            {
+              "key": "Ragdoll",
+              "label": "Ragdoll"
+            },
+            {
+              "key": "Maine Coon",
+              "label": "Maine Coon"
+            },
+            {
+              "key": "Norwegian Forest Cat",
+              "label": "Norwegian Forest Cat"
+            },
+            {
+              "key": "Birman",
+              "label": "Birman"
+            },
+            {
+              "key": "Exotic Shorthair",
+              "label": "Exotic Shorthair"
+            },
+            {
+              "key": "Scottish Fold",
+              "label": "Scottish Fold"
+            },
+            {
+              "key": "Scottish Straight",
+              "label": "Scottish Straight"
+            },
+            {
+              "key": "Russian Blue",
+              "label": "Russian Blue"
+            },
+            {
+              "key": "Egyptian Mau",
+              "label": "Egyptian Mau"
+            },
+            {
+              "key": "Sphynx",
+              "label": "Sphynx"
+            },
+            {
+              "key": "Bengal",
+              "label": "Bengal"
+            },
+            {
+              "key": "Abyssinian",
+              "label": "Abyssinian"
+            },
+            {
+              "key": "Somali",
+              "label": "Somali"
+            },
+            {
+              "key": "Turkish Van",
+              "label": "Turkish Van"
+            },
+            {
+              "key": "Turkish Angora",
+              "label": "Turkish Angora"
+            },
+            {
+              "key": "Chartreux",
+              "label": "Chartreux"
+            },
+            {
+              "key": "Himalayan",
+              "label": "Himalayan"
+            },
+            {
+              "key": "Munchkin",
+              "label": "Munchkin"
+            },
+            {
+              "key": "Peterbald",
+              "label": "Peterbald"
+            },
+            {
+              "key": "Devon Rex",
+              "label": "Devon Rex"
+            },
+            {
+              "key": "Cornish Rex",
+              "label": "Cornish Rex"
+            },
+            {
+              "key": "Oriental Shorthair",
+              "label": "Oriental Shorthair"
+            },
+            {
+              "key": "Oriental Longhair",
+              "label": "Oriental Longhair"
+            },
+            {
+              "key": "Burmese",
+              "label": "Burmese"
+            },
+            {
+              "key": "Singapura",
+              "label": "Singapura"
+            },
+            {
+              "key": "Arabian Mau",
+              "label": "Arabian Mau"
+            },
+            {
+              "key": "Selkirk Rex",
+              "label": "Selkirk Rex"
+            },
+            {
+              "key": "Japanese Bobtail",
+              "label": "Japanese Bobtail"
+            },
+            {
+              "key": "Kurilian Bobtail",
+              "label": "Kurilian Bobtail"
+            },
+            {
+              "key": "American Curl",
+              "label": "American Curl"
+            },
+            {
+              "key": "Highland Fold",
+              "label": "Highland Fold"
+            },
+            {
+              "key": "LaPerm",
+              "label": "LaPerm"
+            },
+            {
+              "key": "Donskoy",
+              "label": "Donskoy"
+            },
+            {
+              "key": "Savannah",
+              "label": "Savannah"
+            },
+            {
+              "key": "Ragamuffin",
+              "label": "Ragamuffin"
+            },
+            {
+              "key": "Minuet (Napoleon)",
+              "label": "Minuet (Napoleon)"
+            },
+            {
+              "key": "Australian Mist",
+              "label": "Australian Mist"
+            },
+            {
+              "key": "Snowshoe",
+              "label": "Snowshoe"
+            },
+            {
+              "key": "Toyger",
+              "label": "Toyger"
+            },
+            {
+              "key": "Dinkum Cat",
+              "label": "Dinkum Cat"
+            },
+            {
+              "key": "Ocicat",
+              "label": "Ocicat"
+            },
+            {
+              "key": "Balinese",
+              "label": "Balinese"
+            }
+          ]
+        },
+        {
+          "key": "rabbits",
+          "label": "rabbits",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Spot Rabbit",
+              "label": "Spot Rabbit"
+            },
+            {
+              "key": "Angora",
+              "label": "Angora"
+            },
+            {
+              "key": "Creme d'Argent",
+              "label": "Creme d'Argent"
+            },
+            {
+              "key": "Flemish Rabbit",
+              "label": "Flemish Rabbit"
+            },
+            {
+              "key": "Dutch",
+              "label": "Dutch"
+            },
+            {
+              "key": "Oryctolagus cuniculus",
+              "label": "Oryctolagus cuniculus"
+            },
+            {
+              "key": "Red-eared Slider",
+              "label": "Red-eared Slider"
+            },
+            {
+              "key": "Yellow-bellied Slider",
+              "label": "Yellow-bellied Slider"
+            },
+            {
+              "key": "Map Turtle",
+              "label": "Map Turtle"
+            },
+            {
+              "key": "Common Musk Turtle",
+              "label": "Common Musk Turtle"
+            },
+            {
+              "key": "Razor-backed Musk Turtle",
+              "label": "Razor-backed Musk Turtle"
+            },
+            {
+              "key": "Mud Turtle",
+              "label": "Mud Turtle"
+            },
+            {
+              "key": "Diamondback Terrapin",
+              "label": "Diamondback Terrapin"
+            },
+            {
+              "key": "Chinese Pond Turtle",
+              "label": "Chinese Pond Turtle"
+            },
+            {
+              "key": "Golden Coin Turtle",
+              "label": "Golden Coin Turtle"
+            },
+            {
+              "key": "Reeves's Turtle",
+              "label": "Reeves's Turtle"
+            },
+            {
+              "key": "Asian Leaf Turtle",
+              "label": "Asian Leaf Turtle"
+            },
+            {
+              "key": "Burmese Star Tortoise",
+              "label": "Burmese Star Tortoise"
+            },
+            {
+              "key": "Indian Star Tortoise",
+              "label": "Indian Star Tortoise"
+            }
+          ]
+        },
+        {
+          "key": "hamster",
+          "label": "hamster",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Sulcata Tortoise",
+              "label": "Sulcata Tortoise"
+            },
+            {
+              "key": "Leopard Tortoise",
+              "label": "Leopard Tortoise"
+            },
+            {
+              "key": "Hermann's Tortoise",
+              "label": "Hermann's Tortoise"
+            },
+            {
+              "key": "Greek Tortoise",
+              "label": "Greek Tortoise"
+            },
+            {
+              "key": "Russian Tortoise",
+              "label": "Russian Tortoise"
+            }
+          ]
+        },
+        {
+          "key": "pigs",
+          "label": "pigs",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Red-footed Tortoise",
+              "label": "Red-footed Tortoise"
+            }
+          ]
+        },
+        {
+          "key": "sheep",
+          "label": "sheep",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Yellow-footed Tortoise",
+              "label": "Yellow-footed Tortoise"
+            }
+          ]
+        },
+        {
+          "key": "horses",
+          "label": "horses",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "nan",
+              "label": "nan"
+            }
+          ]
+        },
+        {
+          "key": "hedgehogs",
+          "label": "hedgehogs",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "nan",
+              "label": "nan"
+            }
+          ]
+        },
+        {
+          "key": "sugar gliders",
+          "label": "sugar gliders",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "nan",
+              "label": "nan"
+            }
+          ]
+        },
+        {
+          "key": "squirrels",
+          "label": "squirrels",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "nan",
+              "label": "nan"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "reptiles",
+      "label": "reptiles",
+      "species": [
+        {
+          "key": "frogs",
+          "label": "frogs",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "White's Tree Frog",
+              "label": "White's Tree Frog"
+            },
+            {
+              "key": "Green Tree Frog",
+              "label": "Green Tree Frog"
+            },
+            {
+              "key": "Red-eyed Tree Frog",
+              "label": "Red-eyed Tree Frog"
+            },
+            {
+              "key": "American Bullfrog",
+              "label": "American Bullfrog"
+            },
+            {
+              "key": "African Dwarf Frog",
+              "label": "African Dwarf Frog"
+            },
+            {
+              "key": "African Clawed Frog",
+              "label": "African Clawed Frog"
+            },
+            {
+              "key": "Poison Dart Frog",
+              "label": "Poison Dart Frog"
+            },
+            {
+              "key": "Horned Frog",
+              "label": "Horned Frog"
+            },
+            {
+              "key": "Amazonian Horned Frog",
+              "label": "Amazonian Horned Frog"
+            },
+            {
+              "key": "Ornate Horned Frog",
+              "label": "Ornate Horned Frog"
+            },
+            {
+              "key": "Tomato Frog",
+              "label": "Tomato Frog"
+            },
+            {
+              "key": "Glass Frog",
+              "label": "Glass Frog"
+            },
+            {
+              "key": "Asian Rice Frog",
+              "label": "Asian Rice Frog"
+            },
+            {
+              "key": "Taiwan Tree Frog",
+              "label": "Taiwan Tree Frog"
+            }
+          ]
+        },
+        {
+          "key": "snakes",
+          "label": "snakes",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Ball Python",
+              "label": "Ball Python"
+            },
+            {
+              "key": "Corn Snake",
+              "label": "Corn Snake"
+            },
+            {
+              "key": "Milk Snake",
+              "label": "Milk Snake"
+            },
+            {
+              "key": "Kingsnake",
+              "label": "Kingsnake"
+            },
+            {
+              "key": "California Kingsnake",
+              "label": "California Kingsnake"
+            },
+            {
+              "key": "Red-tailed Boa",
+              "label": "Red-tailed Boa"
+            },
+            {
+              "key": "Burmese Python",
+              "label": "Burmese Python"
+            },
+            {
+              "key": "Reticulated Python",
+              "label": "Reticulated Python"
+            },
+            {
+              "key": "Green Tree Python",
+              "label": "Green Tree Python"
+            },
+            {
+              "key": "Carpet Python",
+              "label": "Carpet Python"
+            },
+            {
+              "key": "Blood Python",
+              "label": "Blood Python"
+            },
+            {
+              "key": "Short-tailed Python",
+              "label": "Short-tailed Python"
+            },
+            {
+              "key": "Hognose Snake",
+              "label": "Hognose Snake"
+            },
+            {
+              "key": "Garter Snake",
+              "label": "Garter Snake"
+            },
+            {
+              "key": "Vine Snake",
+              "label": "Vine Snake"
+            },
+            {
+              "key": "Rat Snake",
+              "label": "Rat Snake"
+            },
+            {
+              "key": "Ratsnake (Oriental Rat Snake)",
+              "label": "Ratsnake (Oriental Rat Snake)"
+            },
+            {
+              "key": "White-lipped Tree Snake",
+              "label": "White-lipped Tree Snake"
+            },
+            {
+              "key": "Cobra",
+              "label": "Cobra"
+            },
+            {
+              "key": "King Cobra",
+              "label": "King Cobra"
+            },
+            {
+              "key": "Rattlesnake",
+              "label": "Rattlesnake"
+            },
+            {
+              "key": "Green Mamba",
+              "label": "Green Mamba"
+            },
+            {
+              "key": "Black Mamba",
+              "label": "Black Mamba"
+            }
+          ]
+        },
+        {
+          "key": "lizards",
+          "label": "lizards",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Leopard Gecko",
+              "label": "Leopard Gecko"
+            },
+            {
+              "key": "Crested Gecko",
+              "label": "Crested Gecko"
+            },
+            {
+              "key": "African Fat-tailed Gecko",
+              "label": "African Fat-tailed Gecko"
+            },
+            {
+              "key": "Giant Day Gecko",
+              "label": "Giant Day Gecko"
+            },
+            {
+              "key": "Day Gecko",
+              "label": "Day Gecko"
+            },
+            {
+              "key": "Blue-tongued Skink",
+              "label": "Blue-tongued Skink"
+            },
+            {
+              "key": "Solomon Islands Skink",
+              "label": "Solomon Islands Skink"
+            },
+            {
+              "key": "Green Iguana",
+              "label": "Green Iguana"
+            },
+            {
+              "key": "Red Iguana",
+              "label": "Red Iguana"
+            },
+            {
+              "key": "Desert Iguana",
+              "label": "Desert Iguana"
+            },
+            {
+              "key": "Chameleon",
+              "label": "Chameleon"
+            },
+            {
+              "key": "Leaf-tailed Gecko",
+              "label": "Leaf-tailed Gecko"
+            },
+            {
+              "key": "Bearded Dragon",
+              "label": "Bearded Dragon"
+            },
+            {
+              "key": "Uromastyx",
+              "label": "Uromastyx"
+            },
+            {
+              "key": "Nile Monitor",
+              "label": "Nile Monitor"
+            },
+            {
+              "key": "Savannah Monitor",
+              "label": "Savannah Monitor"
+            },
+            {
+              "key": "Blue Tree Monitor",
+              "label": "Blue Tree Monitor"
+            },
+            {
+              "key": "Anole",
+              "label": "Anole"
+            },
+            {
+              "key": "Long-tailed Lizard",
+              "label": "Long-tailed Lizard"
+            },
+            {
+              "key": "Chinese Water Dragon",
+              "label": "Chinese Water Dragon"
+            },
+            {
+              "key": "Asian Water Dragon",
+              "label": "Asian Water Dragon"
+            },
+            {
+              "key": "Draco",
+              "label": "Draco"
+            }
+          ]
+        },
+        {
+          "key": "turtles",
+          "label": "turtles",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Red-eared Slider",
+              "label": "Red-eared Slider"
+            },
+            {
+              "key": "Yellow-bellied Slider",
+              "label": "Yellow-bellied Slider"
+            },
+            {
+              "key": "Map Turtle",
+              "label": "Map Turtle"
+            },
+            {
+              "key": "Common Musk Turtle",
+              "label": "Common Musk Turtle"
+            },
+            {
+              "key": "Razor-backed Musk Turtle",
+              "label": "Razor-backed Musk Turtle"
+            },
+            {
+              "key": "Mud Turtle",
+              "label": "Mud Turtle"
+            },
+            {
+              "key": "Diamondback Terrapin",
+              "label": "Diamondback Terrapin"
+            },
+            {
+              "key": "Chinese Pond Turtle",
+              "label": "Chinese Pond Turtle"
+            },
+            {
+              "key": "Golden Coin Turtle",
+              "label": "Golden Coin Turtle"
+            },
+            {
+              "key": "Reeves's Turtle",
+              "label": "Reeves's Turtle"
+            },
+            {
+              "key": "Asian Leaf Turtle",
+              "label": "Asian Leaf Turtle"
+            },
+            {
+              "key": "Burmese Star Tortoise",
+              "label": "Burmese Star Tortoise"
+            },
+            {
+              "key": "Indian Star Tortoise",
+              "label": "Indian Star Tortoise"
+            },
+            {
+              "key": "Sulcata Tortoise",
+              "label": "Sulcata Tortoise"
+            },
+            {
+              "key": "Leopard Tortoise",
+              "label": "Leopard Tortoise"
+            },
+            {
+              "key": "Hermann's Tortoise",
+              "label": "Hermann's Tortoise"
+            },
+            {
+              "key": "Greek Tortoise",
+              "label": "Greek Tortoise"
+            },
+            {
+              "key": "Russian Tortoise",
+              "label": "Russian Tortoise"
+            },
+            {
+              "key": "Red-footed Tortoise",
+              "label": "Red-footed Tortoise"
+            },
+            {
+              "key": "Yellow-footed Tortoise",
+              "label": "Yellow-footed Tortoise"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "birds",
+      "label": "birds",
+      "species": [
+        {
+          "key": "birds",
+          "label": "birds",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Budgerigar",
+              "label": "Budgerigar"
+            },
+            {
+              "key": "Cockatiel",
+              "label": "Cockatiel"
+            },
+            {
+              "key": "Monk Parakeet",
+              "label": "Monk Parakeet"
+            },
+            {
+              "key": "Sun Conure",
+              "label": "Sun Conure"
+            },
+            {
+              "key": "Sun Conure (Golden)",
+              "label": "Sun Conure (Golden)"
+            },
+            {
+              "key": "Caique",
+              "label": "Caique"
+            },
+            {
+              "key": "African Grey Parrot",
+              "label": "African Grey Parrot"
+            },
+            {
+              "key": "Eclectus Parrot",
+              "label": "Eclectus Parrot"
+            },
+            {
+              "key": "Amazon Parrot",
+              "label": "Amazon Parrot"
+            },
+            {
+              "key": "Macaw",
+              "label": "Macaw"
+            },
+            {
+              "key": "Green-cheeked Conure",
+              "label": "Green-cheeked Conure"
+            },
+            {
+              "key": "Lovebird",
+              "label": "Lovebird"
+            },
+            {
+              "key": "Java Sparrow",
+              "label": "Java Sparrow"
+            },
+            {
+              "key": "Zebra Finch",
+              "label": "Zebra Finch"
+            },
+            {
+              "key": "Canary",
+              "label": "Canary"
+            },
+            {
+              "key": "White Java Sparrow",
+              "label": "White Java Sparrow"
+            },
+            {
+              "key": "Pigeon",
+              "label": "Pigeon"
+            },
+            {
+              "key": "Dove",
+              "label": "Dove"
+            },
+            {
+              "key": "Quail",
+              "label": "Quail"
+            },
+            {
+              "key": "Peafowl",
+              "label": "Peafowl"
+            },
+            {
+              "key": "Crow",
+              "label": "Crow"
+            },
+            {
+              "key": "Myna",
+              "label": "Myna"
+            }
+          ]
+        },
+        {
+          "key": "ducks",
+          "label": "ducks",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "Pekin Duck",
+              "label": "Pekin Duck"
+            },
+            {
+              "key": "Muscovy Duck",
+              "label": "Muscovy Duck"
+            },
+            {
+              "key": "Mallard",
+              "label": "Mallard"
+            },
+            {
+              "key": "Khaki Campbell Duck",
+              "label": "Khaki Campbell Duck"
+            },
+            {
+              "key": "Indian Runner Duck",
+              "label": "Indian Runner Duck"
+            },
+            {
+              "key": "Call Duck",
+              "label": "Call Duck"
+            }
+          ]
+        },
+        {
+          "key": "chickens",
+          "label": "chickens",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "nan",
+              "label": "nan"
+            }
+          ]
+        },
+        {
+          "key": "geese",
+          "label": "geese",
+          "hasBreed": true,
+          "breeds": [
+            {
+              "key": "nan",
+              "label": "nan"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

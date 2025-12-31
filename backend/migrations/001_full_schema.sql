@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS pets (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL,
   name TEXT NOT NULL,
+  class TEXT,
   species TEXT,
   breed TEXT,
   gender TEXT DEFAULT 'unknown',

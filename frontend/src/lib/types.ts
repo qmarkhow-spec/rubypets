@@ -101,3 +101,43 @@ export interface FriendshipListItem {
   otherOwner: OwnerSearchResult;
   createdAt: string;
 }
+
+export interface PetDetail {
+  id: string;
+  ownerId: string;
+  name: string;
+  class: string | null;
+  species: string | null;
+  breed: string | null;
+  gender: "male" | "female" | "unknown";
+  birthday: string | null;
+  avatarAssetId: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  followersCount: number;
+  createdAt: string;
+  updatedAt: string;
+  isActive: number;
+}
+
+export interface PetsCategoryBreed {
+  key: string;
+  label: string;
+}
+
+export interface PetsCategorySpecies {
+  key: string;
+  label: string;
+  hasBreed: boolean;
+  breeds: PetsCategoryBreed[];
+}
+
+export interface PetsCategoryClass {
+  key: string;
+  label: string;
+  species: PetsCategorySpecies[];
+}
+
+export interface PetsCategoryData {
+  classes: PetsCategoryClass[];
+}
