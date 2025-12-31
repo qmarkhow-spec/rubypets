@@ -23,6 +23,10 @@ export function errorJson(message: string, status = 400): Response {
   return json({ error: message }, { status });
 }
 
+export function okJson(data: unknown, status = 200): Response {
+  return json(data, { status });
+}
+
 export async function readJson<T>(request: Request): Promise<T> {
   try {
     return (await request.json()) as T;

@@ -1,8 +1,17 @@
 export interface Env {
-  DB: D1Database;
+  // Auth
+
+  // Media
   R2_MEDIA: R2Bucket;
-  ENVIRONMENT?: string;
   R2_PUBLIC_BASE_URL?: string;
+  CF_ACCOUNT_ID?: string;
+  CF_API_TOKEN?: string;
+  CF_IMAGES_ACCOUNT_HASH?: string;
+  CF_STREAM_SUBDOMAIN?: string;
+
+  // Admin
+  DB: D1Database;
+  ENVIRONMENT?: string;
 }
 
 export interface HandlerContext {
