@@ -1184,7 +1184,7 @@ export class D1Client implements DBClient {
       .prepare(
         `
           insert into pets (
-            id, owner_id, name, class, species, breed, gender, birthday, avatar_asset_id,
+            id, owner_id, name, "class", species, breed, gender, birthday, avatar_asset_id,
             avatar_url, bio, created_at, updated_at, is_active
           )
           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -1217,7 +1217,7 @@ export class D1Client implements DBClient {
       .prepare(
         `
           select
-            id, owner_id, name, class, species, breed, gender, birthday,
+            id, owner_id, name, "class" as class, species, breed, gender, birthday,
             avatar_asset_id, avatar_url, bio, followers_count, created_at, updated_at, is_active
           from pets
           where id = ?

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS media_assets (
   kind          TEXT NOT NULL CHECK (kind IN ('image','video')),
   usage         TEXT NOT NULL DEFAULT 'other' CHECK (usage IN ('avatar','pet_avatar','post','kyc','other')),
   storage_key   TEXT NOT NULL,
+  storage_provider TEXT NOT NULL CHECK (storage_provider IN ('r2','cf_media')),
   url           TEXT,
   thumbnail_url TEXT,
   mime_type     TEXT,
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS media_assets (
                CHECK (status IN ('uploaded','processing','ready','failed')),
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  CONSTRAINT fk_media_assets_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE SET NULL
+  CONSTRAINT fk_media_assets_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_media_assets_owner_id ON media_assets(owner_id);
