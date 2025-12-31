@@ -49,6 +49,7 @@ type MediaAssetRow = {
   owner_id: string;
   kind: string;
   usage: string;
+  storage_provider: string;
   storage_key: string;
   url: string | null;
   thumbnail_url: string | null;
@@ -298,6 +299,7 @@ export class D1Client implements DBClient {
     ownerId: string;
     kind: "image" | "video";
     usage: "avatar" | "pet_avatar" | "post" | "kyc" | "other";
+    storageProvider: "r2" | "cf_media";
     storageKey: string;
     url?: string | null;
     thumbnailUrl?: string | null;
@@ -314,10 +316,10 @@ export class D1Client implements DBClient {
       .prepare(
         `
           insert into media_assets (
-            id, owner_id, kind, usage, storage_key, url, thumbnail_url, mime_type, size_bytes,
+            id, owner_id, kind, usage, storage_provider, storage_key, url, thumbnail_url, mime_type, size_bytes,
             width, height, duration_sec, status, created_at, updated_at
           )
-          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
       .bind(
@@ -325,6 +327,7 @@ export class D1Client implements DBClient {
         input.ownerId,
         input.kind,
         input.usage,
+        input.storageProvider,
         input.storageKey,
         input.url ?? null,
         input.thumbnailUrl ?? null,
@@ -342,7 +345,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, owner_id, kind, usage, storage_key, url, thumbnail_url, mime_type, size_bytes,
+          select id, owner_id, kind, usage, storage_provider, storage_key, url, thumbnail_url, mime_type, size_bytes,
                  width, height, duration_sec, status, created_at, updated_at
           from media_assets
           where id = ?
@@ -361,7 +364,7 @@ export class D1Client implements DBClient {
     const { results } = await this.db
       .prepare(
         `
-          select id, owner_id, kind, usage, storage_key, url, thumbnail_url, mime_type, size_bytes,
+          select id, owner_id, kind, usage, storage_provider, storage_key, url, thumbnail_url, mime_type, size_bytes,
                  width, height, duration_sec, status, created_at, updated_at
           from media_assets
           where id in (${placeholders})
@@ -1639,6 +1642,7 @@ function mapMediaAssetRow(row: MediaAssetRow): MediaAsset {
     ownerId: row.owner_id,
     kind: row.kind as MediaAsset["kind"],
     usage: row.usage as MediaAsset["usage"],
+    storageProvider: row.storage_provider as MediaAsset["storageProvider"],
     storageKey: row.storage_key,
     url: row.url ?? null,
     thumbnailUrl: row.thumbnail_url ?? null,

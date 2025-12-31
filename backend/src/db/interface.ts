@@ -87,6 +87,7 @@ export interface DBClient {
     ownerId: string;
     kind: "image" | "video";
     usage: "avatar" | "pet_avatar" | "post" | "kyc" | "other";
+    storageProvider: "r2" | "cf_media";
     storageKey: string;
     url?: string | null;
     thumbnailUrl?: string | null;
