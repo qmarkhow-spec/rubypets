@@ -5,6 +5,12 @@ import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import type { PetDetail, PetsCategoryData } from "@/lib/types";
 
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  return [];
+}
+
 export default function PetDetailPage() {
   const params = useParams<{ id: string }>();
   const rawId = params?.id ?? "";
