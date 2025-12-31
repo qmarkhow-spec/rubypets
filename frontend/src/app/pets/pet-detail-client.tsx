@@ -14,7 +14,7 @@ export default function PetDetailClient({ id }: { id: string }) {
     if (!id) return;
     setLoading(true);
     setError(null);
-    apiFetch<{ data: PetDetail }>(`/api/pets/${id}`)
+    apiFetch<{ data: PetDetail }>(`/api/pets/${encodeURIComponent(id)}`)
       .then(({ data }) => setPet(data.data))
       .catch((err) => {
         const status = (err as { status?: number }).status;
@@ -79,6 +79,7 @@ export default function PetDetailClient({ id }: { id: string }) {
           </section>
         </>
       )}
+      {!loading && !error && !pet && <p className="text-sm text-white/70">找不到寵物資料</p>}
     </div>
   );
 }
