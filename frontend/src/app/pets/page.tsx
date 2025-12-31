@@ -1,9 +1,10 @@
-import PetDetailClient from "./pet-detail-client";
+import { Suspense } from "react";
+import PetQueryClient from "./pet-query-client";
 
-export default function PetsPage({ searchParams }: { searchParams: { id?: string } }) {
-  const id = searchParams?.id?.trim();
-  if (!id) {
-    return <div className="text-sm text-white/70">缺少 pet id</div>;
-  }
-  return <PetDetailClient id={id} />;
+export default function PetsPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-white/70">載入中...</div>}>
+      <PetQueryClient />
+    </Suspense>
+  );
 }
