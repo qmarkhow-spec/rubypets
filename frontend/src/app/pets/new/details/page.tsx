@@ -142,7 +142,7 @@ export default function PetCreateStepTwoPage() {
       });
 
       sessionStorage.removeItem(DRAFT_KEY);
-      router.push(`/pets/${created.data.data.id}`);
+      router.push(`/pets?id=${encodeURIComponent(created.data.data.id)}`);
     } catch (err) {
       const status = (err as { status?: number }).status;
       setError(`建立失敗（${status ?? "?"}）`);
