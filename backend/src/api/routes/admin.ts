@@ -10,7 +10,7 @@ async function reviewSummaryRoute(ctx: HandlerContext): Promise<Response> {
 
 async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
   const data = await ctx.db.listVerifications();
-  return okJson({ data }, 200);
+  return okJson(data, 200);
 }
 
 async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -59,7 +59,7 @@ async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, stri
 
 async function adminAccountsListRoute(ctx: HandlerContext): Promise<Response> {
   const admins = await ctx.db.listAdminAccounts();
-  return okJson({ data: admins }, 200);
+  return okJson(admins, 200);
 }
 
 async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> {
@@ -75,7 +75,7 @@ async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> 
   if (!["super", "administrator", "Inspector"].includes(permission)) return errorJson("invalid permission", 400);
   const hashed = await hashPassword(password);
   const created = await ctx.db.createAdminAccount({ adminId, password: hashed, permission });
-  return okJson({ data: created }, 201);
+  return okJson(created, 201);
 }
 
 async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
@@ -99,7 +99,7 @@ async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string,
   if (!newPassword) return errorJson("password required", 400);
   const hashed = await hashPassword(newPassword);
   await ctx.db.updateAdminPassword(id, hashed);
-  return okJson({ accountId: id, ok: true }, 200);
+  return okJson({ accountId: id }, 200);
 }
 
 async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
@@ -108,13 +108,13 @@ async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
   const page = Math.max(asNumber(url.searchParams.get("page"), 1), 1);
   const offset = (page - 1) * limit;
   const posts = await ctx.db.listAdminPosts(limit, offset);
-  return okJson({ data: posts, page, hasMore: posts.length === limit }, 200);
+  return okJson({ items: posts, page, hasMore: posts.length === limit }, 200);
 }
 
 async function adminPostDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const post = await ctx.db.getPostById(params.id);
   if (!post) return errorJson("post not found", 404);
-  return okJson({ data: post }, 200);
+  return okJson(post, 200);
 }
 
 async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -130,20 +130,20 @@ async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string
 
     if (action === "disable") {
       await ctx.db.markPostDeleted(postId);
-      return okJson({ ok: true }, 200);
+      return okJson(null, 200);
     }
 
     if (action === "disable_delete_media") {
       await deleteCloudflareAssets(assets, ctx.env);
       await ctx.db.deletePostMediaAndAssets(postId, assetIds);
       await ctx.db.markPostDeleted(postId);
-      return okJson({ ok: true }, 200);
+      return okJson(null, 200);
     }
 
     if (action === "delete_all") {
       await deleteCloudflareAssets(assets, ctx.env);
       await ctx.db.deletePostCascade(postId, assetIds);
-      return okJson({ ok: true }, 200);
+      return okJson(null, 200);
     }
 
     return errorJson("invalid action", 400);

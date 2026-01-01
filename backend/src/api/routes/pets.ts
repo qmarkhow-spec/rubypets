@@ -5,7 +5,7 @@ import { DynamicRoute, Route } from "./types";
 import petsCategory from "../../data/pets-category.json";
 
 async function petsCategoriesRoute(_ctx: HandlerContext): Promise<Response> {
-  return okJson({ data: petsCategory }, 200);
+  return okJson(petsCategory, 200);
 }
 
 async function r2PetAvatarUploadRoute(ctx: HandlerContext): Promise<Response> {
@@ -119,13 +119,13 @@ async function createPetsRoute(ctx: HandlerContext): Promise<Response> {
     bio
   });
 
-  return okJson({ data: pet }, 201);
+  return okJson(pet, 201);
 }
 
 async function petDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const pet = await ctx.db.getPetById(params.id);
   if (!pet) return errorJson("Not found", 404);
-  return okJson({ data: pet }, 200);
+  return okJson(pet, 200);
 }
 
 function imageMimeToExt(mimeType: string): "jpg" | "png" | "webp" | null {

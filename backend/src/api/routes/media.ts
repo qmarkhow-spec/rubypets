@@ -53,7 +53,7 @@ async function mediaImagesInitRoute(ctx: HandlerContext): Promise<Response> {
       status: "uploaded"
     });
 
-    return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
+    return okJson({ asset_id: asset.id, upload_url: uploadUrl }, 201);
   } catch (err) {
     console.error("mediaImagesInit error", err);
     return errorJson((err as Error).message, 500);
@@ -113,7 +113,7 @@ async function mediaVideosInitRoute(ctx: HandlerContext): Promise<Response> {
       status: "processing"
     });
 
-    return okJson({ data: { asset_id: asset.id, upload_url: uploadUrl } }, 201);
+    return okJson({ asset_id: asset.id, upload_url: uploadUrl }, 201);
   } catch (err) {
     console.error("mediaVideosInit error", err);
     return errorJson((err as Error).message, 500);
@@ -125,9 +125,9 @@ async function mediaUploadStubRoute(ctx: HandlerContext, params: Record<string, 
   const assetId = params.id;
   try {
     const form = await ctx.request.formData().catch(() => null);
-    if (!form) return okJson({ ok: true }, 200);
+    if (!form) return okJson({ asset_id: assetId }, 200);
     // In a real implementation, stream to Cloudflare. Here we just mark as ready.
-    return okJson({ ok: true, asset_id: assetId }, 200);
+    return okJson({ asset_id: assetId }, 200);
   } catch (err) {
     console.error("mediaUploadStub error", err);
     return errorJson((err as Error).message, 500);

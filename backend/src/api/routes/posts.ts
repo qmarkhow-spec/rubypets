@@ -14,10 +14,7 @@ async function postsListRoute(ctx: HandlerContext): Promise<Response> {
     ? await getPostsByOwner(ctx.db, userId, limit, currentUser?.uuid)
     : await listRecentPosts(ctx.db, limit, currentUser?.uuid);
 
-  return new Response(JSON.stringify({ data: posts }), {
-    status: 200,
-    headers: { "content-type": "application/json; charset=utf-8" }
-  });
+  return okJson(posts, 200);
 }
 
 async function createPostRoute(ctx: HandlerContext): Promise<Response> {
@@ -53,10 +50,7 @@ async function createPostRoute(ctx: HandlerContext): Promise<Response> {
     postType
   });
 
-  return new Response(JSON.stringify(post), {
-    status: 201,
-    headers: { "content-type": "application/json; charset=utf-8" }
-  });
+  return okJson(post, 201);
 }
 
 async function repostRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -92,7 +86,7 @@ async function repostRoute(ctx: HandlerContext, params: Record<string, string>):
 
   return okJson(
     {
-      data: { ...repostWithAuthor, originPost: origin },
+      post: { ...repostWithAuthor, originPost: origin },
       origin: { id: origin.id, repost_count: repostCount }
     },
     201
@@ -137,7 +131,7 @@ async function attachMediaRoute(ctx: HandlerContext, params: Record<string, stri
 
     await ctx.db.attachMediaToPost(postId, postType, assetIds);
 
-    return okJson({ ok: true }, 200);
+    return okJson(null, 200);
   } catch (err) {
     console.error("attachMedia error", err);
     return errorJson((err as Error).message, 500);
@@ -152,7 +146,7 @@ async function likeRoute(ctx: HandlerContext, params: Record<string, string>): P
   if (!post) return errorJson("post not found", 404);
 
   const result = await ctx.db.toggleLike(postId, user.uuid);
-  return okJson({ ok: true, isLiked: result.isLiked, like_count: result.likeCount }, 200);
+  return okJson({ isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
 
 async function unlikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -164,7 +158,7 @@ async function unlikeRoute(ctx: HandlerContext, params: Record<string, string>):
 
   await ctx.db.unlikePost(postId, user.uuid);
   const updated = await ctx.db.getPostById(postId);
-  return okJson({ ok: true, like_count: updated?.likeCount ?? 0 }, 200);
+  return okJson({ like_count: updated?.likeCount ?? 0 }, 200);
 }
 
 async function ensureCommentAccess(
@@ -193,7 +187,7 @@ async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string
   const access = await ensureCommentAccess(ctx, params.id, user);
   if (access instanceof Response) return access;
   const latest = await ctx.db.getLatestComment(params.id, user.uuid);
-  return okJson({ data: latest, comment_count: access.post.commentCount ?? 0 }, 200);
+  return okJson({ comment: latest, comment_count: access.post.commentCount ?? 0 }, 200);
 }
 
 async function createCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -246,10 +240,7 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
 
   const updated = await ctx.db.getPostById(postId);
 
-  return okJson(
-    { ok: true, data: created, comment_count: updated?.commentCount ?? (access.post.commentCount ?? 0) + 1 },
-    201
-  );
+  return okJson({ comment: created, comment_count: updated?.commentCount ?? (access.post.commentCount ?? 0) + 1 }, 201);
 }
 
 async function listCommentsRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -263,7 +254,7 @@ async function listCommentsRoute(ctx: HandlerContext, params: Record<string, str
   const cursor = url.searchParams.get("cursor");
 
   const page = await ctx.db.listPostCommentsThread(params.id, limit, cursor, user.uuid);
-  return okJson({ data: page.items, nextCursor: page.nextCursor, hasMore: page.hasMore }, 200);
+  return okJson({ items: page.items, nextCursor: page.nextCursor, hasMore: page.hasMore }, 200);
 }
 
 async function toggleCommentLikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
@@ -275,7 +266,7 @@ async function toggleCommentLikeRoute(ctx: HandlerContext, params: Record<string
   if (access instanceof Response) return access;
 
   const result = await ctx.db.toggleCommentLike(comment.id, user.uuid);
-  return okJson({ ok: true, isLiked: result.isLiked, like_count: result.likeCount }, 200);
+  return okJson({ isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
 
 export const routes: Route[] = [

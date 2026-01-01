@@ -1,18 +1,16 @@
 import { HandlerContext } from "../../types";
 import { checkHealth } from "../../services/health";
+import { okJson } from "../utils";
 import { Route } from "./types";
 
 async function healthRoute(ctx: HandlerContext): Promise<Response> {
   const status = await checkHealth(ctx.env, ctx.db);
-  return new Response(JSON.stringify(status), {
-    status: 200,
-    headers: { "content-type": "application/json; charset=utf-8" }
-  });
+  return okJson(status, 200);
 }
 
 async function rootRoute(): Promise<Response> {
-  return new Response(
-    JSON.stringify({
+  return okJson(
+    {
       message: "Rubypets API",
       endpoints: [
         "/api/health",
@@ -26,11 +24,8 @@ async function rootRoute(): Promise<Response> {
         "/api/me",
         "/api/owners/:uuid"
       ]
-    }),
-    {
-      status: 200,
-      headers: { "content-type": "application/json; charset=utf-8" }
-    }
+    },
+    200
   );
 }
 
