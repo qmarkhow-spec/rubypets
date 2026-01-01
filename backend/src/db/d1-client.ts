@@ -23,7 +23,6 @@ type PostRow = {
   comment_count?: number | null;
   repost_count?: number | null;
   origin_post_id?: string | null;
-  repost_count_calc?: number | null;
   media_key?: string | null;
   created_at: string;
   is_deleted?: number | null;
@@ -207,7 +206,6 @@ export class D1Client implements DBClient {
         p.comment_count,
         p.repost_count,
         p.origin_post_id,
-        (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
         p.is_deleted,
         p.created_at,
         o.display_name as author_display_name
@@ -242,7 +240,6 @@ export class D1Client implements DBClient {
         p.comment_count,
         p.repost_count,
         p.origin_post_id,
-        (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
         p.is_deleted,
         p.created_at,
         o.display_name as author_display_name
@@ -278,7 +275,6 @@ export class D1Client implements DBClient {
             p.comment_count,
             p.repost_count,
             p.origin_post_id,
-            (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
             p.is_deleted,
             p.created_at,
             o.display_name as author_display_name
@@ -432,8 +428,15 @@ export class D1Client implements DBClient {
   }
 
   async markPostDeleted(postId: string): Promise<void> {
+    const row = await this.db
+      .prepare(`select origin_post_id from posts where id = ?`)
+      .bind(postId)
+      .first<{ origin_post_id: string | null }>();
     const ts = new Date().toISOString();
     await this.db.prepare(`update posts set is_deleted = 1, updated_at = ? where id = ?`).bind(ts, postId).run();
+    if (row?.origin_post_id) {
+      await this.updateRepostCount(row.origin_post_id);
+    }
   }
 
   async getPostAssets(postId: string): Promise<{ assetId: string; kind: string; storageKey: string }[]> {
@@ -464,11 +467,18 @@ export class D1Client implements DBClient {
   }
 
   async deletePostCascade(postId: string, assetIds: string[]): Promise<void> {
+    const row = await this.db
+      .prepare(`select origin_post_id from posts where id = ?`)
+      .bind(postId)
+      .first<{ origin_post_id: string | null }>();
     await this.deletePostMediaAndAssets(postId, assetIds);
     await this.db.prepare(`delete from post_likes where post_id = ?`).bind(postId).run();
     await this.db.prepare(`delete from post_comments where post_id = ?`).bind(postId).run();
     await this.db.prepare(`delete from post_shares where post_id = ?`).bind(postId).run();
     await this.db.prepare(`delete from posts where id = ?`).bind(postId).run();
+    if (row?.origin_post_id) {
+      await this.updateRepostCount(row.origin_post_id);
+    }
   }
 
   async hasLiked(postId: string, ownerId: string): Promise<boolean> {
@@ -821,7 +831,6 @@ export class D1Client implements DBClient {
             p.comment_count,
             p.repost_count,
             p.origin_post_id,
-            (select count(*) from posts rp where rp.origin_post_id = p.id and rp.is_deleted = 0) as repost_count_calc,
             p.is_deleted,
             p.created_at,
             o.display_name as author_display_name
@@ -1512,7 +1521,7 @@ export class D1Client implements DBClient {
 }
 
 function mapPostRow(row: PostRow): Post {
-  const repostCount = row.repost_count_calc ?? row.repost_count ?? 0;
+  const repostCount = row.repost_count ?? 0;
   return {
     id: row.id,
     authorId: row.owner_id,
