@@ -19,12 +19,15 @@ export function json(data: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(data), { ...init, headers });
 }
 
-export function errorJson(message: string, status = 400): Response {
-  return json({ error: message }, { status });
+export function errorJson(message: string, status = 400, code?: string | number, details?: unknown): Response {
+  const error: { message: string; code?: string | number; details?: unknown } = { message };
+  if (code !== undefined) error.code = code;
+  if (details !== undefined) error.details = details;
+  return json({ ok: false, error }, { status });
 }
 
 export function okJson(data: unknown, status = 200): Response {
-  return json(data, { status });
+  return json({ ok: true, data }, { status });
 }
 
 export async function readJson<T>(request: Request): Promise<T> {
