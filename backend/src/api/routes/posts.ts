@@ -3,6 +3,7 @@ import { asNumber, errorJson, okJson } from "../utils";
 import { getUserFromAuthHeader } from "../../services/auth";
 import { createPost, getPostsByOwner, listRecentPosts } from "../../services/posts";
 import { DynamicRoute, Route } from "./types";
+import { requireAuthOwner } from "./shared";
 
 async function postsListRoute(ctx: HandlerContext): Promise<Response> {
   const url = new URL(ctx.request.url);
@@ -40,8 +41,8 @@ async function createPostRoute(ctx: HandlerContext): Promise<Response> {
     return errorJson("invalid visibility", 400);
   }
 
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  const authorId = user?.uuid ?? "demo-user";
+  const user = await requireAuthOwner(ctx);
+  const authorId = user.uuid;
 
   const post = await createPost(ctx.db, {
     authorId,
@@ -54,8 +55,7 @@ async function createPostRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function repostRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
 
   const origin = await ctx.db.getPostById(params.id);
   if (!origin) return errorJson("post not found", 404);
@@ -96,8 +96,7 @@ async function repostRoute(ctx: HandlerContext, params: Record<string, string>):
 async function attachMediaRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   try {
     const postId = params.id;
-    const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-    if (!user) return errorJson("Unauthorized", 401);
+    const user = await requireAuthOwner(ctx);
 
     const body = (await ctx.request.json().catch(() => ({}))) as {
       post_type?: "image_set" | "video";
@@ -139,8 +138,7 @@ async function attachMediaRoute(ctx: HandlerContext, params: Record<string, stri
 }
 
 async function likeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
   const postId = params.id;
   const post = await ctx.db.getPostById(postId);
   if (!post) return errorJson("post not found", 404);
@@ -150,8 +148,7 @@ async function likeRoute(ctx: HandlerContext, params: Record<string, string>): P
 }
 
 async function unlikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
   const postId = params.id;
   const post = await ctx.db.getPostById(postId);
   if (!post) return errorJson("post not found", 404);
@@ -182,8 +179,7 @@ async function ensureCommentAccess(
 }
 
 async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
   const access = await ensureCommentAccess(ctx, params.id, user);
   if (access instanceof Response) return access;
   const latest = await ctx.db.getLatestComment(params.id, user.uuid);
@@ -191,8 +187,7 @@ async function listLatestCommentRoute(ctx: HandlerContext, params: Record<string
 }
 
 async function createCommentRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
   const postId = params.id;
   const body = (await ctx.request.json().catch(() => ({}))) as {
     content?: string;
@@ -244,8 +239,7 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
 }
 
 async function listCommentsRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
   const access = await ensureCommentAccess(ctx, params.id, user);
   if (access instanceof Response) return access;
 
@@ -258,8 +252,7 @@ async function listCommentsRoute(ctx: HandlerContext, params: Record<string, str
 }
 
 async function toggleCommentLikeRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const user = await getUserFromAuthHeader(ctx.db, ctx.request);
-  if (!user) return errorJson("Unauthorized", 401);
+  const user = await requireAuthOwner(ctx);
   const comment = await ctx.db.getCommentById(params.id);
   if (!comment) return errorJson("comment not found", 404);
   const access = await ensureCommentAccess(ctx, comment.postId, user);
