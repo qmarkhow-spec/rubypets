@@ -82,8 +82,9 @@ export function useAuth() {
 
 async function fetchMe(tokens: AuthTokens, setUser: (u: User | null) => void, onUnauthorized: () => void) {
   try {
-    const { data } = await apiFetch<User>('/api/me');
-    setUser(data);
+    const { data } = await apiFetch<any>('/api/me');
+    const payload = data?.data ?? data;
+    setUser(payload as User);
   } catch (err) {
     const status = (err as { status?: number }).status;
     if (status === 401) {
