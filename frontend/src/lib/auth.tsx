@@ -34,13 +34,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { data } = await apiFetch<AuthTokens>('/api/auth/login', {
+      const response = await apiFetch<any>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
       });
-      saveTokens(data);
-      setTokens(data);
-      await fetchMe(data, setUser, () => setTokens(null));
+
+      // The API returns { ok, data: { user, accessToken, ... } }
+      // The apiFetch function returns the whole body, so we need to grab the inner data.
+      const responseData = response.data.data;
+      const newTokens: AuthTokens = {
+        accessToken: responseData.accessToken,
+        expiresIn: responseData.expiresIn
+      };
+
+      saveTokens(newTokens);
+      setTokens(newTokens);
+      await fetchMe(newTokens, setUser, () => setTokens(null));
     } finally {
       setLoading(false);
     }
