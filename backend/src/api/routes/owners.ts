@@ -15,9 +15,9 @@ async function ownersSearchRoute(ctx: HandlerContext): Promise<Response> {
   const me = await requireAuthOwner(ctx);
   const url = new URL(ctx.request.url);
   const q = (url.searchParams.get("display_name") ?? "").trim().toLowerCase();
-  const limit = Math.min(50, Math.max(1, asNumber(url.searchParams.get("limit"), 20)));
+  const limit = Math.min(20, Math.max(10, asNumber(url.searchParams.get("limit"), 20)));
 
-  if (!q) return okJson({ items: [] });
+  if (q.length < 2) return okJson({ items: [] });
 
   const items = await ctx.db.searchOwnersByDisplayName(q, limit, me.uuid);
   return okJson({ items });

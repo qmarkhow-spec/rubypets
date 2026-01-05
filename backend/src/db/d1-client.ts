@@ -1015,13 +1015,11 @@ export class D1Client implements DBClient {
           and (
             display_name = ?
             or display_name like (? || '%')
-            or display_name like ('%' || ? || '%')
           )
         order by
           case
             when display_name = ? then 0
             when display_name like (? || '%') then 1
-            when display_name like ('%' || ? || '%') then 2
             else 3
           end,
           length(display_name) asc,
@@ -1029,7 +1027,7 @@ export class D1Client implements DBClient {
         limit ?
         `
       )
-      .bind(excludeOwnerUuid, kw, kw, kw, kw, kw, kw, limit)
+      .bind(excludeOwnerUuid, kw, kw, kw, kw, limit)
       .all<OwnerPublicRow>();
 
     return (rows.results ?? []).map(mapOwnerPublicRow);
