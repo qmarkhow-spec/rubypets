@@ -93,8 +93,8 @@ export default function DebugPage() {
     try {
       const params = new URLSearchParams({ limit: String(postsLimit) });
       if (postsUserId.trim()) params.set("userId", postsUserId.trim());
-      const { data } = await apiFetch<{ data: Post[] }>(`/api/posts?${params.toString()}`);
-      setPosts(data.data);
+      const { data } = await apiFetch<Post[]>(`/api/posts?${params.toString()}`);
+      setPosts(data);
     } catch (err) {
       setPostsError(readError(err));
     }
@@ -109,11 +109,11 @@ export default function DebugPage() {
     setRecentPostsError(null);
     appendLog("Loading recent posts (limit=5)");
     try {
-      const { data } = await apiFetch<{ data: Post[] }>("/api/posts?limit=5");
-      setRecentPosts(data.data);
-      const firstId = data.data[0]?.id ?? "";
+      const { data } = await apiFetch<Post[]>("/api/posts?limit=5");
+      setRecentPosts(data);
+      const firstId = data[0]?.id ?? "";
       setSelectedPostId((current) => current || firstId);
-      appendLog(`Loaded ${data.data.length} posts`);
+      appendLog(`Loaded ${data.length} posts`);
     } catch (err) {
       const message = readError(err);
       setRecentPostsError(message);

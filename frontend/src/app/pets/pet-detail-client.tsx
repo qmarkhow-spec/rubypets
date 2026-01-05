@@ -14,8 +14,8 @@ export default function PetDetailClient({ id }: { id: string }) {
     if (!id) return;
     setLoading(true);
     setError(null);
-    apiFetch<{ data: PetDetail }>(`/api/pets/${encodeURIComponent(id)}`)
-      .then(({ data }) => setPet(data.data))
+    apiFetch<PetDetail>(`/api/pets/${encodeURIComponent(id)}`)
+      .then(({ data }) => setPet(data))
       .catch((err) => {
         const status = (err as { status?: number }).status;
         setError(`載入失敗（${status ?? "?"}）`);
@@ -24,8 +24,8 @@ export default function PetDetailClient({ id }: { id: string }) {
   }, [id]);
 
   useEffect(() => {
-    apiFetch<{ data: PetsCategoryData }>("/api/pets/categories")
-      .then(({ data }) => setCategories(data.data))
+    apiFetch<PetsCategoryData>("/api/pets/categories")
+      .then(({ data }) => setCategories(data))
       .catch(() => null);
   }, []);
 

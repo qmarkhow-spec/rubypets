@@ -119,7 +119,7 @@ export default function NewPostPage() {
       method: "POST",
       body: JSON.stringify(body),
     });
-    const post = (data as any).data ?? data;
+    const post = data as { id?: string };
     if (!post?.id) {
       throw new Error("建立貼文失敗：缺少 id");
     }
@@ -127,7 +127,7 @@ export default function NewPostPage() {
   }
 
   async function uploadImage(file: File, postId: string): Promise<string> {
-    const { data } = await apiFetch<{ data: InitUploadResponse }>("/api/media/images/init", {
+    const { data } = await apiFetch<InitUploadResponse>("/api/media/images/init", {
       method: "POST",
       body: JSON.stringify({
         usage: "post",
@@ -135,7 +135,7 @@ export default function NewPostPage() {
         file: { filename: file.name, mime_type: file.type, size_bytes: file.size },
       }),
     });
-    const { upload_url, asset_id } = (data as any).data ?? data;
+    const { upload_url, asset_id } = data;
 
     const form = new FormData();
     form.append("file", file);
@@ -146,7 +146,7 @@ export default function NewPostPage() {
   }
 
   async function uploadVideo(file: File, postId: string): Promise<string> {
-    const { data } = await apiFetch<{ data: InitUploadResponse }>("/api/media/videos/init", {
+    const { data } = await apiFetch<InitUploadResponse>("/api/media/videos/init", {
       method: "POST",
       body: JSON.stringify({
         usage: "post",
@@ -154,7 +154,7 @@ export default function NewPostPage() {
         file: { filename: file.name, mime_type: file.type, size_bytes: file.size },
       }),
     });
-    const { upload_url, asset_id } = (data as any).data ?? data;
+    const { upload_url, asset_id } = data;
 
     // Basic direct upload requires multipart/form-data with "file" field.
     const form = new FormData();

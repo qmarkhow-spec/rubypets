@@ -29,9 +29,8 @@ export default function RegisterPage() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      const acc = (data as any).account ?? data;
-      if (!acc?.accountId) throw new Error("註冊帳號失敗");
-      setAccountId(acc.accountId);
+      if (!data.account?.accountId) throw new Error("註冊帳號失敗");
+      setAccountId(data.account.accountId);
       setStep(2);
     } catch (err) {
       setError(readError(err));

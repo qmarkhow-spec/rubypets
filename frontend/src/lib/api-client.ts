@@ -20,19 +20,20 @@ export async function apiFetch<T = unknown>(path: string, options: ApiOptions = 
   const response = await fetch(target, { ...options, headers });
   const text = await response.text();
   const parseJson = options.parseJson ?? true;
-  const data = parseJson && text ? safeJson(text) : (text as unknown as T);
+  const raw = parseJson && text ? safeJson(text) : (text as unknown as T);
 
   if (!response.ok) {
     const err = new Error('API error') as ApiError;
     err.status = response.status;
-    err.details = data;
+    err.details = raw;
     if (response.status === 401) {
       clearTokens();
     }
     throw err;
   }
 
-  return { status: response.status, data: data as T };
+  const normalized = parseJson ? unwrapOkPayload(raw) : raw;
+  return { status: response.status, data: normalized as T };
 }
 
 function safeJson(raw: string) {
@@ -41,4 +42,14 @@ function safeJson(raw: string) {
   } catch {
     return raw;
   }
+}
+
+function unwrapOkPayload(payload: unknown) {
+  if (payload && typeof payload === "object") {
+    const record = payload as { ok?: unknown; data?: unknown };
+    if (record.ok === true && "data" in record) {
+      return record.data;
+    }
+  }
+  return payload;
 }

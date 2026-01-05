@@ -52,21 +52,21 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await apiFetch<{ data: Post[] }>("/api/posts?limit=20");
+      const { data } = await apiFetch<Post[]>("/api/posts?limit=20");
       if (!user) {
-        setPosts(data.data);
+        setPosts(data);
         return;
       }
       // Fetch latest comment for each post
       const enriched = await Promise.all(
-        data.data.map(async (post) => {
+        data.map(async (post) => {
           try {
-            const { data: commentData } = await apiFetch<{ data: Comment | null; comment_count: number }>(
+            const { data: commentData } = await apiFetch<{ comment: Comment | null; comment_count: number }>(
               `/api/posts/${post.id}/comments`
             );
             return {
               ...post,
-              latestComment: commentData.data ?? null,
+              latestComment: commentData.comment ?? null,
               commentCount: commentData.comment_count ?? post.commentCount ?? 0
             };
           } catch {
@@ -142,18 +142,18 @@ export default function Home() {
       if (replyTarget?.commentId) {
         payload.reply_to_comment_id = replyTarget.commentId;
       }
-      const { data } = await apiFetch<{ data: Comment; comment_count?: number }>(`/api/posts/${postId}/comments`, {
+      const { data } = await apiFetch<{ comment: Comment; comment_count?: number }>(`/api/posts/${postId}/comments`, {
         method: "POST",
         body: JSON.stringify(payload)
       });
-      applyCommentToThreads(postId, data.data);
+      applyCommentToThreads(postId, data.comment);
       setPosts((current) => {
         const index = current.findIndex((p) => p.id === postId);
         if (index < 0) return current;
         const next = [...current];
         next[index] = {
           ...next[index],
-          latestComment: data.data ?? null,
+          latestComment: data.comment ?? null,
           commentCount: data.comment_count ?? next[index].commentCount ?? 0
         };
         return next;
@@ -229,10 +229,10 @@ export default function Home() {
     try {
       const params = new URLSearchParams({ limit: "20" });
       if (!reset && commentCursor) params.set("cursor", commentCursor);
-      const { data } = await apiFetch<{ data: CommentThread[]; nextCursor: string | null; hasMore: boolean }>(
+      const { data } = await apiFetch<{ items: CommentThread[]; nextCursor: string | null; hasMore: boolean }>(
         `/api/posts/${postId}/comments/list?${params.toString()}`
       );
-      setCommentThreads((current) => (reset ? data.data : [...current, ...data.data]));
+      setCommentThreads((current) => (reset ? data.items : [...current, ...data.items]));
       setCommentCursor(data.nextCursor);
       setCommentHasMore(data.hasMore);
     } catch (err) {
@@ -304,7 +304,7 @@ export default function Home() {
     }));
 
     try {
-      const { data } = await apiFetch<{ ok: boolean; isLiked: boolean; like_count: number }>(
+      const { data } = await apiFetch<{ isLiked: boolean; like_count: number }>(
         `/api/comments/${commentId}/like`,
         { method: "POST" }
       );
@@ -381,7 +381,7 @@ export default function Home() {
     });
 
     try {
-      const { data } = await apiFetch<{ data: Post; origin: { id: string; repost_count: number } }>(
+      const { data } = await apiFetch<{ post: Post; origin: { id: string; repost_count: number } }>(
         `/api/posts/${repostTarget.id}/repost`,
         {
           method: "POST",
@@ -394,7 +394,7 @@ export default function Home() {
         const next = current.map((post) => {
           if (post.id === optimisticId) {
             replaced = true;
-            return data.data;
+            return data.post;
           }
           if (post.id === data.origin.id) {
             return { ...post, repostCount: data.origin.repost_count };
@@ -402,7 +402,7 @@ export default function Home() {
           return post;
         });
         if (!replaced) {
-          next.unshift(data.data);
+          next.unshift(data.post);
         }
         return next;
       });

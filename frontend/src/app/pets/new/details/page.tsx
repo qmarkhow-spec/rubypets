@@ -136,13 +136,13 @@ export default function PetCreateStepTwoPage() {
         avatar_url: upload.data.public_url
       };
 
-      const created = await apiFetch<{ data: PetDetail }>("/api/create-pets", {
+      const created = await apiFetch<PetDetail>("/api/create-pets", {
         method: "POST",
         body: JSON.stringify(payload)
       });
 
       sessionStorage.removeItem(DRAFT_KEY);
-      router.push(`/pets?id=${encodeURIComponent(created.data.data.id)}`);
+      router.push(`/pets?id=${encodeURIComponent(created.data.id)}`);
     } catch (err) {
       const status = (err as { status?: number }).status;
       setError(`建立失敗（${status ?? "?"}）`);

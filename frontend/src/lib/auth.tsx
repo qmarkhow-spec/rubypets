@@ -39,9 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password })
       });
 
-      // The API returns { ok, data: { user, accessToken, ... } }
-      // The apiFetch function returns the whole body, so we need to grab the inner data.
-      const responseData = response.data.data;
+      // The API returns { ok, data: { user, accessToken, ... } }, and apiFetch unwraps data.
+      const responseData = response.data;
       const newTokens: AuthTokens = {
         accessToken: responseData.accessToken,
         expiresIn: responseData.expiresIn
@@ -82,9 +81,8 @@ export function useAuth() {
 
 async function fetchMe(tokens: AuthTokens, setUser: (u: User | null) => void, onUnauthorized: () => void) {
   try {
-    const { data } = await apiFetch<any>('/api/me');
-    const payload = data?.data ?? data;
-    setUser(payload as User);
+    const { data } = await apiFetch<User>('/api/me');
+    setUser(data);
   } catch (err) {
     const status = (err as { status?: number }).status;
     if (status === 401) {
