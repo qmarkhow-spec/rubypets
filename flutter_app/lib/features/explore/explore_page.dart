@@ -1,91 +1,99 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rubypets_flutter/providers/user_search_provider.dart';
 
-class ExplorePage extends StatelessWidget {
+class ExplorePage extends ConsumerStatefulWidget {
   const ExplorePage({super.key});
 
   @override
+  ConsumerState<ExplorePage> createState() => _ExplorePageState();
+}
+
+class _ExplorePageState extends ConsumerState<ExplorePage> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _submitSearch(String query) {
+    // We update a local state variable, which will cause the widget to rebuild.
+    // When it rebuilds, it will watch the userSearchProvider with the new query.
+    setState(() {
+      _query = query.trim();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const cards = _exploreCards;
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.9,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: cards.length,
-      itemBuilder: (context, index) {
-        final card = cards[index];
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
+    final searchResults = ref.watch(userSearchProvider(_query));
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: '搜尋使用者...',
             ),
+            onSubmitted: _submitSearch,
           ),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Icon(card.icon, size: 48),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                card.title,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(card.subtitle, style: const TextStyle(fontSize: 13)),
-            ],
+        ),
+        Expanded(
+          child: searchResults.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(child: Text('Error: $error')),
+            data: (users) {
+              if (_query.isEmpty) {
+                return const Center(
+                  child: Text('輸入關鍵字以搜尋使用者。'),
+                );
+              }
+              if (users.isEmpty) {
+                return Center(
+                  child: Text('找不到使用者 "$_query"'),
+                );
+              }
+              return ListView.builder(
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: Text(_initials(user.displayName)),
+                    ),
+                    title: Text(user.displayName),
+                    subtitle: Text('@${user.handle}'),
+                    onTap: () {
+                      // TODO: Navigate to user profile page
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Tapped on ${user.displayName}')),
+                      );
+                    },
+                  );
+                },
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
 
-class ExploreCard {
-  const ExploreCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
+String _initials(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return 'U';
+  final parts = trimmed.split(' ');
+  if (parts.length >= 2) {
+    final first = parts.first.isNotEmpty ? parts.first[0] : '';
+    final last = parts.last.isNotEmpty ? parts.last[0] : '';
+    return (first + last).toUpperCase();
+  }
+  return trimmed.length >= 2 ? trimmed.substring(0, 2).toUpperCase() : trimmed.toUpperCase();
 }
-
-const _exploreCards = [
-  ExploreCard(
-    title: '熱門主題',
-    subtitle: '每日熱門標籤',
-    icon: Icons.local_fire_department,
-  ),
-  ExploreCard(
-    title: '附近寵物',
-    subtitle: '探索鄰近的新朋友',
-    icon: Icons.location_on_outlined,
-  ),
-  ExploreCard(
-    title: '精選影片',
-    subtitle: '熱門短片精選',
-    icon: Icons.play_circle_outline,
-  ),
-  ExploreCard(
-    title: '養寵技巧',
-    subtitle: '短文指南與教學',
-    icon: Icons.menu_book_outlined,
-  ),
-];

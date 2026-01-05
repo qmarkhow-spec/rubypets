@@ -182,6 +182,15 @@ class ApiClient {
     return ApiRepostResult(post: post, originRepostCount: repostCount);
   }
 
+  Future<List<ApiUser>> searchUsers({required String query}) async {
+    final data = await _request('/api/users/search?q=$query') as Map<String, dynamic>;
+    final items = (data['data'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(ApiUser.fromJson)
+        .toList();
+    return items;
+  }
+
   Future<Object?> _request(
     String path, {
     String method = 'GET',
