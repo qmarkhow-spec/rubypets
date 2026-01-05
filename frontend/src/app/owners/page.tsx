@@ -153,8 +153,8 @@ function PageShell({
     }
     setFriendshipLoading(true);
     setFriendshipError(null);
-    apiFetch<{ status: FriendshipStatus }>(`/api/owners/${ownerId}/friendship/status`)
-      .then(({ data }) => setFriendshipStatus(data.status ?? "none"))
+    apiFetch<{ data: { status: FriendshipStatus } }>(`/api/owners/${ownerId}/friendship/status`)
+      .then(({ data }) => setFriendshipStatus(data.data?.status ?? "none"))
       .catch((err) => {
         const status = (err as { status?: number }).status;
         setFriendshipError(`載入交友狀態失敗（${status ?? "?"}）`);
@@ -473,11 +473,11 @@ function PageShell({
     setRequestsError(null);
     try {
       const [incoming, outgoing] = await Promise.all([
-        apiFetch<{ items: FriendshipListItem[] }>("/api/friendships/incoming"),
-        apiFetch<{ items: FriendshipListItem[] }>("/api/friendships/outgoing")
+        apiFetch<{ data: { items: FriendshipListItem[] } }>("/api/friendships/incoming"),
+        apiFetch<{ data: { items: FriendshipListItem[] } }>("/api/friendships/outgoing")
       ]);
-      setIncomingRequests(incoming.data.items ?? []);
-      setOutgoingRequests(outgoing.data.items ?? []);
+      setIncomingRequests(incoming.data.data?.items ?? []);
+      setOutgoingRequests(outgoing.data.data?.items ?? []);
     } catch (err) {
       const status = (err as { status?: number }).status;
       setRequestsError(`載入交友邀請失敗（${status ?? "?"}）`);
@@ -490,8 +490,8 @@ function PageShell({
     setFriendshipLoading(true);
     setFriendshipError(null);
     try {
-      const { data } = await apiFetch<{ status: FriendshipStatus }>(path, { method });
-      setFriendshipStatus(data.status ?? fallbackStatus);
+      const { data } = await apiFetch<{ data: { status: FriendshipStatus } }>(path, { method });
+      setFriendshipStatus(data.data?.status ?? fallbackStatus);
     } catch (err) {
       const status = (err as { status?: number }).status;
       setFriendshipError(`操作失敗（${status ?? "?"}）`);
