@@ -13,7 +13,7 @@ import {
   type SyntheticEvent
 } from "react";
 import { useSearchParams } from "next/navigation";
-import type { OwnerDetail, OwnerSearchResult, FriendshipListItem, FriendshipStatus } from "@/lib/types";
+import type { OwnerDetail, OwnerSearchResult, FriendshipListItem, FriendshipStatus, OwnerPetSummary } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import { TAIWAN_CITIES } from "@/data/taiwan-districts";
@@ -134,6 +134,9 @@ function PageShell({
   const [outgoingRequests, setOutgoingRequests] = useState<FriendshipListItem[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [ownerPets, setOwnerPets] = useState<OwnerPetSummary[]>([]);
+  const [ownerPetsLoading, setOwnerPetsLoading] = useState(false);
+  const [ownerPetsError, setOwnerPetsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!showForm || csvData.length > 0) return;
@@ -170,6 +173,24 @@ function PageShell({
     }
     refreshFriendRequests();
   }, [user, isSelf]);
+
+  useEffect(() => {
+    if (!ownerId) {
+      setOwnerPets([]);
+      setOwnerPetsLoading(false);
+      setOwnerPetsError(null);
+      return;
+    }
+    setOwnerPetsLoading(true);
+    setOwnerPetsError(null);
+    apiFetch<{ items: OwnerPetSummary[] }>(`/api/owners/${ownerId}/pets`)
+      .then(({ data }) => setOwnerPets(data.items ?? []))
+      .catch((err) => {
+        const status = (err as { status?: number }).status;
+        setOwnerPetsError("Failed to load pets (" + (status ?? "?") + ")");
+      })
+      .finally(() => setOwnerPetsLoading(false));
+  }, [ownerId]);
 
   const cities = useMemo(() => TAIWAN_CITIES, []);
   const regions = useMemo(
@@ -817,6 +838,36 @@ function PageShell({
             >
               Create
             </Link>
+          </div>
+        )}
+        {isSelf && (
+          <div className="mt-4 space-y-2">
+            <div className="text-sm font-medium text-slate-800">Your pets</div>
+            {ownerPetsLoading && <p className="text-xs text-slate-500">Loading pets...</p>}
+            {ownerPetsError && <p className="text-xs text-red-600">{ownerPetsError}</p>}
+            {!ownerPetsLoading && !ownerPetsError && ownerPets.length === 0 && (
+              <p className="text-xs text-slate-500">No pets yet.</p>
+            )}
+            {!ownerPetsLoading && !ownerPetsError && ownerPets.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {ownerPets.map((pet) => (
+                  <Link
+                    key={pet.id}
+                    href={`/pets?id=${encodeURIComponent(pet.id)}`}
+                    className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+                      {pet.avatarUrl ? (
+                        <img src={pet.avatarUrl} alt={pet.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span>{pet.name ? pet.name[0].toUpperCase() : "?"}</span>
+                      )}
+                    </span>
+                    <span className="max-w-[140px] truncate">{pet.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {showForm && (
