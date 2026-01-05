@@ -183,11 +183,11 @@ class ApiClient {
   }
 
   Future<List<ApiUser>> searchUsers({required String query}) async {
-    final data = await _request('/api/users/search?q=$query') as Map<String, dynamic>;
-    final items = (data['data'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(ApiUser.fromJson)
-        .toList();
+    final encoded = Uri.encodeQueryComponent(query);
+    final data = await _request('/api/owners/search?display_name=$encoded') as Map<String, dynamic>;
+    final payload = (data['data'] is Map<String, dynamic>) ? data['data'] as Map<String, dynamic> : data;
+    final rawItems = payload['items'] as List<dynamic>? ?? [];
+    final items = rawItems.whereType<Map<String, dynamic>>().map(ApiUser.fromJson).toList();
     return items;
   }
 
