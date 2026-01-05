@@ -146,6 +146,17 @@ async function ownerPetsRoute(ctx: HandlerContext, params: Record<string, string
   return okJson({ items }, 200);
 }
 
+async function followedPetsRoute(ctx: HandlerContext): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const url = new URL(ctx.request.url);
+  const limit = Math.min(50, Math.max(1, asNumber(url.searchParams.get("limit"), 20)));
+  const cursorRaw = url.searchParams.get("cursor");
+  const cursor = cursorRaw && Number.isFinite(Number(cursorRaw)) ? Number(cursorRaw) : null;
+
+  const page = await ctx.db.listFollowedPets(me.uuid, limit, cursor);
+  return okJson(page, 200);
+}
+
 async function ownerLocationRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const authed = await getUserFromAuthHeader(ctx.db, ctx.request);
   if (!authed || authed.uuid !== params.id) return errorJson("Forbidden", 403);
@@ -224,6 +235,7 @@ async function ownerVerificationDocsRoute(ctx: HandlerContext, params: Record<st
 
 export const routes: Route[] = [
   { method: "GET", path: "/owners/search", handler: ownersSearchRoute },
+  { method: "GET", path: "/me/followed-pets", handler: followedPetsRoute },
   { method: "GET", path: "/friendships/incoming", handler: incomingRequestsRoute },
   { method: "GET", path: "/friendships/outgoing", handler: outgoingRequestsRoute }
 ];

@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS pet_follows (
 
 CREATE INDEX IF NOT EXISTS idx_pet_follows_pet ON pet_follows(pet_id);
 CREATE INDEX IF NOT EXISTS idx_pet_follows_owner ON pet_follows(follower_owner_id);
+CREATE INDEX idx_pet_follows_owner_id_desc ON pet_follows(follower_owner_id, id DESC);
+CREATE INDEX idx_pet_follows_pet_id_desc ON pet_follows(pet_id, id DESC);
 
 CREATE TABLE IF NOT EXISTS owner_friendships (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
