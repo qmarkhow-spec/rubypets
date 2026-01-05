@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from "next/link";
 import {
@@ -17,8 +17,6 @@ import type { OwnerDetail, OwnerSearchResult, FriendshipListItem, FriendshipStat
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import { TAIWAN_CITIES } from "@/data/taiwan-districts";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
 
 type CropTarget = "front" | "back";
 
@@ -68,7 +66,7 @@ function OwnerContent() {
   useEffect(() => {
     if (!ownerId) {
       setOwner(null);
-      setError("缺少 id 參數");
+      setError("蝻箏? id ?");
       return;
     }
     setLoading(true);
@@ -153,11 +151,11 @@ function PageShell({
     }
     setFriendshipLoading(true);
     setFriendshipError(null);
-    apiFetch<{ data: { status: FriendshipStatus } }>(`/api/owners/${ownerId}/friendship/status`)
-      .then(({ data }) => setFriendshipStatus(data.data?.status ?? "none"))
+    apiFetch<{ status: FriendshipStatus }>(`/api/owners/${ownerId}/friendship/status`)
+      .then(({ data }) => setFriendshipStatus(data.status ?? "none"))
       .catch((err) => {
         const status = (err as { status?: number }).status;
-        setFriendshipError(`載入交友狀態失敗（${status ?? "?"}）`);
+        setFriendshipError(`頛鈭文???仃??${status ?? "?"}嚗);
       })
       .finally(() => setFriendshipLoading(false));
   }, [ownerId, user, isSelf]);
@@ -422,11 +420,11 @@ function PageShell({
 
   async function uploadVerificationDocs() {
     if (!owner) {
-      setUploadError("請先載入飼主資料");
+      setUploadError("隢?頛憌潔蜓鞈?");
       return;
     }
     if (!idFrontPreview || !idBackPreview || !idSelfiePreview) {
-      setUploadError("請先完成三張照片的調整/上傳");
+      setUploadError("隢?摰?銝撐?抒??矽??銝");
       return;
     }
     setUploading(true);
@@ -457,11 +455,11 @@ function PageShell({
         faceWithLicenseUrl: data.faceWithLicenseUrl
       };
       onUpdated(nextOwner);
-      setUploadSuccess("上傳完成");
+      setUploadSuccess("銝摰?");
     } catch (err) {
       const status = (err as { status?: number }).status;
       const details = (err as { details?: unknown }).details;
-      setUploadError(`上傳失敗（${status ?? "?"}）：${typeof details === "string" ? details : JSON.stringify(details)}`);
+      setUploadError(`銝憭望?嚗?{status ?? "?"}嚗?${typeof details === "string" ? details : JSON.stringify(details)}`);
     } finally {
       setUploading(false);
     }
@@ -473,14 +471,14 @@ function PageShell({
     setRequestsError(null);
     try {
       const [incoming, outgoing] = await Promise.all([
-        apiFetch<{ data: { items: FriendshipListItem[] } }>("/api/friendships/incoming"),
-        apiFetch<{ data: { items: FriendshipListItem[] } }>("/api/friendships/outgoing")
+        apiFetch<{ items: FriendshipListItem[] }>("/api/friendships/incoming"),
+        apiFetch<{ items: FriendshipListItem[] }>("/api/friendships/outgoing")
       ]);
-      setIncomingRequests(incoming.data.data?.items ?? []);
-      setOutgoingRequests(outgoing.data.data?.items ?? []);
+      setIncomingRequests(incoming.data.items ?? []);
+      setOutgoingRequests(outgoing.data.items ?? []);
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`載入交友邀請失敗（${status ?? "?"}）`);
+      setRequestsError(`頛鈭文??隢仃??${status ?? "?"}嚗);
     } finally {
       setRequestsLoading(false);
     }
@@ -490,11 +488,11 @@ function PageShell({
     setFriendshipLoading(true);
     setFriendshipError(null);
     try {
-      const { data } = await apiFetch<{ data: { status: FriendshipStatus } }>(path, { method });
-      setFriendshipStatus(data.data?.status ?? fallbackStatus);
+      const { data } = await apiFetch<{ status: FriendshipStatus }>(path, { method });
+      setFriendshipStatus(data.status ?? fallbackStatus);
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setFriendshipError(`操作失敗（${status ?? "?"}）`);
+      setFriendshipError(`??憭望?嚗?{status ?? "?"}嚗);
     } finally {
       setFriendshipLoading(false);
     }
@@ -505,68 +503,68 @@ function PageShell({
   }
 
   async function handleCancelRequest(target: OwnerSearchResult) {
-    const name = target.displayName || "對方";
-    if (!window.confirm(`是否要向 ${name} 收回好友邀請`)) return;
+    const name = target.displayName || "撠";
+    if (!window.confirm(`?臬閬? ${name} ?嗅?憟賢??隢)) return;
     await runFriendAction("DELETE", `/api/owners/${target.uuid}/friend-request`, "none");
   }
 
   async function handleAcceptRequest(target: OwnerSearchResult) {
-    const name = target.displayName || "對方";
-    if (!window.confirm(`是否接受 ${name} 的好友邀請？`)) return;
+    const name = target.displayName || "撠";
+    if (!window.confirm(`?臬?亙? ${name} ?末??隢?`)) return;
     await runFriendAction("POST", `/api/owners/${target.uuid}/friend-request/accept`, "friends");
   }
 
   async function handleRejectRequest(target: OwnerSearchResult) {
-    const name = target.displayName || "對方";
-    if (!window.confirm(`是否拒絕 ${name} 的好友邀請？`)) return;
+    const name = target.displayName || "撠";
+    if (!window.confirm(`?臬?? ${name} ?末??隢?`)) return;
     await runFriendAction("DELETE", `/api/owners/${target.uuid}/friend-request/reject`, "none");
   }
 
   async function handleUnfriend(target: OwnerSearchResult) {
-    const name = target.displayName || "對方";
-    if (!window.confirm(`是否向 ${name} 解除好友關係?`)) return;
+    const name = target.displayName || "撠";
+    if (!window.confirm(`?臬??${name} 閫?憟賢????`)) return;
     await runFriendAction("DELETE", `/api/owners/${target.uuid}/friendship`, "none");
   }
 
   async function handleIncomingItemAccept(item: FriendshipListItem) {
-    const name = item.otherOwner.displayName || "對方";
-    if (!window.confirm(`是否接受 ${name} 的好友邀請？`)) return;
+    const name = item.otherOwner.displayName || "撠";
+    if (!window.confirm(`?臬?亙? ${name} ?末??隢?`)) return;
     try {
       await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request/accept`, { method: "POST" });
       await refreshFriendRequests();
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`操作失敗（${status ?? "?"}）`);
+      setRequestsError(`??憭望?嚗?{status ?? "?"}嚗);
     }
   }
 
   async function handleIncomingItemReject(item: FriendshipListItem) {
-    const name = item.otherOwner.displayName || "對方";
-    if (!window.confirm(`是否拒絕 ${name} 的好友邀請？`)) return;
+    const name = item.otherOwner.displayName || "撠";
+    if (!window.confirm(`?臬?? ${name} ?末??隢?`)) return;
     try {
       await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request/reject`, { method: "DELETE" });
       await refreshFriendRequests();
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`操作失敗（${status ?? "?"}）`);
+      setRequestsError(`??憭望?嚗?{status ?? "?"}嚗);
     }
   }
 
   async function handleOutgoingItemCancel(item: FriendshipListItem) {
-    const name = item.otherOwner.displayName || "對方";
-    if (!window.confirm(`是否要向 ${name} 收回好友邀請`)) return;
+    const name = item.otherOwner.displayName || "撠";
+    if (!window.confirm(`?臬閬? ${name} ?嗅?憟賢??隢)) return;
     try {
       await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request`, { method: "DELETE" });
       await refreshFriendRequests();
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`操作失敗（${status ?? "?"}）`);
+      setRequestsError(`??憭望?嚗?{status ?? "?"}嚗);
     }
   }
 
   async function saveLocation() {
     if (!city || !region || !ownerId) {
-      setSaveError("請選擇縣市與行政區");
+      setSaveError("隢?腦撣?銵?");
       return;
     }
     setSaving(true);
@@ -581,7 +579,7 @@ function PageShell({
     } catch (err) {
       const status = (err as { status?: number }).status;
       const details = (err as { details?: unknown }).details;
-      setSaveError(`儲存失敗（${status ?? "?"}）：${typeof details === "string" ? details : JSON.stringify(details)}`);
+      setSaveError(`?脣?憭望?嚗?{status ?? "?"}嚗?${typeof details === "string" ? details : JSON.stringify(details)}`);
     } finally {
       setSaving(false);
     }
@@ -591,48 +589,48 @@ function PageShell({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/" className="text-sm text-white/80 hover:text-white">
-          ← 返回首頁
+          ??餈?擐?
         </Link>
-        <h1 className="text-xl font-semibold text-white">飼主資訊</h1>
+        <h1 className="text-xl font-semibold text-white">憌潔蜓鞈?</h1>
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
-        {loading && <p className="text-sm text-slate-600">載入中...</p>}
+        {loading && <p className="text-sm text-slate-600">頛銝?..</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {!error && !owner && !loading && <p className="text-sm text-slate-600">找不到飼主資料。</p>}
+        {!error && !owner && !loading && <p className="text-sm text-slate-600">?曆??圈ˉ銝餉???/p>}
         {owner && (
           <div className="space-y-2 text-sm text-slate-800">
             <p>
-              <span className="font-medium text-slate-600">UUID：</span>
+              <span className="font-medium text-slate-600">UUID嚗?/span>
               <span className="font-mono text-slate-900 break-all">{owner.uuid}</span>
             </p>
             <p>
-              <span className="font-medium text-slate-600">Email：</span>
-              {owner.email || "（未提供）"}
+              <span className="font-medium text-slate-600">Email嚗?/span>
+              {owner.email || "嚗??嚗?}
             </p>
             <p>
-              <span className="font-medium text-slate-600">暱稱：</span>
+              <span className="font-medium text-slate-600">?梁迂嚗?/span>
               {owner.displayName}
             </p>
             <p>
-              <span className="font-medium text-slate-600">頭像：</span>
-              {owner.avatarUrl || "（未設定）"}
+              <span className="font-medium text-slate-600">?剖?嚗?/span>
+              {owner.avatarUrl || "嚗閮剖?嚗?}
             </p>
             <p>
-              <span className="font-medium text-slate-600">可建立寵物數上限：</span>
+              <span className="font-medium text-slate-600">?臬遣蝡秘?拇銝?嚗?/span>
               {owner.maxPets}
             </p>
             <p>
-              <span className="font-medium text-slate-600">建立時間：</span>
+              <span className="font-medium text-slate-600">撱箇???嚗?/span>
               {owner.createdAt}
             </p>
             <p>
-              <span className="font-medium text-slate-600">最後更新：</span>
+              <span className="font-medium text-slate-600">?敺?堆?</span>
               {owner.updatedAt}
             </p>
             <p>
-              <span className="font-medium text-slate-600">狀態：</span>
-              {owner.isActive ? "啟用" : "停用"}
+              <span className="font-medium text-slate-600">???</span>
+              {owner.isActive ? "?" : "?"}
             </p>
           </div>
         )}
@@ -642,12 +640,12 @@ function PageShell({
         <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <h2 className="text-base font-semibold text-slate-900">交友狀態</h2>
+              <h2 className="text-base font-semibold text-slate-900">鈭文????/h2>
               <p className="text-sm text-slate-700">{owner.displayName}</p>
-              <p className="text-xs text-slate-500">{otherLocation || "尚未填寫地區"}</p>
+              <p className="text-xs text-slate-500">{otherLocation || "撠憛怠神?啣?"}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {!user && <span className="text-xs text-slate-500">請先登入才能交友</span>}
+              {!user && <span className="text-xs text-slate-500">隢??餃?鈭文?</span>}
               {user && friendshipStatus === "none" && (
                 <button
                   type="button"
@@ -655,8 +653,7 @@ function PageShell({
                   disabled={friendshipLoading}
                   className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
                 >
-                  好友邀請
-                </button>
+                  憟賢??隢?                </button>
               )}
               {user && friendshipStatus === "pending_outgoing" && (
                 <button
@@ -665,8 +662,7 @@ function PageShell({
                   disabled={friendshipLoading}
                   className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                 >
-                  已發出好友邀請
-                </button>
+                  撌脩?箏末??隢?                </button>
               )}
               {user && friendshipStatus === "friends" && (
                 <button
@@ -675,8 +671,7 @@ function PageShell({
                   disabled={friendshipLoading}
                   className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                 >
-                  好友狀態
-                </button>
+                  憟賢????                </button>
               )}
               {user && friendshipStatus === "pending_incoming" && (
                 <div className="flex items-center gap-2">
@@ -686,7 +681,7 @@ function PageShell({
                     disabled={friendshipLoading}
                     className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
                   >
-                    接受
+                    ?亙?
                   </button>
                   <button
                     type="button"
@@ -694,7 +689,7 @@ function PageShell({
                     disabled={friendshipLoading}
                     className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                   >
-                    拒絕
+                    ??
                   </button>
                 </div>
               )}
@@ -708,8 +703,8 @@ function PageShell({
         <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">交友邀請</h2>
-              <p className="text-xs text-slate-600">管理收到與送出的邀請</p>
+              <h2 className="text-base font-semibold text-slate-900">鈭文??隢?/h2>
+              <p className="text-xs text-slate-600">蝞∠??嗅???隢?/p>
             </div>
             <div className="flex gap-2 text-sm">
               <button
@@ -721,8 +716,7 @@ function PageShell({
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                收到的邀請
-              </button>
+                ?嗅??隢?              </button>
               <button
                 type="button"
                 onClick={() => setRequestsTab("outgoing")}
@@ -732,14 +726,14 @@ function PageShell({
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                等待接受
+                蝑??亙?
               </button>
             </div>
           </div>
           {requestsError && <p className="mt-2 text-sm text-red-600">{requestsError}</p>}
-          {requestsLoading && <p className="mt-2 text-sm text-slate-600">載入中...</p>}
+          {requestsLoading && <p className="mt-2 text-sm text-slate-600">頛銝?..</p>}
           {!requestsLoading && requestItems.length === 0 && (
-            <p className="mt-2 text-sm text-slate-600">目前沒有邀請。</p>
+            <p className="mt-2 text-sm text-slate-600">?桀?瘝??隢?/p>
           )}
           <div className="mt-3 space-y-2">
             {requestItems.map((item) => (
@@ -755,7 +749,7 @@ function PageShell({
                     {item.otherOwner.displayName}
                   </Link>
                   <div className="text-xs text-slate-500">
-                    {[item.otherOwner.city, item.otherOwner.region].filter(Boolean).join(" / ") || "尚未填寫地區"}
+                    {[item.otherOwner.city, item.otherOwner.region].filter(Boolean).join(" / ") || "撠憛怠神?啣?"}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -767,7 +761,7 @@ function PageShell({
                         disabled={requestsLoading}
                         className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
                       >
-                        接受
+                        ?亙?
                       </button>
                       <button
                         type="button"
@@ -775,7 +769,7 @@ function PageShell({
                         disabled={requestsLoading}
                         className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                       >
-                        拒絕
+                        ??
                       </button>
                     </>
                   ) : (
@@ -785,8 +779,7 @@ function PageShell({
                       disabled={requestsLoading}
                       className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                     >
-                      收回邀請
-                    </button>
+                      ?嗅??隢?                    </button>
                   )}
                 </div>
               </div>
@@ -797,33 +790,33 @@ function PageShell({
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">新增資料</h2>
+          <h2 className="text-base font-semibold text-slate-900">?啣?鞈?</h2>
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
             className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
           >
-            {showForm ? "收起" : "填寫所在地"}
+            {showForm ? "?嗉絲" : "憛怠神??典"}
           </button>
         </div>
         {isSelf && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-white px-3 py-2">
             <div>
-              <p className="text-sm font-medium text-slate-800">建立寵物資料</p>
-              <p className="text-xs text-slate-500">建立完成後可在寵物頁查看</p>
+              <p className="text-sm font-medium text-slate-800">撱箇?撖萇鞈?</p>
+              <p className="text-xs text-slate-500">撱箇?摰?敺?典秘?拚??亦?</p>
             </div>
             <Link
               href="/pets/new"
               className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500"
             >
-              建立
+              撱箇?
             </Link>
           </div>
         )}
         {showForm && (
           <div className="mt-4 space-y-3">
             <div className="space-y-1">
-              <label className="text-sm text-slate-700">縣市</label>
+              <label className="text-sm text-slate-700">蝮??</label>
               <select
                 className="w-full rounded border border-slate-200 p-2 text-sm"
                 value={city}
@@ -832,7 +825,7 @@ function PageShell({
                   setRegion("");
                 }}
               >
-                <option value="">請選擇</option>
+                <option value="">隢??/option>
                 {cities.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.label}
@@ -841,14 +834,14 @@ function PageShell({
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-sm text-slate-700">行政區</label>
+              <label className="text-sm text-slate-700">銵?</label>
               <select
                 className="w-full rounded border border-slate-200 p-2 text-sm"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 disabled={!city}
               >
-                <option value="">請先選縣市</option>
+                <option value="">隢??貊腦撣?/option>
                 {regions.map((r) => (
                   <option key={r.code} value={r.code}>
                     {r.label}
@@ -863,7 +856,7 @@ function PageShell({
                 disabled={saving}
                 className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
               >
-                {saving ? "儲存中..." : "儲存"}
+                {saving ? "?脣?銝?.." : "?脣?"}
               </button>
               {saveError && <span className="text-sm text-red-600">{saveError}</span>}
             </div>
@@ -873,13 +866,13 @@ function PageShell({
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">實名認證</h2>
-          <p className="text-xs text-slate-600">請依序上傳三張照片供審核</p>
+          <h2 className="text-base font-semibold text-slate-900">撖血?隤?</h2>
+          <p className="text-xs text-slate-600">隢?摨??喃?撘萇??撖拇</p>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <FileUploadField
-            label="上傳身分證正面"
-            helper="點擊下方 85.7mm x 54mm 的方塊上傳"
+            label="銝頨怠?霅迤??
+            helper="暺?銝 85.7mm x 54mm ?憛???
             file={idFrontFile}
             onChange={(file) => startCrop("front", file)}
             boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
@@ -887,8 +880,8 @@ function PageShell({
             previewUrl={idFrontPreview}
           />
           <FileUploadField
-            label="上傳身分證背面"
-            helper="點擊下方 85.7mm x 54mm 的方塊上傳"
+            label="銝頨怠?霅???
+            helper="暺?銝 85.7mm x 54mm ?憛???
             file={idBackFile}
             onChange={(file) => startCrop("back", file)}
             boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
@@ -896,8 +889,8 @@ function PageShell({
             previewUrl={idBackPreview}
           />
           <FileUploadField
-            label="上傳手持身分證正面並和自己拍照"
-            helper="尺寸不拘，請確保證件與本人清晰可辨"
+            label="銝??頨怠?霅迤?Ｖ蒂?撌望???
+            helper="撠箏站銝?嚗?蝣箔?霅辣?鈭箸??啣颲?
             file={idSelfieFile}
             onChange={handleSelfieChange}
             boxStyle={selfieBoxStyle}
@@ -915,7 +908,7 @@ function PageShell({
             }
             className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
           >
-            {uploading ? "上傳中..." : "上傳"}
+            {uploading ? "銝銝?.." : "銝"}
           </button>
           {uploadError && <span className="text-sm text-red-600">{uploadError}</span>}
           {uploadSuccess && !uploadError && <span className="text-sm text-emerald-600">{uploadSuccess}</span>}
@@ -926,17 +919,16 @@ function PageShell({
           <div className="w-full max-w-4xl space-y-4 rounded-xl bg-white p-4 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">調整圖片位置</h3>
+                <h3 className="text-lg font-semibold text-slate-900">隤踵??雿蔭</h3>
                 <p className="text-sm text-slate-600">
-                  拖曳移動，使用滑桿縮放，讓身分證填滿固定方框。
-                </p>
+                  ?蝘餃?嚗蝙?冽?獢輻葬?橘?霈澈??憛急遛?箏??寞???                </p>
               </div>
               <button
                 type="button"
                 onClick={closeCropper}
                 className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
               >
-                關閉
+                ??
               </button>
             </div>
             <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
@@ -951,7 +943,7 @@ function PageShell({
                 >
                   <img
                     src={cropState.imageUrl}
-                    alt="裁切預覽"
+                    alt="鋆??汗"
                     className="pointer-events-none select-none"
                     style={{
                       position: "absolute",
@@ -969,13 +961,12 @@ function PageShell({
                   />
                 </div>
                 <p className="text-xs text-slate-500">
-                  方框尺寸固定 85.7mm x 54mm，請把身分證完整填滿框線。
-                </p>
+                  ?寞?撠箏站?箏? 85.7mm x 54mm嚗??澈??摰憛急遛獢???                </p>
               </div>
               <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-3">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>縮放</span>
+                    <span>蝮格</span>
                     <span>{clampedScale.toFixed(2)}x</span>
                   </div>
                   <input
@@ -994,14 +985,14 @@ function PageShell({
                     onClick={closeCropper}
                     className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
                   >
-                    取消
+                    ??
                   </button>
                   <button
                     type="button"
                     onClick={confirmCrop}
                     className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500"
                   >
-                    確認
+                    蝣箄?
                   </button>
                 </div>
               </div>
@@ -1046,7 +1037,7 @@ function FileUploadField({
           {helper && <p className="text-xs text-slate-500">{helper}</p>}
         </div>
         <span className="truncate text-xs text-slate-500">
-          {file ? `已選擇：${file.name}` : "尚未選擇檔案"}
+          {file ? `撌脤??${file.name}` : "撠?豢?瑼?"}
         </span>
       </div>
       <label
@@ -1066,9 +1057,9 @@ function FileUploadField({
           />
         ) : (
           <div className="space-y-1 text-center">
-            <div className="text-sm font-semibold">點擊上傳</div>
+            <div className="text-sm font-semibold">暺?銝</div>
             <div className="text-xs text-slate-500">
-              {sizeHint ? `${sizeHint}｜支援圖片檔案` : "支援圖片檔案"}
+              {sizeHint ? `${sizeHint}嚚?游???獢 : "?舀??瑼?"}
             </div>
           </div>
         )}
@@ -1086,14 +1077,13 @@ function FileUploadField({
 
 async function fetchOwner(id: string): Promise<{ owner: OwnerDetail | null; error: string | null }> {
   try {
-    const res = await fetch(`${API_BASE}/api/owners/${id}`);
-    if (!res.ok) {
-      const text = await res.text();
-      return { owner: null, error: `載入失敗（${res.status}）：${text || res.statusText}` };
-    }
-    const data = (await res.json()) as OwnerDetail;
+    const { data } = await apiFetch<OwnerDetail>(`/api/owners/${id}`);
     return { owner: data, error: null };
   } catch (err) {
-    return { owner: null, error: `載入失敗：${String(err)}` };
+    const status = (err as { status?: number }).status;
+    const details = (err as { details?: unknown }).details;
+    const detailText = typeof details === "string" ? details : details ? JSON.stringify(details) : String(err);
+    return { owner: null, error: `杓夊叆澶辨?锛?{status ?? "?"}锛夛?${detailText}` };
   }
 }
+

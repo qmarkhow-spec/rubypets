@@ -28,8 +28,8 @@ export default function PetCreateStepOnePage() {
 
   useEffect(() => {
     setLoadingCategories(true);
-    apiFetch<{ data: PetsCategoryData }>("/api/pets/categories")
-      .then(({ data }) => setCategories(data.data))
+    apiFetch<PetsCategoryData>("/api/pets/categories")
+      .then(({ data }) => setCategories(data))
       .catch((err) => {
         const status = (err as { status?: number }).status;
         setError(`載入分類失敗（${status ?? "?"}）`);
