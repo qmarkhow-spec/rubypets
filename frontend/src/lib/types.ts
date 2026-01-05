@@ -121,8 +121,19 @@ export interface PetDetail {
   avatarUrl: string | null;
   bio: string | null;
   followersCount: number;
+  isFollowing?: boolean;
   createdAt: string;
   updatedAt: string;
+  isActive: number;
+}
+
+export interface PetCard {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  species: string | null;
+  breed: string | null;
+  followersCount: number;
   isActive: number;
 }
 

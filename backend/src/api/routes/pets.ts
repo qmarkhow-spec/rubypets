@@ -1,5 +1,6 @@
 import { HandlerContext } from "../../types";
-import { errorJson, okJson } from "../utils";
+import { asNumber, errorJson, okJson } from "../utils";
+import { getUserFromAuthHeader } from "../../services/auth";
 import { requireAuthOwner } from "./shared";
 import { DynamicRoute, Route } from "./types";
 import petsCategory from "../../data/pets-category.json";
@@ -43,7 +44,44 @@ async function createPetsRoute(ctx: HandlerContext): Promise<Response> {
 async function petDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const pet = await ctx.db.getPetById(params.id);
   if (!pet) return errorJson("Not found", 404);
-  return okJson(pet, 200);
+  const authed = await getUserFromAuthHeader(ctx.db, ctx.request);
+  const isFollowing = authed ? await ctx.db.isFollowingPet(authed.uuid, pet.id) : false;
+  return okJson({ ...pet, isFollowing }, 200);
+}
+
+async function followPetRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const pet = await ctx.db.getPetById(params.id);
+  if (!pet) return errorJson("Not found", 404);
+  if (await ctx.db.isPetOwnedByOwner(pet.id, me.uuid)) {
+    return errorJson("Cannot follow your own pet", 403);
+  }
+  // TODO: add block checks when block feature is available.
+
+  const followersCount = await ctx.db.followPetTx(me.uuid, pet.id);
+  return okJson({ petId: pet.id, isFollowing: true, followersCount }, 200);
+}
+
+async function unfollowPetRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const pet = await ctx.db.getPetById(params.id);
+  if (!pet) return errorJson("Not found", 404);
+
+  const followersCount = await ctx.db.unfollowPetTx(me.uuid, pet.id);
+  return okJson({ petId: pet.id, isFollowing: false, followersCount }, 200);
+}
+
+async function petFollowersRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const pet = await ctx.db.getPetById(params.id);
+  if (!pet) return errorJson("Not found", 404);
+
+  const url = new URL(ctx.request.url);
+  const limit = Math.min(50, Math.max(1, asNumber(url.searchParams.get("limit"), 20)));
+  const cursorRaw = url.searchParams.get("cursor");
+  const cursor = cursorRaw && Number.isFinite(Number(cursorRaw)) ? Number(cursorRaw) : null;
+
+  const page = await ctx.db.listPetFollowers(pet.id, limit, cursor);
+  return okJson(page, 200);
 }
 
 function imageMimeToExt(mimeType: string): "jpg" | "png" | "webp" | null {
@@ -71,5 +109,8 @@ export const routes: Route[] = [
 ];
 
 export const dynamicRoutes: DynamicRoute[] = [
+  { method: "POST", pattern: /^\/pets\/([^/]+)\/follow$/, handler: followPetRoute },
+  { method: "DELETE", pattern: /^\/pets\/([^/]+)\/follow$/, handler: unfollowPetRoute },
+  { method: "GET", pattern: /^\/pets\/([^/]+)\/followers$/, handler: petFollowersRoute },
   { method: "GET", pattern: /^\/pets\/(?!categories$)([^/]+)$/, handler: petDetailRoute }
 ];

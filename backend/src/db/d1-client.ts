@@ -1196,6 +1196,195 @@ export class D1Client implements DBClient {
     }));
   }
 
+  async isPetOwnedByOwner(petId: string, ownerId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(`select 1 as ok from pets where id = ? and owner_id = ? limit 1`)
+      .bind(petId, ownerId)
+      .first<{ ok: number }>();
+    return row?.ok === 1;
+  }
+
+  async isFollowingPet(followerOwnerId: string, petId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(`select 1 as ok from pet_follows where follower_owner_id = ? and pet_id = ? limit 1`)
+      .bind(followerOwnerId, petId)
+      .first<{ ok: number }>();
+    return row?.ok === 1;
+  }
+
+  async followPetTx(followerOwnerId: string, petId: string): Promise<number> {
+    const now = new Date().toISOString();
+    const [_, __, countResult] = await this.db.batch([
+      this.db
+        .prepare(
+          `
+            insert into pet_follows (follower_owner_id, pet_id, created_at)
+            values (?, ?, ?)
+            on conflict(follower_owner_id, pet_id) do nothing
+          `
+        )
+        .bind(followerOwnerId, petId, now),
+      this.db
+        .prepare(
+          `
+            update pets
+            set followers_count = followers_count + (case when changes() > 0 then 1 else 0 end)
+            where id = ?
+          `
+        )
+        .bind(petId),
+      this.db.prepare(`select followers_count from pets where id = ?`).bind(petId)
+    ]);
+
+    const count = (countResult?.results?.[0] as { followers_count?: number } | undefined)?.followers_count;
+    return count ?? 0;
+  }
+
+  async unfollowPetTx(followerOwnerId: string, petId: string): Promise<number> {
+    const [_, __, countResult] = await this.db.batch([
+      this.db
+        .prepare(`delete from pet_follows where follower_owner_id = ? and pet_id = ?`)
+        .bind(followerOwnerId, petId),
+      this.db
+        .prepare(
+          `
+            update pets
+            set followers_count = case
+              when changes() > 0 and followers_count > 0 then followers_count - 1
+              else followers_count
+            end
+            where id = ?
+          `
+        )
+        .bind(petId),
+      this.db.prepare(`select followers_count from pets where id = ?`).bind(petId)
+    ]);
+
+    const count = (countResult?.results?.[0] as { followers_count?: number } | undefined)?.followers_count;
+    return count ?? 0;
+  }
+
+  async listFollowedPets(
+    followerOwnerId: string,
+    limit: number,
+    cursor?: number | null
+  ): Promise<{
+    items: Array<{
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+      species: string | null;
+      breed: string | null;
+      followersCount: number;
+      isActive: number;
+    }>;
+    nextCursor: string | null;
+  }> {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const params: Array<string | number> = [followerOwnerId];
+    const clauses: string[] = ["pf.follower_owner_id = ?"];
+    if (cursor) {
+      clauses.push("pf.id < ?");
+      params.push(cursor);
+    }
+
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            pf.id as follow_id,
+            p.id,
+            p.name,
+            p.avatar_url,
+            p.species,
+            p.breed,
+            p.followers_count,
+            p.is_active
+          from pet_follows pf
+          join pets p on p.id = pf.pet_id
+          where ${clauses.join(" and ")}
+          order by pf.id desc
+          limit ?
+        `
+      )
+      .bind(...params, safeLimit + 1)
+      .all<{
+        follow_id: number;
+        id: string;
+        name: string;
+        avatar_url: string | null;
+        species: string | null;
+        breed: string | null;
+        followers_count: number;
+        is_active: number;
+      }>();
+
+    const rows = results ?? [];
+    const hasMore = rows.length > safeLimit;
+    const pageRows = hasMore ? rows.slice(0, safeLimit) : rows;
+    const nextCursor = hasMore && pageRows.length > 0 ? String(pageRows[pageRows.length - 1].follow_id) : null;
+
+    const items = pageRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      avatarUrl: row.avatar_url ?? null,
+      species: row.species ?? null,
+      breed: row.breed ?? null,
+      followersCount: row.followers_count ?? 0,
+      isActive: row.is_active ?? 1
+    }));
+
+    return { items, nextCursor };
+  }
+
+  async listPetFollowers(
+    petId: string,
+    limit: number,
+    cursor?: number | null
+  ): Promise<{
+    items: Array<{ uuid: string; displayName: string; avatarUrl: string | null }>;
+    nextCursor: string | null;
+  }> {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const params: Array<string | number> = [petId];
+    const clauses: string[] = ["pf.pet_id = ?"];
+    if (cursor) {
+      clauses.push("pf.id < ?");
+      params.push(cursor);
+    }
+
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            pf.id as follow_id,
+            o.uuid,
+            o.display_name,
+            o.avatar_url
+          from pet_follows pf
+          join owners o on o.uuid = pf.follower_owner_id
+          where ${clauses.join(" and ")}
+          order by pf.id desc
+          limit ?
+        `
+      )
+      .bind(...params, safeLimit + 1)
+      .all<{ follow_id: number; uuid: string; display_name: string; avatar_url: string | null }>();
+
+    const rows = results ?? [];
+    const hasMore = rows.length > safeLimit;
+    const pageRows = hasMore ? rows.slice(0, safeLimit) : rows;
+    const nextCursor = hasMore && pageRows.length > 0 ? String(pageRows[pageRows.length - 1].follow_id) : null;
+
+    const items = pageRows.map((row) => ({
+      uuid: row.uuid,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url ?? null
+    }));
+
+    return { items, nextCursor };
+  }
+
   async createPet(input: {
     id: string;
     ownerId: string;

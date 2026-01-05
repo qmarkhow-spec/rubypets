@@ -40,6 +40,34 @@ export interface DBClient {
   listOutgoingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
   countActivePetsByOwner(ownerId: string): Promise<number>;
   listPetsByOwner(ownerId: string): Promise<Array<{ id: string; name: string; avatarUrl: string | null }>>;
+  isPetOwnedByOwner(petId: string, ownerId: string): Promise<boolean>;
+  isFollowingPet(followerOwnerId: string, petId: string): Promise<boolean>;
+  followPetTx(followerOwnerId: string, petId: string): Promise<number>;
+  unfollowPetTx(followerOwnerId: string, petId: string): Promise<number>;
+  listFollowedPets(
+    followerOwnerId: string,
+    limit: number,
+    cursor?: number | null
+  ): Promise<{
+    items: Array<{
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+      species: string | null;
+      breed: string | null;
+      followersCount: number;
+      isActive: number;
+    }>;
+    nextCursor: string | null;
+  }>;
+  listPetFollowers(
+    petId: string,
+    limit: number,
+    cursor?: number | null
+  ): Promise<{
+    items: Array<{ uuid: string; displayName: string; avatarUrl: string | null }>;
+    nextCursor: string | null;
+  }>;
   createPet(input: {
     id: string;
     ownerId: string;
