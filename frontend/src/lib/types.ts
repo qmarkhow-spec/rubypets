@@ -95,6 +95,12 @@ export interface OwnerSearchResult {
   region?: string | null;
 }
 
+export interface OwnerPetSummary {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
 export type FriendshipStatus = "none" | "pending_outgoing" | "pending_incoming" | "friends";
 
 export interface FriendshipListItem {

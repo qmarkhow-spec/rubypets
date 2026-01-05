@@ -139,6 +139,13 @@ async function ownerDetailRoute(ctx: HandlerContext, params: Record<string, stri
   });
 }
 
+async function ownerPetsRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const owner = await ctx.db.getOwnerByUuid(params.id);
+  if (!owner) return errorJson("Not found", 404);
+  const items = await ctx.db.listPetsByOwner(params.id);
+  return okJson({ items }, 200);
+}
+
 async function ownerLocationRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const authed = await getUserFromAuthHeader(ctx.db, ctx.request);
   if (!authed || authed.uuid !== params.id) return errorJson("Forbidden", 403);
@@ -223,6 +230,7 @@ export const routes: Route[] = [
 
 export const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/owners\/(?!search$)([^/]+)$/, handler: ownerDetailRoute },
+  { method: "GET", pattern: /^\/owners\/([^/]+)\/pets$/, handler: ownerPetsRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/location$/, handler: ownerLocationRoute },
   { method: "POST", pattern: /^\/owners\/([^/]+)\/verification-docs$/, handler: ownerVerificationDocsRoute },
   { method: "GET", pattern: /^\/owners\/([^/]+)\/friendship\/status$/, handler: friendshipStatusRoute },

@@ -1176,6 +1176,26 @@ export class D1Client implements DBClient {
     return row?.c ?? 0;
   }
 
+  async listPetsByOwner(ownerId: string): Promise<Array<{ id: string; name: string; avatarUrl: string | null }>> {
+    const rows = await this.db
+      .prepare(
+        `
+          select id, name, avatar_url
+          from pets
+          where owner_id = ? and is_active = 1
+          order by created_at desc
+        `
+      )
+      .bind(ownerId)
+      .all<{ id: string; name: string; avatar_url: string | null }>();
+
+    return (rows.results ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      avatarUrl: row.avatar_url ?? null
+    }));
+  }
+
   async createPet(input: {
     id: string;
     ownerId: string;

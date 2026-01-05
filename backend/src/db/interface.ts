@@ -39,6 +39,7 @@ export interface DBClient {
   listIncomingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
   listOutgoingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
   countActivePetsByOwner(ownerId: string): Promise<number>;
+  listPetsByOwner(ownerId: string): Promise<Array<{ id: string; name: string; avatarUrl: string | null }>>;
   createPet(input: {
     id: string;
     ownerId: string;
