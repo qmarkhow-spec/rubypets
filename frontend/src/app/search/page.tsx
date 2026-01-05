@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -49,7 +49,7 @@ export default function SearchPage() {
     } catch (err) {
       if (searchSeq.current !== seq) return;
       const status = (err as { status?: number }).status;
-      setError(`搜尋失敗（${status ?? "?"}）`);
+      setError("Search failed (" + (status ?? "?") + ")");
     } finally {
       if (searchSeq.current === seq) {
         setSearching(false);
@@ -57,17 +57,17 @@ export default function SearchPage() {
     }
   }
 
-  if (loading) return <div>載入中...</div>;
-  if (!user) return <div>請先登入後再使用搜尋。</div>;
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>Please log in to use search.</div>;
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">搜尋飼主</h1>
+      <h1 className="text-xl font-semibold">Search Owners</h1>
 
       <div className="flex gap-2">
         <input
           className="w-full rounded border border-white/20 bg-white/5 px-3 py-2 text-white"
-          placeholder="輸入 display_name（小寫英數 . _）"
+          placeholder="Enter display_name (lowercase letters, numbers, . _)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -79,7 +79,7 @@ export default function SearchPage() {
           onClick={() => onSearch(q.trim().toLowerCase())}
           disabled={searching}
         >
-          {searching ? "搜尋中" : "搜尋"}
+          {searching ? "Searching..." : "Search"}
         </button>
       </div>
 
@@ -96,7 +96,7 @@ export default function SearchPage() {
             <div className="text-sm text-white/70">{[o.city, o.region].filter(Boolean).join(" / ")}</div>
           </Link>
         ))}
-        {!items.length && q.trim() && !searching && <div className="text-white/60">找不到符合的飼主</div>}
+        {!items.length && q.trim() && !searching && <div className="text-white/60">No owners found.</div>}
       </div>
     </div>
   );
