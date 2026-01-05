@@ -840,36 +840,34 @@ function PageShell({
             </Link>
           </div>
         )}
-        {isSelf && (
-          <div className="mt-4 space-y-2">
-            <div className="text-sm font-medium text-slate-800">Your pets</div>
-            {ownerPetsLoading && <p className="text-xs text-slate-500">Loading pets...</p>}
-            {ownerPetsError && <p className="text-xs text-red-600">{ownerPetsError}</p>}
-            {!ownerPetsLoading && !ownerPetsError && ownerPets.length === 0 && (
-              <p className="text-xs text-slate-500">No pets yet.</p>
-            )}
-            {!ownerPetsLoading && !ownerPetsError && ownerPets.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                {ownerPets.map((pet) => (
-                  <Link
-                    key={pet.id}
-                    href={`/pets?id=${encodeURIComponent(pet.id)}`}
-                    className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
-                      {pet.avatarUrl ? (
-                        <img src={pet.avatarUrl} alt={pet.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span>{pet.name ? pet.name[0].toUpperCase() : "?"}</span>
-                      )}
-                    </span>
-                    <span className="max-w-[140px] truncate">{pet.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="mt-4 space-y-2">
+          <div className="text-sm font-medium text-slate-800">{isSelf ? "Your pets" : "Pets"}</div>
+          {ownerPetsLoading && <p className="text-xs text-slate-500">Loading pets...</p>}
+          {ownerPetsError && <p className="text-xs text-red-600">{ownerPetsError}</p>}
+          {!ownerPetsLoading && !ownerPetsError && ownerPets.length === 0 && (
+            <p className="text-xs text-slate-500">No pets yet.</p>
+          )}
+          {!ownerPetsLoading && !ownerPetsError && ownerPets.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {ownerPets.map((pet) => (
+                <Link
+                  key={pet.id}
+                  href={`/pets?id=${encodeURIComponent(pet.id)}`}
+                  className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+                    {pet.avatarUrl ? (
+                      <img src={pet.avatarUrl} alt={pet.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span>{pet.name ? pet.name[0].toUpperCase() : "?"}</span>
+                    )}
+                  </span>
+                  <span className="max-w-[140px] truncate">{pet.name}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
         {showForm && (
           <div className="mt-4 space-y-3">
             <div className="space-y-1">
