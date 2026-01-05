@@ -40,11 +40,11 @@ export default function SearchPage() {
     }
     setSearching(true);
     try {
-      const { data } = await apiFetch<{ items: OwnerSearchResult[] }>(
+      const { data } = await apiFetch<{ data: { items: OwnerSearchResult[] } }>(
         `/api/owners/search?display_name=${encodeURIComponent(keyword)}&limit=20`
       );
       if (searchSeq.current === seq) {
-        setItems(data.items ?? []);
+        setItems(data.data?.items ?? []);
       }
     } catch (err) {
       if (searchSeq.current !== seq) return;

@@ -59,13 +59,17 @@ class ApiClient {
   }
 
   Future<ApiLoginResult> login({required String email, required String password}) async {
-    final data = await _request(
+    final payload = _unwrapMap(await _request(
       '/api/auth/login',
       method: 'POST',
       body: {'email': email, 'password': password},
-    ) as Map<String, dynamic>;
-    final user = ApiUser.fromJson(data['user'] as Map<String, dynamic>);
-    final token = data['accessToken']?.toString() ?? '';
+    ));
+    final userJson = payload['user'] as Map<String, dynamic>?;
+    if (userJson == null) {
+      throw ApiException(500, {'error': 'Malformed login response'});
+    }
+    final user = ApiUser.fromJson(userJson);
+    final token = payload['accessToken']?.toString() ?? '';
     if (token.isEmpty) {
       throw ApiException(500, {'error': 'Missing access token'});
     }
@@ -73,21 +77,18 @@ class ApiClient {
   }
 
   Future<ApiUser> fetchMe() async {
-    final data = await _request('/api/me') as Map<String, dynamic>;
-    return ApiUser.fromJson(data);
+    final payload = _unwrapMap(await _request('/api/me'));
+    return ApiUser.fromJson(payload);
   }
 
   Future<List<FeedPost>> listPosts({int limit = 20}) async {
-    final data = await _request('/api/posts?limit=$limit') as Map<String, dynamic>;
-    final items = (data['data'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(FeedPost.fromJson)
-        .toList();
+    final payload = _unwrapList(await _request('/api/posts?limit=$limit'));
+    final items = payload.whereType<Map<String, dynamic>>().map(FeedPost.fromJson).toList();
     return items;
   }
 
   Future<FeedPost> createPost({required String content, required String visibility}) async {
-    final data = await _request(
+    final payload = _unwrapMap(await _request(
       '/api/posts',
       method: 'POST',
       body: {
@@ -95,40 +96,40 @@ class ApiClient {
         'visibility': visibility,
         'post_type': 'text',
       },
-    ) as Map<String, dynamic>;
-    return FeedPost.fromJson(data);
+    ));
+    return FeedPost.fromJson(payload);
   }
 
   Future<PostLikeResult> togglePostLike({required String postId, required bool shouldLike}) async {
-    final data = await _request(
+    final payload = _unwrapMap(await _request(
       '/api/posts/$postId/like',
       method: shouldLike ? 'POST' : 'DELETE',
-    ) as Map<String, dynamic>;
+    ));
     return PostLikeResult(
-      isLiked: data['isLiked'] == true,
-      likeCount: (data['like_count'] as num?)?.toInt() ?? 0,
+      isLiked: payload['isLiked'] == true,
+      likeCount: (payload['like_count'] as num?)?.toInt() ?? 0,
     );
   }
 
   Future<LatestCommentResult> fetchLatestComment({required String postId}) async {
-    final data = await _request('/api/posts/$postId/comments') as Map<String, dynamic>;
-    final commentRaw = data['data'];
+    final payload = _unwrapMap(await _request('/api/posts/$postId/comments'));
+    final commentRaw = payload['comment'];
     final comment = commentRaw is Map<String, dynamic> ? FeedComment.fromJson(commentRaw) : null;
-    final count = (data['comment_count'] as num?)?.toInt() ?? 0;
+    final count = (payload['comment_count'] as num?)?.toInt() ?? 0;
     return LatestCommentResult(comment: comment, commentCount: count);
   }
 
   Future<CommentListResult> listComments({required String postId, int limit = 20, String? cursor}) async {
     final query = cursor == null ? 'limit=$limit' : 'limit=$limit&cursor=$cursor';
-    final data = await _request('/api/posts/$postId/comments/list?$query') as Map<String, dynamic>;
-    final items = (data['data'] as List<dynamic>? ?? [])
+    final payload = _unwrapMap(await _request('/api/posts/$postId/comments/list?$query'));
+    final items = (payload['items'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .map(FeedComment.fromJson)
         .toList();
     return CommentListResult(
       items: items,
-      nextCursor: data['nextCursor']?.toString(),
-      hasMore: data['hasMore'] == true,
+      nextCursor: payload['nextCursor']?.toString(),
+      hasMore: payload['hasMore'] == true,
     );
   }
 
@@ -137,28 +138,28 @@ class ApiClient {
     required String content,
     String? replyToCommentId,
   }) async {
-    final payload = <String, dynamic>{'content': content};
+    final body = <String, dynamic>{'content': content};
     if (replyToCommentId != null && replyToCommentId.isNotEmpty) {
-      payload['reply_to_comment_id'] = replyToCommentId;
+      body['reply_to_comment_id'] = replyToCommentId;
     }
-    final data = await _request(
+    final payload = _unwrapMap(await _request(
       '/api/posts/$postId/comments',
       method: 'POST',
-      body: payload,
-    ) as Map<String, dynamic>;
-    final comment = FeedComment.fromJson(data['data'] as Map<String, dynamic>);
-    final count = (data['comment_count'] as num?)?.toInt();
+      body: body,
+    ));
+    final comment = FeedComment.fromJson(payload['comment'] as Map<String, dynamic>);
+    final count = (payload['comment_count'] as num?)?.toInt();
     return CommentCreateResult(comment: comment, commentCount: count);
   }
 
   Future<CommentLikeResult> toggleCommentLike({required String commentId}) async {
-    final data = await _request(
+    final payload = _unwrapMap(await _request(
       '/api/comments/$commentId/like',
       method: 'POST',
-    ) as Map<String, dynamic>;
+    ));
     return CommentLikeResult(
-      isLiked: data['isLiked'] == true,
-      likeCount: (data['like_count'] as num?)?.toInt() ?? 0,
+      isLiked: payload['isLiked'] == true,
+      likeCount: (payload['like_count'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -167,25 +168,24 @@ class ApiClient {
     required String visibility,
     String? content,
   }) async {
-    final payload = <String, dynamic>{'visibility': visibility};
+    final body = <String, dynamic>{'visibility': visibility};
     if (content != null) {
-      payload['content'] = content;
+      body['content'] = content;
     }
-    final data = await _request(
+    final payload = _unwrapMap(await _request(
       '/api/posts/$postId/repost',
       method: 'POST',
-      body: payload,
-    ) as Map<String, dynamic>;
-    final post = FeedPost.fromJson(data['data'] as Map<String, dynamic>);
-    final origin = data['origin'] as Map<String, dynamic>?;
+      body: body,
+    ));
+    final post = FeedPost.fromJson(payload['post'] as Map<String, dynamic>);
+    final origin = payload['origin'] as Map<String, dynamic>?;
     final repostCount = (origin?['repost_count'] as num?)?.toInt() ?? 0;
     return ApiRepostResult(post: post, originRepostCount: repostCount);
   }
 
   Future<List<ApiUser>> searchUsers({required String query}) async {
     final encoded = Uri.encodeQueryComponent(query);
-    final data = await _request('/api/owners/search?display_name=$encoded') as Map<String, dynamic>;
-    final payload = (data['data'] is Map<String, dynamic>) ? data['data'] as Map<String, dynamic> : data;
+    final payload = _unwrapMap(await _request('/api/owners/search?display_name=$encoded'));
     final rawItems = payload['items'] as List<dynamic>? ?? [];
     final items = rawItems.whereType<Map<String, dynamic>>().map(ApiUser.fromJson).toList();
     return items;
@@ -238,6 +238,25 @@ class ApiClient {
       throw ApiException(response.statusCode, decoded);
     }
     return decoded;
+  }
+
+  Map<String, dynamic> _unwrapMap(Object? raw) {
+    if (raw is Map<String, dynamic>) {
+      final data = raw['data'];
+      if (data is Map<String, dynamic>) return data;
+      return raw;
+    }
+    throw ApiException(500, {'error': 'Malformed response'});
+  }
+
+  List<dynamic> _unwrapList(Object? raw) {
+    if (raw is Map<String, dynamic>) {
+      final data = raw['data'];
+      if (data is List<dynamic>) return data;
+    } else if (raw is List<dynamic>) {
+      return raw;
+    }
+    throw ApiException(500, {'error': 'Malformed response'});
   }
 }
 
