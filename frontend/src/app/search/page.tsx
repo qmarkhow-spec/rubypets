@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
@@ -12,12 +12,30 @@ export default function SearchPage() {
   const [items, setItems] = useState<OwnerSearchResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const searchSeq = useRef(0);
+  const debounceMs = 300;
 
-  async function onSearch() {
-    setError(null);
+  useEffect(() => {
+    if (!user) return;
     const keyword = q.trim().toLowerCase();
-    if (!keyword) {
+    if (keyword.length < 2) {
       setItems([]);
+      setError(null);
+      setSearching(false);
+      return;
+    }
+    const handle = setTimeout(() => {
+      void onSearch(keyword);
+    }, debounceMs);
+    return () => clearTimeout(handle);
+  }, [q, user, debounceMs]);
+
+  async function onSearch(keyword: string) {
+    const seq = (searchSeq.current += 1);
+    setError(null);
+    if (keyword.length < 2) {
+      setItems([]);
+      if (searchSeq.current === seq) setSearching(false);
       return;
     }
     setSearching(true);
@@ -25,12 +43,17 @@ export default function SearchPage() {
       const { data } = await apiFetch<{ items: OwnerSearchResult[] }>(
         `/api/owners/search?display_name=${encodeURIComponent(keyword)}&limit=20`
       );
-      setItems(data.items ?? []);
+      if (searchSeq.current === seq) {
+        setItems(data.items ?? []);
+      }
     } catch (err) {
+      if (searchSeq.current !== seq) return;
       const status = (err as { status?: number }).status;
       setError(`搜尋失敗（${status ?? "?"}）`);
     } finally {
-      setSearching(false);
+      if (searchSeq.current === seq) {
+        setSearching(false);
+      }
     }
   }
 
@@ -48,12 +71,12 @@ export default function SearchPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") onSearch();
+            if (e.key === "Enter") onSearch(q.trim().toLowerCase());
           }}
         />
         <button
           className="rounded bg-white/10 px-4 py-2 hover:bg-white/15 disabled:opacity-60"
-          onClick={onSearch}
+          onClick={() => onSearch(q.trim().toLowerCase())}
           disabled={searching}
         >
           {searching ? "搜尋中" : "搜尋"}
