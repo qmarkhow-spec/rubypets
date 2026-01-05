@@ -1,18 +1,18 @@
 ﻿import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rubypets_flutter/providers/feed_provider.dart';
+import 'package:rubypets_flutter/providers/session_provider.dart';
 import 'package:rubypets_flutter/services/api_client.dart';
-import 'package:rubypets_flutter/services/session_controller.dart';
 
-class CreatePostPage extends StatefulWidget {
+class CreatePostPage extends ConsumerStatefulWidget {
   const CreatePostPage({super.key});
 
   @override
-  State<CreatePostPage> createState() => _CreatePostPageState();
+  ConsumerState<CreatePostPage> createState() => _CreatePostPageState();
 }
 
-class _CreatePostPageState extends State<CreatePostPage> {
+class _CreatePostPageState extends ConsumerState<CreatePostPage> {
   final _contentController = TextEditingController();
-  final SessionController _session = SessionController.instance;
   String _visibility = 'public';
   bool _submitting = false;
 
@@ -24,18 +24,30 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   Future<void> _submit() async {
     if (_submitting) return;
-    if (!_session.isLoggedIn) {
+
+    // Check login status via the sessionProvider
+    if (ref.read(sessionProvider).valueOrNull == null) {
       _showSnack('Login required');
       return;
     }
+
     final content = _contentController.text.trim();
     if (content.isEmpty) {
       _showSnack('Content is required');
       return;
     }
+
     setState(() => _submitting = true);
+
     try {
-      await _session.api.createPost(content: content, visibility: _visibility);
+      // Get the api client from its provider and create the post
+      await ref
+          .read(apiClientProvider)
+          .createPost(content: content, visibility: _visibility);
+
+      // Invalidate the feed provider to refresh the feed with the new post
+      ref.invalidate(feedProvider);
+
       if (!mounted) return;
       _showSnack('Post created');
       Navigator.of(context).pop();
