@@ -432,11 +432,17 @@ function PageShell({
     setUploadSuccess(null);
     try {
       const form = new FormData();
-      form.append("id_license_front", dataUrlToFile(idFrontPreview, `${owner.accountId}_id_license_front.png`));
-      form.append("id_license_back", dataUrlToFile(idBackPreview, `${owner.accountId}_id_license_back.png`));
+      form.append(
+        "id_license_front",
+        dataUrlToFile(idFrontPreview, owner.accountId + "_id_license_front.png")
+      );
+      form.append(
+        "id_license_back",
+        dataUrlToFile(idBackPreview, owner.accountId + "_id_license_back.png")
+      );
       form.append(
         "face_with_license",
-        dataUrlToFile(idSelfiePreview, `${owner.accountId}_face_with_license.png`)
+        dataUrlToFile(idSelfiePreview, owner.accountId + "_face_with_license.png")
       );
 
       const { data } = await apiFetch<{
