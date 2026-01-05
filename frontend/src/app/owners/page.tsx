@@ -66,7 +66,7 @@ function OwnerContent() {
   useEffect(() => {
     if (!ownerId) {
       setOwner(null);
-      setError("蝻箏? id ?");
+      setError("Missing owner id.");
       return;
     }
     setLoading(true);
@@ -155,7 +155,7 @@ function PageShell({
       .then(({ data }) => setFriendshipStatus(data.status ?? "none"))
       .catch((err) => {
         const status = (err as { status?: number }).status;
-        setFriendshipError(`頛鈭文???仃??${status ?? "?"}嚗);
+        setFriendshipError("Failed to load friendship status (" + (status ?? "?") + ")");
       })
       .finally(() => setFriendshipLoading(false));
   }, [ownerId, user, isSelf]);
@@ -420,11 +420,11 @@ function PageShell({
 
   async function uploadVerificationDocs() {
     if (!owner) {
-      setUploadError("隢?頛憌潔蜓鞈?");
+      setUploadError("Load the owner profile first.");
       return;
     }
     if (!idFrontPreview || !idBackPreview || !idSelfiePreview) {
-      setUploadError("隢?摰?銝撐?抒??矽??銝");
+      setUploadError("Upload all three verification photos.");
       return;
     }
     setUploading(true);
@@ -465,7 +465,7 @@ function PageShell({
     } catch (err) {
       const status = (err as { status?: number }).status;
       const details = (err as { details?: unknown }).details;
-      setUploadError(`銝憭望?嚗?{status ?? "?"}嚗?${typeof details === "string" ? details : JSON.stringify(details)}`);
+      setUploadError("Upload failed (" + (status ?? "?") + "): " + (typeof details === "string" ? details : JSON.stringify(details)));
     } finally {
       setUploading(false);
     }
@@ -484,7 +484,7 @@ function PageShell({
       setOutgoingRequests(outgoing.data.items ?? []);
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`頛鈭文??隢仃??${status ?? "?"}嚗);
+      setRequestsError("Failed to load friend requests (" + (status ?? "?") + ")");
     } finally {
       setRequestsLoading(false);
     }
@@ -498,7 +498,7 @@ function PageShell({
       setFriendshipStatus(data.status ?? fallbackStatus);
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setFriendshipError(`??憭望?嚗?{status ?? "?"}嚗);
+      setFriendshipError("Friend action failed (" + (status ?? "?") + ")");
     } finally {
       setFriendshipLoading(false);
     }
@@ -510,67 +510,67 @@ function PageShell({
 
   async function handleCancelRequest(target: OwnerSearchResult) {
     const name = target.displayName || "撠";
-    if (!window.confirm(`?臬閬? ${name} ?嗅?憟賢??隢)) return;
+    if (!window.confirm("Cancel friend request to " + name + "?")) return;
     await runFriendAction("DELETE", `/api/owners/${target.uuid}/friend-request`, "none");
   }
 
   async function handleAcceptRequest(target: OwnerSearchResult) {
     const name = target.displayName || "撠";
-    if (!window.confirm(`?臬?亙? ${name} ?末??隢?`)) return;
+    if (!window.confirm("Accept friend request from " + name + "?")) return;
     await runFriendAction("POST", `/api/owners/${target.uuid}/friend-request/accept`, "friends");
   }
 
   async function handleRejectRequest(target: OwnerSearchResult) {
     const name = target.displayName || "撠";
-    if (!window.confirm(`?臬?? ${name} ?末??隢?`)) return;
+    if (!window.confirm("Reject friend request from " + name + "?")) return;
     await runFriendAction("DELETE", `/api/owners/${target.uuid}/friend-request/reject`, "none");
   }
 
   async function handleUnfriend(target: OwnerSearchResult) {
     const name = target.displayName || "撠";
-    if (!window.confirm(`?臬??${name} 閫?憟賢????`)) return;
+    if (!window.confirm("Unfriend " + name + "?")) return;
     await runFriendAction("DELETE", `/api/owners/${target.uuid}/friendship`, "none");
   }
 
   async function handleIncomingItemAccept(item: FriendshipListItem) {
     const name = item.otherOwner.displayName || "撠";
-    if (!window.confirm(`?臬?亙? ${name} ?末??隢?`)) return;
+    if (!window.confirm("Accept friend request from " + name + "?")) return;
     try {
       await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request/accept`, { method: "POST" });
       await refreshFriendRequests();
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`??憭望?嚗?{status ?? "?"}嚗);
+      setRequestsError("Friend request action failed (" + (status ?? "?") + ")");
     }
   }
 
   async function handleIncomingItemReject(item: FriendshipListItem) {
     const name = item.otherOwner.displayName || "撠";
-    if (!window.confirm(`?臬?? ${name} ?末??隢?`)) return;
+    if (!window.confirm("Reject friend request from " + name + "?")) return;
     try {
       await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request/reject`, { method: "DELETE" });
       await refreshFriendRequests();
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`??憭望?嚗?{status ?? "?"}嚗);
+      setRequestsError("Friend request action failed (" + (status ?? "?") + ")");
     }
   }
 
   async function handleOutgoingItemCancel(item: FriendshipListItem) {
     const name = item.otherOwner.displayName || "撠";
-    if (!window.confirm(`?臬閬? ${name} ?嗅?憟賢??隢)) return;
+    if (!window.confirm("Cancel friend request to " + name + "?")) return;
     try {
       await apiFetch(`/api/owners/${item.otherOwner.uuid}/friend-request`, { method: "DELETE" });
       await refreshFriendRequests();
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setRequestsError(`??憭望?嚗?{status ?? "?"}嚗);
+      setRequestsError("Friend request action failed (" + (status ?? "?") + ")");
     }
   }
 
   async function saveLocation() {
     if (!city || !region || !ownerId) {
-      setSaveError("隢?腦撣?銵?");
+      setSaveError("Select a city and region first.");
       return;
     }
     setSaving(true);
@@ -585,7 +585,7 @@ function PageShell({
     } catch (err) {
       const status = (err as { status?: number }).status;
       const details = (err as { details?: unknown }).details;
-      setSaveError(`?脣?憭望?嚗?{status ?? "?"}嚗?${typeof details === "string" ? details : JSON.stringify(details)}`);
+      setSaveError("Update failed (" + (status ?? "?") + "): " + (typeof details === "string" ? details : JSON.stringify(details)));
     } finally {
       setSaving(false);
     }
@@ -595,48 +595,48 @@ function PageShell({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/" className="text-sm text-white/80 hover:text-white">
-          ??餈?擐?
+          Back to home
         </Link>
-        <h1 className="text-xl font-semibold text-white">憌潔蜓鞈?</h1>
+        <h1 className="text-xl font-semibold text-white">Owner profile</h1>
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
-        {loading && <p className="text-sm text-slate-600">頛銝?..</p>}
+        {loading && <p className="text-sm text-slate-600">Loading...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {!error && !owner && !loading && <p className="text-sm text-slate-600">?曆??圈ˉ銝餉???/p>}
+        {!error && !owner && !loading && <p className="text-sm text-slate-600">No owner found.</p>}
         {owner && (
           <div className="space-y-2 text-sm text-slate-800">
             <p>
-              <span className="font-medium text-slate-600">UUID嚗?/span>
+              <span className="font-medium text-slate-600">UUID:</span>
               <span className="font-mono text-slate-900 break-all">{owner.uuid}</span>
             </p>
             <p>
-              <span className="font-medium text-slate-600">Email嚗?/span>
-              {owner.email || "嚗??嚗?}
+              <span className="font-medium text-slate-600">Email:</span>
+              {owner.email || "(not set)"}
             </p>
             <p>
-              <span className="font-medium text-slate-600">?梁迂嚗?/span>
+              <span className="font-medium text-slate-600">Display name:</span>
               {owner.displayName}
             </p>
             <p>
-              <span className="font-medium text-slate-600">?剖?嚗?/span>
-              {owner.avatarUrl || "嚗閮剖?嚗?}
+              <span className="font-medium text-slate-600">Avatar:</span>
+              {owner.avatarUrl || "(not set)"}
             </p>
             <p>
-              <span className="font-medium text-slate-600">?臬遣蝡秘?拇銝?嚗?/span>
+              <span className="font-medium text-slate-600">Max pets:</span>
               {owner.maxPets}
             </p>
             <p>
-              <span className="font-medium text-slate-600">撱箇???嚗?/span>
+              <span className="font-medium text-slate-600">Created at:</span>
               {owner.createdAt}
             </p>
             <p>
-              <span className="font-medium text-slate-600">?敺?堆?</span>
+              <span className="font-medium text-slate-600">Updated at:</span>
               {owner.updatedAt}
             </p>
             <p>
-              <span className="font-medium text-slate-600">???</span>
-              {owner.isActive ? "?" : "?"}
+              <span className="font-medium text-slate-600">Status:</span>
+              {owner.isActive ? "Active" : "Inactive"}
             </p>
           </div>
         )}
@@ -646,12 +646,12 @@ function PageShell({
         <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <h2 className="text-base font-semibold text-slate-900">鈭文????/h2>
+              <h2 className="text-base font-semibold text-slate-900">Friendship</h2>
               <p className="text-sm text-slate-700">{owner.displayName}</p>
-              <p className="text-xs text-slate-500">{otherLocation || "撠憛怠神?啣?"}</p>
+              <p className="text-xs text-slate-500">{otherLocation || "Location not set."}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {!user && <span className="text-xs text-slate-500">隢??餃?鈭文?</span>}
+              {!user && <span className="text-xs text-slate-500">Log in to manage friendship.</span>}
               {user && friendshipStatus === "none" && (
                 <button
                   type="button"
@@ -659,7 +659,7 @@ function PageShell({
                   disabled={friendshipLoading}
                   className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
                 >
-                  憟賢??隢?                </button>
+                  Add friend                </button>
               )}
               {user && friendshipStatus === "pending_outgoing" && (
                 <button
@@ -668,7 +668,7 @@ function PageShell({
                   disabled={friendshipLoading}
                   className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                 >
-                  撌脩?箏末??隢?                </button>
+                  Request sent                </button>
               )}
               {user && friendshipStatus === "friends" && (
                 <button
@@ -677,7 +677,7 @@ function PageShell({
                   disabled={friendshipLoading}
                   className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                 >
-                  憟賢????                </button>
+                  Friends                </button>
               )}
               {user && friendshipStatus === "pending_incoming" && (
                 <div className="flex items-center gap-2">
@@ -687,7 +687,7 @@ function PageShell({
                     disabled={friendshipLoading}
                     className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
                   >
-                    ?亙?
+                    Accept
                   </button>
                   <button
                     type="button"
@@ -695,7 +695,7 @@ function PageShell({
                     disabled={friendshipLoading}
                     className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                   >
-                    ??
+                    Reject
                   </button>
                 </div>
               )}
@@ -709,8 +709,8 @@ function PageShell({
         <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">鈭文??隢?/h2>
-              <p className="text-xs text-slate-600">蝞∠??嗅???隢?/p>
+              <h2 className="text-base font-semibold text-slate-900">Friend requests</h2>
+              <p className="text-xs text-slate-600">Manage incoming and outgoing requests.</p>
             </div>
             <div className="flex gap-2 text-sm">
               <button
@@ -722,7 +722,7 @@ function PageShell({
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                ?嗅??隢?              </button>
+                Incoming              </button>
               <button
                 type="button"
                 onClick={() => setRequestsTab("outgoing")}
@@ -732,14 +732,14 @@ function PageShell({
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
-                蝑??亙?
+                Outgoing
               </button>
             </div>
           </div>
           {requestsError && <p className="mt-2 text-sm text-red-600">{requestsError}</p>}
-          {requestsLoading && <p className="mt-2 text-sm text-slate-600">頛銝?..</p>}
+          {requestsLoading && <p className="mt-2 text-sm text-slate-600">Loading...</p>}
           {!requestsLoading && requestItems.length === 0 && (
-            <p className="mt-2 text-sm text-slate-600">?桀?瘝??隢?/p>
+            <p className="mt-2 text-sm text-slate-600">No requests.</p>
           )}
           <div className="mt-3 space-y-2">
             {requestItems.map((item) => (
@@ -755,7 +755,7 @@ function PageShell({
                     {item.otherOwner.displayName}
                   </Link>
                   <div className="text-xs text-slate-500">
-                    {[item.otherOwner.city, item.otherOwner.region].filter(Boolean).join(" / ") || "撠憛怠神?啣?"}
+                    {[item.otherOwner.city, item.otherOwner.region].filter(Boolean).join(" / ") || "Location not set."}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -767,7 +767,7 @@ function PageShell({
                         disabled={requestsLoading}
                         className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
                       >
-                        ?亙?
+                        Accept
                       </button>
                       <button
                         type="button"
@@ -775,7 +775,7 @@ function PageShell({
                         disabled={requestsLoading}
                         className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                       >
-                        ??
+                        Reject
                       </button>
                     </>
                   ) : (
@@ -785,7 +785,7 @@ function PageShell({
                       disabled={requestsLoading}
                       className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
                     >
-                      ?嗅??隢?                    </button>
+                      Cancel request                    </button>
                   )}
                 </div>
               </div>
@@ -796,33 +796,33 @@ function PageShell({
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">?啣?鞈?</h2>
+          <h2 className="text-base font-semibold text-slate-900">Location</h2>
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
             className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
           >
-            {showForm ? "?嗉絲" : "憛怠神??典"}
+            {showForm ? "Hide form" : "Edit location"}
           </button>
         </div>
         {isSelf && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-white px-3 py-2">
             <div>
-              <p className="text-sm font-medium text-slate-800">撱箇?撖萇鞈?</p>
-              <p className="text-xs text-slate-500">撱箇?摰?敺?典秘?拚??亦?</p>
+              <p className="text-sm font-medium text-slate-800">Create a pet profile</p>
+              <p className="text-xs text-slate-500">Create one to start tagging pets.</p>
             </div>
             <Link
               href="/pets/new"
               className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500"
             >
-              撱箇?
+              Create
             </Link>
           </div>
         )}
         {showForm && (
           <div className="mt-4 space-y-3">
             <div className="space-y-1">
-              <label className="text-sm text-slate-700">蝮??</label>
+              <label className="text-sm text-slate-700">City</label>
               <select
                 className="w-full rounded border border-slate-200 p-2 text-sm"
                 value={city}
@@ -831,7 +831,7 @@ function PageShell({
                   setRegion("");
                 }}
               >
-                <option value="">隢??/option>
+                <option value="">Select a city</option>
                 {cities.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.label}
@@ -840,14 +840,14 @@ function PageShell({
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-sm text-slate-700">銵?</label>
+              <label className="text-sm text-slate-700">Region</label>
               <select
                 className="w-full rounded border border-slate-200 p-2 text-sm"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 disabled={!city}
               >
-                <option value="">隢??貊腦撣?/option>
+                <option value="">Select a region</option>
                 {regions.map((r) => (
                   <option key={r.code} value={r.code}>
                     {r.label}
@@ -862,7 +862,7 @@ function PageShell({
                 disabled={saving}
                 className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
               >
-                {saving ? "?脣?銝?.." : "?脣?"}
+                {saving ? "Saving..." : "Save"}
               </button>
               {saveError && <span className="text-sm text-red-600">{saveError}</span>}
             </div>
@@ -872,13 +872,13 @@ function PageShell({
 
       <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">撖血?隤?</h2>
-          <p className="text-xs text-slate-600">隢?摨??喃?撘萇??撖拇</p>
+          <h2 className="text-base font-semibold text-slate-900">Verification</h2>
+          <p className="text-xs text-slate-600">Upload the required photos for review.</p>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <FileUploadField
-            label="銝頨怠?霅迤??
-            helper="暺?銝 85.7mm x 54mm ?憛???
+            label="Upload ID front"
+            helper="Tap the box below (85.7mm x 54mm) to upload."
             file={idFrontFile}
             onChange={(file) => startCrop("front", file)}
             boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
@@ -886,8 +886,8 @@ function PageShell({
             previewUrl={idFrontPreview}
           />
           <FileUploadField
-            label="銝頨怠?霅???
-            helper="暺?銝 85.7mm x 54mm ?憛???
+            label="Upload ID back"
+            helper="Tap the box below (85.7mm x 54mm) to upload."
             file={idBackFile}
             onChange={(file) => startCrop("back", file)}
             boxStyle={{ width: "85.7mm", maxWidth: "100%", height: "54mm" }}
@@ -895,8 +895,8 @@ function PageShell({
             previewUrl={idBackPreview}
           />
           <FileUploadField
-            label="銝??頨怠?霅迤?Ｖ蒂?撌望???
-            helper="撠箏站銝?嚗?蝣箔?霅辣?鈭箸??啣颲?
+            label="Upload selfie with ID"
+            helper="Any size is OK. Make sure the ID and your face are clear."
             file={idSelfieFile}
             onChange={handleSelfieChange}
             boxStyle={selfieBoxStyle}
@@ -914,7 +914,7 @@ function PageShell({
             }
             className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
           >
-            {uploading ? "銝銝?.." : "銝"}
+            {uploading ? "Uploading..." : "Upload"}
           </button>
           {uploadError && <span className="text-sm text-red-600">{uploadError}</span>}
           {uploadSuccess && !uploadError && <span className="text-sm text-emerald-600">{uploadSuccess}</span>}
@@ -925,16 +925,16 @@ function PageShell({
           <div className="w-full max-w-4xl space-y-4 rounded-xl bg-white p-4 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">隤踵??雿蔭</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Adjust crop</h3>
                 <p className="text-sm text-slate-600">
-                  ?蝘餃?嚗蝙?冽?獢輻葬?橘?霈澈??憛急遛?箏??寞???                </p>
+                  Drag to reposition. Use the slider to zoom so the ID fills the frame.</p>
               </div>
               <button
                 type="button"
                 onClick={closeCropper}
                 className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
               >
-                ??
+                Close
               </button>
             </div>
             <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
@@ -949,7 +949,7 @@ function PageShell({
                 >
                   <img
                     src={cropState.imageUrl}
-                    alt="鋆??汗"
+                    alt="Crop preview"
                     className="pointer-events-none select-none"
                     style={{
                       position: "absolute",
@@ -1065,7 +1065,7 @@ function FileUploadField({
           <div className="space-y-1 text-center">
             <div className="text-sm font-semibold">暺?銝</div>
             <div className="text-xs text-slate-500">
-              {sizeHint ? `${sizeHint}嚚?游???獢 : "?舀??瑼?"}
+              {sizeHint ? sizeHint + " | JPG/PNG only" : "Supported: JPG, PNG"}
             </div>
           </div>
         )}
@@ -1089,7 +1089,7 @@ async function fetchOwner(id: string): Promise<{ owner: OwnerDetail | null; erro
     const status = (err as { status?: number }).status;
     const details = (err as { details?: unknown }).details;
     const detailText = typeof details === "string" ? details : details ? JSON.stringify(details) : String(err);
-    return { owner: null, error: `杓夊叆澶辨?锛?{status ?? "?"}锛夛?${detailText}` };
+    return { owner: null, error: "Failed to load owner (" + (status ?? "?") + "): " + detailText };
   }
 }
 

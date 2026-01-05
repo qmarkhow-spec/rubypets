@@ -114,7 +114,7 @@ export default function NewPostPage() {
     }
   }
 
-  async function createPost(body: Record<string, unknown>) {
+  async function createPost(body: Record<string, unknown>): Promise<{ id: string }> {
     const { data } = await apiFetch("/api/posts", {
       method: "POST",
       body: JSON.stringify(body),
@@ -123,7 +123,7 @@ export default function NewPostPage() {
     if (!post?.id) {
       throw new Error("建立貼文失敗：缺少 id");
     }
-    return post;
+    return { id: post.id };
   }
 
   async function uploadImage(file: File, postId: string): Promise<string> {

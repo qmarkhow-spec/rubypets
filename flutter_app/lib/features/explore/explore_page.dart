@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rubypets_flutter/providers/user_search_provider.dart';
 
@@ -23,7 +23,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     // We update a local state variable, which will cause the widget to rebuild.
     // When it rebuilds, it will watch the userSearchProvider with the new query.
     setState(() {
-      _query = query.trim();
+      _query = query.trim().toLowerCase();
     });
   }
 
@@ -39,7 +39,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             controller: _searchController,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
-              hintText: '搜尋使用者...',
+              hintText: 'Search users...',
             ),
             onSubmitted: _submitSearch,
           ),
@@ -49,14 +49,14 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(child: Text('Error: $error')),
             data: (users) {
-              if (_query.isEmpty) {
+              if (_query.trim().length < 2) {
                 return const Center(
-                  child: Text('輸入關鍵字以搜尋使用者。'),
+                  child: Text("Enter at least 2 characters to search."),
                 );
               }
               if (users.isEmpty) {
                 return Center(
-                  child: Text('找不到使用者 "$_query"'),
+                  child: Text("No users found for \"$_query\""),
                 );
               }
               return ListView.builder(
