@@ -12,6 +12,7 @@ export interface Env {
   // Admin
   DB: D1Database;
   ENVIRONMENT?: string;
+  ADMIN_IP_ALLOWLIST?: string;
 }
 
 export interface HandlerContext {
