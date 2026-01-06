@@ -3,17 +3,47 @@ import { asNumber, errorJson, okJson } from "../utils";
 import { hashPassword, verifyPassword } from "../../services/auth";
 import { DynamicRoute, Route } from "./types";
 
+function getClientIp(request: Request): string | null {
+  const cf = request.headers.get("CF-Connecting-IP");
+  if (cf) return cf.trim();
+  const forwarded = request.headers.get("X-Forwarded-For");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  const real = request.headers.get("X-Real-IP");
+  if (real) return real.trim();
+  return null;
+}
+
+function isAdminIpAllowed(ctx: HandlerContext): boolean {
+  const raw = ctx.env.ADMIN_IP_ALLOWLIST ?? "";
+  const allowlist = raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+  if (allowlist.length === 0) return false;
+  const ip = getClientIp(ctx.request);
+  if (!ip) return false;
+  return allowlist.includes(ip);
+}
+
+function requireAdminIp(ctx: HandlerContext): Response | null {
+  if (isAdminIpAllowed(ctx)) return null;
+  return errorJson("Forbidden", 403);
+}
+
 async function reviewSummaryRoute(ctx: HandlerContext): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const counts = await ctx.db.countVerificationStatuses();
   return okJson({ ...counts, ts: new Date().toISOString() });
 }
 
 async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const data = await ctx.db.listVerifications();
   return okJson(data, 200);
 }
 
 async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const account = await ctx.db.getAccountById(params.id);
   if (!account) return errorJson("Not found", 404);
 
@@ -50,6 +80,8 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
 }
 
 async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const accountId = params.id;
   const body = (await ctx.request.json().catch(() => ({}))) as { status?: number };
   if (body.status !== 1 && body.status !== 3) return errorJson("invalid status", 400);
@@ -58,11 +90,15 @@ async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, stri
 }
 
 async function adminAccountsListRoute(ctx: HandlerContext): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const admins = await ctx.db.listAdminAccounts();
   return okJson(admins, 200);
 }
 
 async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const payload = (await ctx.request.json().catch(() => ({}))) as {
     adminId?: string;
     password?: string;
@@ -79,6 +115,8 @@ async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> 
 }
 
 async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const payload = (await ctx.request.json().catch(() => ({}))) as { adminId?: string; password?: string };
   const adminId = (payload.adminId ?? "").trim();
   const password = payload.password ?? "";
@@ -93,6 +131,8 @@ async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const id = params.id;
   const payload = (await ctx.request.json().catch(() => ({}))) as { password?: string };
   const newPassword = payload.password ?? "";
@@ -103,6 +143,8 @@ async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string,
 }
 
 async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const url = new URL(ctx.request.url);
   const limit = asNumber(url.searchParams.get("limit"), 20);
   const page = Math.max(asNumber(url.searchParams.get("page"), 1), 1);
@@ -112,12 +154,16 @@ async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function adminPostDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   const post = await ctx.db.getPostById(params.id);
   if (!post) return errorJson("post not found", 404);
   return okJson(post, 200);
 }
 
 async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const denied = requireAdminIp(ctx);
+  if (denied) return denied;
   try {
     const postId = params.id;
     const body = (await ctx.request.json().catch(() => ({}))) as { action?: string };
