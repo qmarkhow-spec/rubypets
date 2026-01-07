@@ -40,38 +40,44 @@ function normalizeAllowlist(value: string): string | null {
   return entries.join(",");
 }
 
-async function getAdminAllowlist(ctx: HandlerContext): Promise<string[]> {
-  const rawAllowlist = await ctx.db.listAdminIpAllowlist();
-  const merged = rawAllowlist.flatMap(splitAllowlist);
-  return Array.from(new Set(merged));
+function parseAdminIdFromToken(request: Request): string | null {
+  const auth = request.headers.get("authorization") ?? "";
+  if (!auth.toLowerCase().startsWith("bearer ")) return null;
+  const token = auth.slice(7).trim();
+  if (!token.startsWith("admin:")) return null;
+  const adminId = token.slice("admin:".length).trim();
+  return adminId ? adminId : null;
 }
 
-async function requireAdminIp(ctx: HandlerContext): Promise<Response | null> {
-  const allowlist = await getAdminAllowlist(ctx);
-  // Allow requests until at least one whitelist entry is configured.
-  if (allowlist.length === 0) return null;
+async function requireAdmin(ctx: HandlerContext): Promise<{ adminId: string } | Response> {
+  const adminId = parseAdminIdFromToken(ctx.request);
+  if (!adminId) return errorJson("Unauthorized", 401);
+  const admin = await ctx.db.getAdminByAdminId(adminId);
+  if (!admin) return errorJson("Unauthorized", 401);
+  const allowlist = splitAllowlist(admin.ipAllowlist ?? "");
+  if (allowlist.length === 0) return { adminId };
   const ip = getClientIp(ctx.request);
   if (!ip || !allowlist.includes(ip)) return errorJson("Forbidden", 403);
-  return null;
+  return { adminId };
 }
 
 async function reviewSummaryRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const counts = await ctx.db.countVerificationStatuses();
   return okJson({ ...counts, ts: new Date().toISOString() });
 }
 
 async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const data = await ctx.db.listVerifications();
   return okJson(data, 200);
 }
 
 async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const account = await ctx.db.getAccountById(params.id);
   if (!account) return errorJson("Not found", 404);
 
@@ -108,8 +114,8 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
 }
 
 async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const accountId = params.id;
   const body = (await ctx.request.json().catch(() => ({}))) as { status?: number };
   if (body.status !== 1 && body.status !== 3) return errorJson("invalid status", 400);
@@ -118,15 +124,15 @@ async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, stri
 }
 
 async function adminAccountsListRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const admins = await ctx.db.listAdminAccounts();
   return okJson(admins, 200);
 }
 
 async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const payload = (await ctx.request.json().catch(() => ({}))) as {
     adminId?: string;
     password?: string;
@@ -143,8 +149,6 @@ async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> 
 }
 
 async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
   const payload = (await ctx.request.json().catch(() => ({}))) as { adminId?: string; password?: string };
   const adminId = (payload.adminId ?? "").trim();
   const password = payload.password ?? "";
@@ -153,14 +157,19 @@ async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
   if (!admin) return errorJson("invalid credentials", 401);
   const ok = await verifyPassword(password, admin.passwordHash);
   if (!ok) return errorJson("invalid credentials", 401);
+  const allowlist = splitAllowlist(admin.ipAllowlist ?? "");
+  if (allowlist.length > 0) {
+    const ip = getClientIp(ctx.request);
+    if (!ip || !allowlist.includes(ip)) return errorJson("Forbidden", 403);
+  }
   const token = `admin:${admin.adminId}`;
   await ctx.db.updateAdminLastAt(admin.adminId, new Date().toISOString());
   return okJson({ token, admin: { id: admin.id, adminId: admin.adminId, permission: admin.permission } }, 200);
 }
 
 async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const id = params.id;
   const payload = (await ctx.request.json().catch(() => ({}))) as { password?: string };
   const newPassword = payload.password ?? "";
@@ -171,8 +180,8 @@ async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string,
 }
 
 async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const url = new URL(ctx.request.url);
   const limit = asNumber(url.searchParams.get("limit"), 20);
   const page = Math.max(asNumber(url.searchParams.get("page"), 1), 1);
@@ -182,16 +191,16 @@ async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function adminPostDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const post = await ctx.db.getPostById(params.id);
   if (!post) return errorJson("post not found", 404);
   return okJson(post, 200);
 }
 
 async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   try {
     const postId = params.id;
     const body = (await ctx.request.json().catch(() => ({}))) as { action?: string };
@@ -228,8 +237,8 @@ async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string
 }
 
 async function adminAccountIpAllowlistRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = await requireAdminIp(ctx);
-  if (denied) return denied;
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
   const payload = (await ctx.request.json().catch(() => ({}))) as { ipAllowlist?: string | null };
   const normalized = normalizeAllowlist(payload.ipAllowlist ?? "");
   const updated = await ctx.db.updateAdminIpAllowlist(params.id, normalized);
