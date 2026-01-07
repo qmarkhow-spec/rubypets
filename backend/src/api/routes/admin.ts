@@ -27,39 +27,50 @@ function normalizeIp(value: string): string {
   return trimmed;
 }
 
-function isAdminIpAllowed(ctx: HandlerContext): boolean {
-  const raw = ctx.env.ADMIN_IP_ALLOWLIST ?? "";
-  const allowlist = raw
+function splitAllowlist(value: string): string[] {
+  return value
     .split(",")
     .map((entry) => normalizeIp(entry))
     .filter(Boolean);
-  if (allowlist.length === 0) return false;
-  const ip = getClientIp(ctx.request);
-  if (!ip) return false;
-  return allowlist.includes(ip);
 }
 
-function requireAdminIp(ctx: HandlerContext): Response | null {
-  // NOTE: Allowlist check temporarily disabled for testing.
+function normalizeAllowlist(value: string): string | null {
+  const entries = splitAllowlist(value);
+  if (entries.length === 0) return null;
+  return entries.join(",");
+}
+
+async function getAdminAllowlist(ctx: HandlerContext): Promise<string[]> {
+  const rawAllowlist = await ctx.db.listAdminIpAllowlist();
+  const merged = rawAllowlist.flatMap(splitAllowlist);
+  return Array.from(new Set(merged));
+}
+
+async function requireAdminIp(ctx: HandlerContext): Promise<Response | null> {
+  const allowlist = await getAdminAllowlist(ctx);
+  // Allow requests until at least one whitelist entry is configured.
+  if (allowlist.length === 0) return null;
+  const ip = getClientIp(ctx.request);
+  if (!ip || !allowlist.includes(ip)) return errorJson("Forbidden", 403);
   return null;
 }
 
 async function reviewSummaryRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const counts = await ctx.db.countVerificationStatuses();
   return okJson({ ...counts, ts: new Date().toISOString() });
 }
 
 async function reviewKycPendingRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const data = await ctx.db.listVerifications();
   return okJson(data, 200);
 }
 
 async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const account = await ctx.db.getAccountById(params.id);
   if (!account) return errorJson("Not found", 404);
@@ -97,7 +108,7 @@ async function kycDetailRoute(ctx: HandlerContext, params: Record<string, string
 }
 
 async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const accountId = params.id;
   const body = (await ctx.request.json().catch(() => ({}))) as { status?: number };
@@ -107,14 +118,14 @@ async function kycDecisionRoute(ctx: HandlerContext, params: Record<string, stri
 }
 
 async function adminAccountsListRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const admins = await ctx.db.listAdminAccounts();
   return okJson(admins, 200);
 }
 
 async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const payload = (await ctx.request.json().catch(() => ({}))) as {
     adminId?: string;
@@ -132,7 +143,7 @@ async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> 
 }
 
 async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const payload = (await ctx.request.json().catch(() => ({}))) as { adminId?: string; password?: string };
   const adminId = (payload.adminId ?? "").trim();
@@ -148,7 +159,7 @@ async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const id = params.id;
   const payload = (await ctx.request.json().catch(() => ({}))) as { password?: string };
@@ -160,7 +171,7 @@ async function adminAccountRollRoute(ctx: HandlerContext, params: Record<string,
 }
 
 async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const url = new URL(ctx.request.url);
   const limit = asNumber(url.searchParams.get("limit"), 20);
@@ -171,7 +182,7 @@ async function adminPostsListRoute(ctx: HandlerContext): Promise<Response> {
 }
 
 async function adminPostDetailRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   const post = await ctx.db.getPostById(params.id);
   if (!post) return errorJson("post not found", 404);
@@ -179,7 +190,7 @@ async function adminPostDetailRoute(ctx: HandlerContext, params: Record<string, 
 }
 
 async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
-  const denied = requireAdminIp(ctx);
+  const denied = await requireAdminIp(ctx);
   if (denied) return denied;
   try {
     const postId = params.id;
@@ -214,6 +225,16 @@ async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string
     console.error("adminPostModerate error", err);
     return errorJson((err as Error).message, 500);
   }
+}
+
+async function adminAccountIpAllowlistRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const denied = await requireAdminIp(ctx);
+  if (denied) return denied;
+  const payload = (await ctx.request.json().catch(() => ({}))) as { ipAllowlist?: string | null };
+  const normalized = normalizeAllowlist(payload.ipAllowlist ?? "");
+  const updated = await ctx.db.updateAdminIpAllowlist(params.id, normalized);
+  if (!updated) return errorJson("Not found", 404);
+  return okJson({ adminId: params.id, ipAllowlist: normalized }, 200);
 }
 
 async function deleteCloudflareAssets(
@@ -258,6 +279,7 @@ export const dynamicRoutes: DynamicRoute[] = [
   { method: "GET", pattern: /^\/admin\/review\/kyc\/([^/]+)$/, handler: kycDetailRoute },
   { method: "POST", pattern: /^\/admin\/review\/kyc\/([^/]+)\/decision$/, handler: kycDecisionRoute },
   { method: "POST", pattern: /^\/admin\/admin-accounts\/([^/]+)\/roll$/, handler: adminAccountRollRoute },
+  { method: "POST", pattern: /^\/admin\/admin-accounts\/([^/]+)\/ip-allowlist$/, handler: adminAccountIpAllowlistRoute },
   { method: "GET", pattern: /^\/admin\/posts\/([^/]+)$/, handler: adminPostDetailRoute },
   { method: "POST", pattern: /^\/admin\/posts\/([^/]+)\/moderate$/, handler: adminPostModerateRoute }
 ];

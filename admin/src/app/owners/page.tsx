@@ -81,7 +81,7 @@ export default function OwnersPage() {
           <ul className="list">
             <li>確認 city/region 已填寫（/owners/:uuid payload）</li>
             <li>確認 R2 已有證件影像</li>
-            <li>寫入 is_verified=1 並更新 updated_at</li>
+            <li>寫入 is_verified=1 並更新 updated_at </li>
           </ul>
         </section>
 
