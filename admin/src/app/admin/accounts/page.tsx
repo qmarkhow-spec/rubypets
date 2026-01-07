@@ -13,6 +13,11 @@ type FormState = {
   permission: PermissionOption["value"];
 };
 
+type IpModalState = {
+  adminId: string;
+  value: string;
+};
+
 export default function AdminAccountsPage() {
   const [items, setItems] = useState<AdminAccount[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,6 +27,8 @@ export default function AdminAccountsPage() {
   const [form, setForm] = useState<FormState>({ adminId: "", password: "", permission: "Inspector" });
   const [rollModal, setRollModal] = useState<string | null>(null);
   const [rollPassword, setRollPassword] = useState(generatePasswordValue());
+  const [ipModal, setIpModal] = useState<IpModalState | null>(null);
+  const [ipSaving, setIpSaving] = useState(false);
 
   useEffect(() => {
     void load();
@@ -98,6 +105,30 @@ export default function AdminAccountsPage() {
     }
   }
 
+  function openIpModal(item: AdminAccount) {
+    setError(null);
+    setIpModal({ adminId: item.adminId, value: item.ipAllowlist ?? "" });
+  }
+
+  async function handleIpSave() {
+    if (!ipModal) return;
+    setIpSaving(true);
+    setError(null);
+    try {
+      await apiFetch(`/admin/admin-accounts/${encodeURIComponent(ipModal.adminId)}/ip-allowlist`, {
+        method: "POST",
+        headers: tokenHeaders(),
+        body: JSON.stringify({ ipAllowlist: ipModal.value })
+      });
+      setIpModal(null);
+      await load();
+    } catch (err) {
+      setError((err as Error).message || "更新 IP 白名單失敗");
+    } finally {
+      setIpSaving(false);
+    }
+  }
+
   const sorted = useMemo(() => items, [items]);
 
   return (
@@ -142,9 +173,14 @@ export default function AdminAccountsPage() {
                   <td>{item.lastAt ? new Date(item.lastAt).toLocaleString() : "--"}</td>
                   <td>{new Date(item.updatedAt).toLocaleString()}</td>
                   <td>
-                    <button className="btn ghost" onClick={() => openRollModal(item.adminId)}>
-                      roll
-                    </button>
+                    <div className="btn-row" style={{ gap: 8 }}>
+                      <button className="btn ghost" onClick={() => openRollModal(item.adminId)}>
+                        roll
+                      </button>
+                      <button className="btn ghost" onClick={() => openIpModal(item)}>
+                        IP 白名單
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -227,6 +263,32 @@ export default function AdminAccountsPage() {
               </button>
               <button className="btn" onClick={handleRollSave} disabled={saving}>
                 {saving ? "儲存中..." : "確認"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {ipModal ? (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3>IP 白名單</h3>
+            <p className="helper">帳號：{ipModal.adminId}</p>
+            <div className="field" style={{ marginTop: 10 }}>
+              <label>允許的 IP</label>
+              <textarea
+                value={ipModal.value}
+                onChange={(e) => setIpModal((prev) => (prev ? { ...prev, value: e.target.value } : prev))}
+                placeholder="1.2.3.4,5.6.7.8"
+              />
+              <span className="helper">用逗號分隔，多筆請直接貼上即可</span>
+            </div>
+            <div className="btn-row" style={{ justifyContent: "flex-end", marginTop: 14 }}>
+              <button className="btn ghost" onClick={() => setIpModal(null)} disabled={ipSaving}>
+                取消
+              </button>
+              <button className="btn" onClick={handleIpSave} disabled={ipSaving}>
+                {ipSaving ? "儲存中..." : "儲存"}
               </button>
             </div>
           </div>

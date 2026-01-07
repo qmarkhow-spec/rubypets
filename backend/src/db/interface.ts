@@ -132,6 +132,7 @@ export interface DBClient {
   getAdminByAdminId(adminId: string): Promise<import("./models").AdminAccount & { passwordHash: string } | null>;
   updateAdminLastAt(adminId: string, ts: string): Promise<void>;
   updateAdminPassword(adminId: string, passwordHash: string): Promise<void>;
+  updateAdminIpAllowlist(adminId: string, ipAllowlist: string | null): Promise<boolean>;
   updateOwnerLocation(ownerUuid: string, city: string, region: string): Promise<import("./models").Owner>;
   updateAccountVerificationUrls(
     accountId: string,
@@ -151,4 +152,5 @@ export interface DBClient {
   >;
   listAdminAccounts(): Promise<import("./models").AdminAccount[]>;
   createAdminAccount(input: { adminId: string; password: string; permission: string }): Promise<import("./models").AdminAccount>;
+  listAdminIpAllowlist(): Promise<string[]>;
 }

@@ -102,6 +102,7 @@ export interface AdminAccount {
   id: number;
   adminId: string;
   permission: string;
+  ipAllowlist?: string | null;
   createdAt: string;
   lastAt: string | null;
   updatedAt: string;

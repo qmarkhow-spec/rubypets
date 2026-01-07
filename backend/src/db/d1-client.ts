@@ -136,6 +136,7 @@ type AdminAccountRow = {
   admin_id: string;
   password: string;
   permission: string;
+  ip_allowlist: string;
   created_at: string;
   last_at: string | null;
   updated_at: string;
@@ -1664,7 +1665,7 @@ export class D1Client implements DBClient {
     const { results } = await this.db
       .prepare(
         `
-          select id, admin_id, permission, created_at, last_at, updated_at
+          select id, admin_id, permission, ip_allowlist, created_at, last_at, updated_at
           from admin_accounts
           order by id desc
         `
@@ -1688,7 +1689,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, admin_id, permission, created_at, last_at, updated_at
+          select id, admin_id, permission, ip_allowlist, created_at, last_at, updated_at
           from admin_accounts
           where admin_id = ?
         `
@@ -1703,7 +1704,7 @@ export class D1Client implements DBClient {
     const row = await this.db
       .prepare(
         `
-          select id, admin_id, password, permission, created_at, last_at, updated_at
+          select id, admin_id, password, permission, ip_allowlist, created_at, last_at, updated_at
           from admin_accounts
           where admin_id = ?
         `
@@ -1724,6 +1725,29 @@ export class D1Client implements DBClient {
       .prepare(`update admin_accounts set password = ?, updated_at = ? where admin_id = ?`)
       .bind(passwordHash, ts, adminId)
       .run();
+  }
+
+  async updateAdminIpAllowlist(adminId: string, ipAllowlist: string | null): Promise<boolean> {
+    const ts = new Date().toISOString();
+    const result = await this.db
+      .prepare(`update admin_accounts set ip_allowlist = ?, updated_at = ? where admin_id = ?`)
+      .bind(ipAllowlist, ts, adminId)
+      .run();
+    const changes = (result as { meta?: { changes?: number } })?.meta?.changes ?? 0;
+    return changes > 0;
+  }
+
+  async listAdminIpAllowlist(): Promise<string[]> {
+    const { results } = await this.db
+      .prepare(
+        `
+          select ip_allowlist
+          from admin_accounts
+          where ip_allowlist is not null and trim(ip_allowlist) <> ''
+        `
+      )
+      .all<{ ip_allowlist: string | null }>();
+    return (results ?? []).map((row) => row.ip_allowlist ?? "").filter(Boolean);
   }
 }
 
@@ -1846,6 +1870,7 @@ function mapAdminAccountRow(row: AdminAccountRow): AdminAccount {
     id: row.id,
     adminId: row.admin_id,
     permission: row.permission,
+    ipAllowlist: row.ip_allowlist ?? null,
     createdAt: row.created_at,
     lastAt: row.last_at ?? null,
     updatedAt: row.updated_at
