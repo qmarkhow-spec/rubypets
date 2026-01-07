@@ -35,7 +35,7 @@ function KycDetailContent() {
       const res = await apiFetch<KycDetail>(`/admin/review/kyc/${encodeURIComponent(id)}`);
       setData(res);
     } catch (err) {
-      setError((err as Error).message || "無法取得用戶資料");
+      setError((err as Error).message || "無法取得帳戶資料");
       setData(null);
     } finally {
       setLoading(false);
@@ -46,6 +46,7 @@ function KycDetailContent() {
     if (!data) return "neutral";
     if (data.isVerified === 2) return "warn";
     if (data.isVerified === 1) return "success";
+    if (data.isVerified === 3) return "danger";
     return "neutral";
   }, [data]);
 
@@ -53,7 +54,8 @@ function KycDetailContent() {
     if (!data) return "未知";
     if (data.isVerified === 2) return "待審核";
     if (data.isVerified === 1) return "已審核";
-    return "未上傳資料";
+    if (data.isVerified === 3) return "審核未通過";
+    return "未提交";
   }, [data]);
 
   const renderImage = (url: string | null, label: string) => {
@@ -87,7 +89,7 @@ function KycDetailContent() {
   return (
     <AppShell
       title="實名認證審核 - 詳細"
-      intro="檢視用戶上傳的三張證件照。"
+      intro="檢視帳戶上傳的證件照片"
       actions={
         <div className="btn-row" style={{ flexWrap: "wrap" }}>
           <button className="btn ghost" onClick={() => router.back()}>
@@ -107,22 +109,22 @@ function KycDetailContent() {
         {data ? (
           <>
             <div className="pill-grid">
-              <StatusPill label={statusLabel} tone={statusTone as "success" | "warn" | "neutral"} />
+              <StatusPill label={statusLabel} tone={statusTone as "success" | "warn" | "neutral" | "danger"} />
               <span className="tag">Account: {data.accountId}</span>
               {data.createdAt ? <span className="tag">註冊：{new Date(data.createdAt).toLocaleString()}</span> : null}
             </div>
             <div className="form-grid" style={{ marginTop: 12 }}>
               <div className="field">
-                <label>本名</label>
-                <p>{data.realName ?? "—"}</p>
+                <label>姓名</label>
+                <p>{data.realName ?? "--"}</p>
               </div>
               <div className="field">
-                <label>身份證字號</label>
-                <p>{data.idNumber ?? "—"}</p>
+                <label>身分證號</label>
+                <p>{data.idNumber ?? "--"}</p>
               </div>
               <div className="field">
                 <label>手機</label>
-                <p>{data.phoneNumber ?? "—"}</p>
+                <p>{data.phoneNumber ?? "--"}</p>
               </div>
             </div>
           </>
@@ -137,12 +139,12 @@ function KycDetailContent() {
             {renderImage(data?.idLicenseFrontUrl ?? null, "身分證正面")}
           </div>
           <div>
-            <div className="tag">身分證反面</div>
-            {renderImage(data?.idLicenseBackUrl ?? null, "身分證反面")}
+            <div className="tag">身分證背面</div>
+            {renderImage(data?.idLicenseBackUrl ?? null, "身分證背面")}
           </div>
           <div>
-            <div className="tag">人像+證件自拍</div>
-            {renderImage(data?.faceWithLicenseUrl ?? null, "人像+證件自拍")}
+            <div className="tag">人臉 + 證件自拍</div>
+            {renderImage(data?.faceWithLicenseUrl ?? null, "人臉 + 證件自拍")}
           </div>
         </div>
         <div className="btn-row" style={{ marginTop: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
@@ -151,10 +153,10 @@ function KycDetailContent() {
           </button>
           <div className="btn-row" style={{ gap: 8 }}>
             <button className="btn ghost" onClick={() => handleDecision(3)} disabled={loading || !accountId}>
-              不核准
+              不通過
             </button>
             <button className="btn" onClick={() => handleDecision(1)} disabled={loading || !accountId}>
-              核准
+              通過
             </button>
           </div>
         </div>

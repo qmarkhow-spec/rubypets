@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { AdminPost } from "@/lib/types";
 
 interface AdminPostResponse {
-  data: AdminPost[];
+  items: AdminPost[];
   page: number;
   hasMore: boolean;
 }
@@ -20,17 +20,8 @@ export default function AdminPostsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Grid List 欄位比例（含「操作欄」）
-  // 你可依實際習慣微調各欄 fr 比例
-  const gridClass = "grid w-full";
-  const gridStyle: React.CSSProperties = {
-    gridTemplateColumns: "1.4fr 3.6fr 1.1fr 1fr 1.8fr 160px",
-  };
-
-
   useEffect(() => {
     void load(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   async function load(nextPage: number) {
@@ -38,7 +29,7 @@ export default function AdminPostsPage() {
     setError(null);
     try {
       const result = await apiFetch<AdminPostResponse>(`/admin/posts?page=${nextPage}&limit=20`);
-      setPosts(result.data);
+      setPosts(result.items);
       setHasMore(result.hasMore);
     } catch (err) {
       setError(readError(err));
@@ -48,7 +39,7 @@ export default function AdminPostsPage() {
   }
 
   return (
-    <AppShell title="貼文管理" intro="查看並下架/刪除貼文" requireAuth>
+    <AppShell title="貼文管理" intro="檢視並執行下架或刪除">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <button className="btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || loading}>
@@ -67,73 +58,70 @@ export default function AdminPostsPage() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="card mt-3 w-full max-w-none overflow-x-auto">
-    {/* Header */}
-    <div
-      className="w-full px-4 py-2 text-xs font-semibold text-slate-500"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 60px",
-        gap: "12px",
-        alignItems: "center",
-      }}
-    >
-      <div>作者</div>
-      <div>貼文 ID</div>
-      <div>狀態</div>
-      <div>類型</div>
-      <div>建立時間</div>
-      <div style={{ textAlign: "right" }}>操作</div>
-    </div>
-
-    <div className="space-y-2 px-2 pb-3">
-      {posts.map((post) => (
         <div
-          key={post.id}
-          className="w-full bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition"
+          className="w-full px-4 py-2 text-xs font-semibold text-slate-500"
           style={{
             display: "grid",
             gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 60px",
             gap: "12px",
-            alignItems: "center",
+            alignItems: "center"
           }}
         >
-          <div className="min-w-0 truncate whitespace-nowrap">
-            {post.authorDisplayName || post.authorId}
-          </div>
-
-          <div className="min-w-0">
-            <Link
-              href={`/admin/posts/detail?id=${post.id}`}
-              className="text-blue-600 hover:underline truncate block w-full"
-            >
-              {post.id}
-            </Link>
-          </div>
-
-          <div>
-            <StatusPill
-              label={post.isDeleted ? "下架中" : "上架中"}
-              tone={post.isDeleted ? "neutral" : "success"}
-            />
-          </div>
-
-          <div className="whitespace-nowrap">{post.postType || "text"}</div>
-
-          <div className="whitespace-nowrap">{new Date(post.createdAt).toLocaleString()}</div>
-
-          {/* 操作欄先留空 */}
-          <div className="flex justify-end">
-            <div className="h-9 w-[120px]" />
-          </div>
+          <div>作者</div>
+          <div>貼文 ID</div>
+          <div>狀態</div>
+          <div>類型</div>
+          <div>建立時間</div>
+          <div style={{ textAlign: "right" }}>操作</div>
         </div>
-      ))}
 
-      {posts.length === 0 && !loading && (
-        <div className="px-4 py-6 text-sm text-slate-600">目前沒有資料</div>
-      )}
-    </div>
-  </div>
+        <div className="space-y-2 px-2 pb-3">
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              className="w-full bg-white/80 rounded-md shadow-sm px-2 sm:px-4 py-3 hover:bg-white transition"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.4fr 4fr 1.1fr 1fr 2.6fr 60px",
+                gap: "12px",
+                alignItems: "center"
+              }}
+            >
+              <div className="min-w-0 truncate whitespace-nowrap">
+                {post.authorDisplayName || post.authorId}
+              </div>
 
+              <div className="min-w-0">
+                <Link
+                  href={`/admin/posts/detail?id=${post.id}`}
+                  className="text-blue-600 hover:underline truncate block w-full"
+                >
+                  {post.id}
+                </Link>
+              </div>
+
+              <div>
+                <StatusPill
+                  label={post.isDeleted ? "已下架" : "上架中"}
+                  tone={post.isDeleted ? "neutral" : "success"}
+                />
+              </div>
+
+              <div className="whitespace-nowrap">{post.postType || "text"}</div>
+
+              <div className="whitespace-nowrap">{new Date(post.createdAt).toLocaleString()}</div>
+
+              <div className="flex justify-end">
+                <div className="h-9 w-[120px]" />
+              </div>
+            </div>
+          ))}
+
+          {posts.length === 0 && !loading && (
+            <div className="px-4 py-6 text-sm text-slate-600">目前沒有資料</div>
+          )}
+        </div>
+      </div>
     </AppShell>
   );
 }
@@ -141,5 +129,5 @@ export default function AdminPostsPage() {
 function readError(err: unknown): string {
   if (!err) return "未知錯誤";
   if (typeof err === "string") return err;
-  return (err as Error).message || "伺服器錯誤";
+  return (err as Error).message || "發生錯誤";
 }

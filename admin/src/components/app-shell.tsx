@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { clearAdminToken } from "@/lib/admin-auth";
 
 type NavItem = {
@@ -98,7 +98,11 @@ export function AppShell({
             </button>
           </header>
           {intro ? <p className="page-intro">{intro}</p> : null}
-          {actions ? <div className="btn-row" style={{ marginTop: 4 }}>{actions}</div> : null}
+          {actions ? (
+            <div className="btn-row" style={{ marginTop: 4 }}>
+              {actions}
+            </div>
+          ) : null}
           <div className="page-body">{children}</div>
         </div>
       </AuthGate>
@@ -108,7 +112,11 @@ export function AppShell({
 
 function AuthGate({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   if (!enabled) return <>{children}</>;
-  if (typeof window === "undefined") return null;
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(true);
+  }, []);
+  if (!ready) return null;
   const token = window.localStorage.getItem("ADMIN_TOKEN");
   if (!token) {
     window.location.href = "/admin-login";

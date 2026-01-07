@@ -22,7 +22,7 @@ const ownerQueue: OwnerSummary[] = [
     city: "TPQ",
     region: "Banqiao",
     isVerified: false,
-    lastUpdate: "ID/自拍已上傳",
+    lastUpdate: "ID/文件已上傳",
     risk: "medium"
   },
   {
@@ -39,15 +39,15 @@ const ownerQueue: OwnerSummary[] = [
 
 export default function OwnersPage() {
   return (
-    <AppShell title="飼主審核" intro="確認飼主資料、城市/行政區與身分驗證文件。">
+    <AppShell title="飼主審核" intro="確認飼主資料與身份證件">
       <section className="card">
-        <h3>待處理/已通過</h3>
+        <h3>待審 / 已通過</h3>
         <table className="table">
           <thead>
             <tr>
               <th>飼主</th>
               <th>Email</th>
-              <th>城市/區域</th>
+              <th>縣市 / 地區</th>
               <th>驗證狀態</th>
               <th>備註</th>
             </tr>
@@ -79,9 +79,9 @@ export default function OwnersPage() {
         <section className="card">
           <h3>快速檢查清單</h3>
           <ul className="list">
-            <li>確認 city/region 已填入（/owners/:uuid payload）。</li>
-            <li>確認 R2 已有 {`<accountId>/verify_doc/pics`} 影像。</li>
-            <li>寫入 is_verified=1 並更新 updated_at。</li>
+            <li>確認 city/region 已填寫（/owners/:uuid payload）</li>
+            <li>確認 R2 已有證件影像</li>
+            <li>寫入 is_verified=1 並更新 updated_at</li>
           </ul>
         </section>
 
@@ -93,7 +93,7 @@ export default function OwnersPage() {
             <div className="tag">POST /owners/:uuid/verification-docs</div>
           </div>
           <p style={{ marginTop: 8 }} className="helper">
-            可搭配 /auth/login 取得 token 後在 Authorization 使用 Bearer。
+            可搭配 /auth/login 取得 token 後在 Authorization 使用 Bearer
           </p>
         </section>
       </div>

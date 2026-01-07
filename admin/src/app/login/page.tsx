@@ -41,7 +41,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AppShell title="登入 / Token" intro="用 demo 帳號快速換取 accessToken，方便測試 /api/me 與 R2 上傳流程。">
+    <AppShell title="登入 / Token" intro="使用 demo 帳號快速取得 accessToken，方便測試 /api/me 或 R2 上傳">
       <section className="card">
         <h3>登入</h3>
         <form onSubmit={handleSubmit}>
@@ -77,7 +77,10 @@ export default function LoginPage() {
           <div className="callout" style={{ marginTop: 10 }}>
             <StatusPill label="登入成功" tone="success" />
             <p style={{ marginTop: 8 }}>accessToken: {result.accessToken}</p>
-            <p className="helper">curl -H "Authorization: Bearer {result.accessToken}" {`"${process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com"}/me"`}</p>
+            <p className="helper">
+              curl -H "Authorization: Bearer {result.accessToken}"{" "}
+              {`"${process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com"}/me"`}
+            </p>
           </div>
         ) : null}
       </section>

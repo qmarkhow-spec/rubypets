@@ -31,8 +31,8 @@ export default function AdminAccountsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ data: AdminAccount[] }>("/admin/admin-accounts", { headers: tokenHeaders() });
-      setItems(res.data);
+      const res = await apiFetch<AdminAccount[]>("/admin/admin-accounts", { headers: tokenHeaders() });
+      setItems(res);
     } catch (err) {
       setError((err as Error).message || "無法取得管理員列表");
     } finally {
@@ -92,7 +92,7 @@ export default function AdminAccountsPage() {
       setRollModal(null);
       await load();
     } catch (err) {
-      setError((err as Error).message || "重置失敗");
+      setError((err as Error).message || "重設失敗");
     } finally {
       setSaving(false);
     }
@@ -103,7 +103,7 @@ export default function AdminAccountsPage() {
   return (
     <AppShell
       title="管理員帳號"
-      intro="管理 admin_accounts 的登入帳號與權限，密碼不會顯示。"
+      intro="管理 admin_accounts 的登入帳號與權限"
       actions={
         <button className="btn" onClick={() => setShowModal(true)}>
           新增管理員
@@ -120,16 +120,16 @@ export default function AdminAccountsPage() {
               <th>帳號</th>
               <th>權限</th>
               <th>建立時間</th>
-              <th>最近上線</th>
-              <th>最近修改</th>
+              <th>最後登入</th>
+              <th>最後更新</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ color: "var(--muted)" }}>
-                  {loading ? "載入中..." : "目前沒有管理員帳號。"}
+                <td colSpan={7} style={{ color: "var(--muted)" }}>
+                  {loading ? "載入中..." : "目前沒有管理員"}
                 </td>
               </tr>
             ) : (
@@ -139,7 +139,7 @@ export default function AdminAccountsPage() {
                   <td>{item.adminId}</td>
                   <td>{permissionLabel(item.permission)}</td>
                   <td>{new Date(item.createdAt).toLocaleString()}</td>
-                  <td>{item.lastAt ? new Date(item.lastAt).toLocaleString() : "—"}</td>
+                  <td>{item.lastAt ? new Date(item.lastAt).toLocaleString() : "--"}</td>
                   <td>{new Date(item.updatedAt).toLocaleString()}</td>
                   <td>
                     <button className="btn ghost" onClick={() => openRollModal(item.adminId)}>
@@ -173,10 +173,10 @@ export default function AdminAccountsPage() {
                     style={{ flex: 1 }}
                     value={form.password}
                     onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder="輸入或生成隨機密碼"
+                    placeholder="輸入或產生密碼"
                   />
                   <button type="button" className="btn ghost" onClick={generatePassword}>
-                    生成隨機密碼
+                    產生密碼
                   </button>
                 </div>
               </div>
@@ -199,7 +199,7 @@ export default function AdminAccountsPage() {
                 取消
               </button>
               <button className="btn" onClick={handleSave} disabled={saving}>
-                {saving ? "儲存中..." : "確定"}
+                {saving ? "儲存中..." : "確認"}
               </button>
             </div>
           </div>
@@ -209,14 +209,14 @@ export default function AdminAccountsPage() {
       {rollModal ? (
         <div className="modal-backdrop">
           <div className="modal">
-            <h3>重置密碼</h3>
+            <h3>重設密碼</h3>
             <p className="helper">帳號：{rollModal}</p>
             <div className="field" style={{ marginTop: 10 }}>
               <label>新密碼</label>
               <div style={{ display: "flex", gap: 8 }}>
                 <input value={rollPassword} readOnly />
                 <button type="button" className="btn ghost" onClick={generateRollPassword}>
-                  重新生成
+                  重新產生
                 </button>
               </div>
             </div>
@@ -226,7 +226,7 @@ export default function AdminAccountsPage() {
                 取消
               </button>
               <button className="btn" onClick={handleRollSave} disabled={saving}>
-                {saving ? "儲存中..." : "確定"}
+                {saving ? "儲存中..." : "確認"}
               </button>
             </div>
           </div>
