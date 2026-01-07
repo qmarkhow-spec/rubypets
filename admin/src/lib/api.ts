@@ -17,10 +17,21 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
-    return (await response.json()) as T;
+    const payload = (await response.json()) as unknown;
+    return unwrapOkPayload(payload) as T;
   }
 
   return (await response.text()) as unknown as T;
 }
 
 export { API_BASE };
+
+function unwrapOkPayload(payload: unknown) {
+  if (payload && typeof payload === "object") {
+    const record = payload as { ok?: unknown; data?: unknown };
+    if (record.ok === true && "data" in record) {
+      return record.data;
+    }
+  }
+  return payload;
+}

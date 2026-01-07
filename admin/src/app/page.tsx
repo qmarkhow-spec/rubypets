@@ -61,7 +61,7 @@ export default function DashboardPage() {
             {loadingHealth ? "檢查中..." : "重新檢查 API"}
           </button>
           <button className="btn ghost" onClick={refreshReview} disabled={loadingReview}>
-            {loadingReview ? "載入中..." : "刷新審核數"}
+            {loadingReview ? "載入中..." : "刷新審核數據"}
           </button>
         </>
       }

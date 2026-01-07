@@ -24,15 +24,14 @@ function DetailInner() {
       return;
     }
     void load(postId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   async function load(id: string) {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ data: AdminPost }>(`/admin/posts/${id}`);
-      setPost(res.data);
+      const res = await apiFetch<AdminPost>(`/admin/posts/${id}`);
+      setPost(res);
     } catch (err) {
       setError(readError(err));
     } finally {
@@ -43,7 +42,7 @@ function DetailInner() {
   async function saveAction() {
     if (!post || !action) return;
     if (action !== "disable") {
-      const ok = window.confirm("此動作會刪除媒體或整筆貼文資料，確定要執行嗎？");
+      const ok = window.confirm("此動作將刪除媒體或整筆貼文資料，確定要執行嗎？");
       if (!ok) return;
     }
     setSaving(true);
@@ -51,7 +50,7 @@ function DetailInner() {
     try {
       await apiFetch(`/admin/posts/${post.id}/moderate`, {
         method: "POST",
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action })
       });
       if (action === "delete_all") {
         router.push("/admin/posts");
@@ -59,7 +58,7 @@ function DetailInner() {
         return;
       }
       await load(post.id);
-      alert("已儲存");
+      alert("已完成");
     } catch (err) {
       setError(readError(err));
     } finally {
@@ -68,7 +67,7 @@ function DetailInner() {
   }
 
   return (
-    <AppShell title="貼文管理" intro="檢視與操作貼文" requireAuth>
+    <AppShell title="貼文管理" intro="檢視並處理單筆貼文">
       <div className="flex items-center gap-3 text-white">
         <Link href="/admin/posts" className="text-sm text-white/80 hover:text-white">
           返回列表
@@ -89,7 +88,7 @@ function DetailInner() {
           {renderMedia(post)}
 
           <div className="space-y-2 rounded border border-dashed border-slate-200 p-3">
-            <p className="text-sm font-semibold text-slate-800">刪除/下架選項</p>
+            <p className="text-sm font-semibold text-slate-800">下架 / 刪除選項</p>
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
                 type="radio"
@@ -98,7 +97,7 @@ function DetailInner() {
                 checked={action === "disable"}
                 onChange={() => setAction("disable")}
               />
-              下架該貼文（僅 posts.is_deleted=1）
+              下架貼文（posts.is_deleted=1）
             </label>
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
@@ -108,7 +107,7 @@ function DetailInner() {
                 checked={action === "disable_delete_media"}
                 onChange={() => setAction("disable_delete_media")}
               />
-              下架並刪除媒體（含 Cloudflare 與 post_media/media_assets/post_media_pet_tags）
+              下架並刪除媒體（Cloudflare + media 資料）
             </label>
             <label className="flex items-center gap-2 text-sm text-red-700">
               <input
@@ -118,21 +117,12 @@ function DetailInner() {
                 checked={action === "delete_all"}
                 onChange={() => setAction("delete_all")}
               />
-              刪除所有資料（含 likes/comments/shares/post row）
+              刪除所有關聯（likes/comments/shares/post row）
             </label>
-            <button
-              type="button"
-              onClick={saveAction}
-              disabled={saving || !action}
-              className="btn primary w-full"
-            >
-              {saving ? "儲存中..." : "儲存"}
+            <button type="button" onClick={saveAction} disabled={saving || !action} className="btn primary w-full">
+              {saving ? "處理中..." : "執行"}
             </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="btn ghost w-full"
-            >
+            <button type="button" onClick={() => router.back()} className="btn ghost w-full">
               返回
             </button>
           </div>
@@ -177,5 +167,5 @@ function renderMedia(post: AdminPost) {
 function readError(err: unknown): string {
   if (!err) return "未知錯誤";
   if (typeof err === "string") return err;
-  return (err as Error).message || "伺服器錯誤";
+  return (err as Error).message || "發生錯誤";
 }

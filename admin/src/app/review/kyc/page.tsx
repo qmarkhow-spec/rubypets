@@ -23,10 +23,10 @@ export default function KycReviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ data: KycPendingItem[] }>("/admin/review/kyc-pending");
-      setItems(res.data);
+      const res = await apiFetch<KycPendingItem[]>("/admin/review/kyc-pending");
+      setItems(res);
     } catch (err) {
-      setError((err as Error).message || "無法取得實名審核清單");
+      setError((err as Error).message || "無法取得實名認證清單");
       setItems([]);
     } finally {
       setLoading(false);
@@ -45,13 +45,13 @@ export default function KycReviewPage() {
     if (val === 2) return <StatusPill label="待審核" tone="warn" />;
     if (val === 1) return <StatusPill label="已審核" tone="success" />;
     if (val === 3) return <StatusPill label="審核未通過" tone="danger" />;
-    return <StatusPill label="未上傳資料" tone="neutral" />;
+    return <StatusPill label="未提交" tone="neutral" />;
   };
 
   return (
     <AppShell
       title="實名認證審核"
-      intro="列出 D1 中的帳號（is_verified 狀態：0 未上傳、1 已審核、2 待審核、3 審核未通過）。"
+      intro="列出 D1 中帳戶狀態（is_verified 0/1/2/3）"
       actions={
         <button className="btn ghost" onClick={load} disabled={loading}>
           {loading ? "載入中..." : "重新整理"}
@@ -59,11 +59,11 @@ export default function KycReviewPage() {
       }
     >
       <section className="card">
-        <h3>待審核列表</h3>
+        <h3>待審核帳戶</h3>
         {error ? <div className="callout" style={{ color: "#fecdd3" }}>{error}</div> : null}
         <div className="btn-row" style={{ marginTop: 10, flexWrap: "wrap" }}>
           <button className={`btn ghost${filter === "all" ? " active" : ""}`} onClick={() => setFilter("all")}>
-            顯示全部
+            全部
           </button>
           <button className={`btn ghost${filter === "pending" ? " active" : ""}`} onClick={() => setFilter("pending")}>
             待審核
@@ -78,7 +78,7 @@ export default function KycReviewPage() {
             className={`btn ghost${filter === "awaiting" ? " active" : ""}`}
             onClick={() => setFilter("awaiting")}
           >
-            未上傳資料
+            未提交
           </button>
           <button className={`btn ghost${filter === "failed" ? " active" : ""}`} onClick={() => setFilter("failed")}>
             審核未通過
@@ -87,8 +87,8 @@ export default function KycReviewPage() {
         <table className="table" style={{ marginTop: 8 }}>
           <thead>
             <tr>
-              <th>本名</th>
-              <th>身份證字號</th>
+              <th>姓名</th>
+              <th>身分證號</th>
               <th>手機</th>
               <th>註冊時間</th>
               <th>Account ID</th>
@@ -100,15 +100,15 @@ export default function KycReviewPage() {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ color: "var(--muted)" }}>
-                  {loading ? "載入中..." : "沒有符合條件的資料。"}
+                  {loading ? "載入中..." : "尚無符合條件的帳戶"}
                 </td>
               </tr>
             ) : (
               filtered.map((item) => (
                 <tr key={item.accountId}>
-                  <td>{item.realName ?? "—"}</td>
-                  <td>{item.idNumber ?? "—"}</td>
-                  <td>{item.phoneNumber ?? "—"}</td>
+                  <td>{item.realName ?? "--"}</td>
+                  <td>{item.idNumber ?? "--"}</td>
+                  <td>{item.phoneNumber ?? "--"}</td>
                   <td>{new Date(item.createdAt).toLocaleString()}</td>
                   <td className="helper">{item.accountId}</td>
                   <td>{renderStatus(item.isVerified)}</td>
