@@ -6,7 +6,7 @@ route = { pattern = "api.rubypets.com", custom_domain = true}
 
 vars = { ENVIRONMENT = "development" ,
          R2_PUBLIC_BASE_URL = "https://media.rubypets.com",
-         ADMIN_IP_ALLOWLIST = "1.175.155.123"}
+         ADMIN_IP_ALLOWLIST = "192.168.1.101"}
 
 [[d1_databases]]
 binding = "DB"
