@@ -265,3 +265,56 @@ CREATE TABLE IF NOT EXISTS post_shares (
 
 CREATE INDEX IF NOT EXISTS idx_post_shares_post_id ON post_shares(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_shares_owner_id ON post_shares(owner_id);
+
+CREATE TABLE IF NOT EXISTS chat_threads (
+  id                TEXT PRIMARY KEY,
+  owner_a_id         TEXT NOT NULL,
+  owner_b_id         TEXT NOT NULL,
+  pair_key           TEXT NOT NULL UNIQUE, 
+  request_state      TEXT NOT NULL DEFAULT 'none'
+                    CHECK (request_state IN ('none','pending','accepted','rejected')),
+  request_sender_id  TEXT,                 
+  request_message_id TEXT,                
+  last_message_id    TEXT,
+  last_activity_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_chat_threads_owner_a FOREIGN KEY (owner_a_id) REFERENCES owners(uuid) ON DELETE CASCADE,
+  CONSTRAINT fk_chat_threads_owner_b FOREIGN KEY (owner_b_id) REFERENCES owners(uuid) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_threads_owner_a ON chat_threads(owner_a_id);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_owner_b ON chat_threads(owner_b_id);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_last_activity ON chat_threads(last_activity_at);
+
+
+CREATE TABLE IF NOT EXISTS chat_thread_participants (
+  thread_id            TEXT NOT NULL,
+  owner_id             TEXT NOT NULL,
+  last_read_message_id TEXT,
+  archived_at          TEXT,
+  deleted_at           TEXT,
+  created_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_ctp_thread FOREIGN KEY (thread_id) REFERENCES chat_threads(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ctp_owner  FOREIGN KEY (owner_id)  REFERENCES owners(uuid) ON DELETE CASCADE,
+  PRIMARY KEY (thread_id, owner_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ctp_owner ON chat_thread_participants(owner_id);
+CREATE INDEX IF NOT EXISTS idx_ctp_owner_deleted ON chat_thread_participants(owner_id, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_ctp_owner_archived ON chat_thread_participants(owner_id, archived_at);
+
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id         TEXT PRIMARY KEY,
+  thread_id  TEXT NOT NULL,
+  sender_id  TEXT NOT NULL,
+  body_text  TEXT NOT NULL CHECK (length(body_text) <= 500),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_chat_messages_thread FOREIGN KEY (thread_id) REFERENCES chat_threads(id) ON DELETE CASCADE,
+  CONSTRAINT fk_chat_messages_sender FOREIGN KEY (sender_id) REFERENCES owners(uuid) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
