@@ -5,17 +5,34 @@ import { DynamicRoute, Route } from "./types";
 
 function getClientIp(request: Request): string | null {
   const cf = request.headers.get("CF-Connecting-IP");
-  if (cf) return cf.trim();
+  if (cf) return normalizeIp(cf);
   const forwarded = request.headers.get("X-Forwarded-For");
-  if (forwarded) return forwarded.split(",")[0].trim();
+  if (forwarded) return normalizeIp(forwarded.split(",")[0].trim());
   const real = request.headers.get("X-Real-IP");
-  if (real) return real.trim();
+  if (real) return normalizeIp(real);
   return null;
+}
+
+function normalizeIp(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("::ffff:")) {
+    return trimmed.slice("::ffff:".length);
+  }
+  if (trimmed.startsWith("[") && trimmed.includes("]")) {
+    return trimmed.slice(1, trimmed.indexOf("]"));
+  }
+  const ipv4Match = trimmed.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/);
+  if (ipv4Match) return ipv4Match[1];
+  return trimmed;
 }
 
 function isAdminIpAllowed(ctx: HandlerContext): boolean {
   const raw = ctx.env.ADMIN_IP_ALLOWLIST ?? "";
-  const allowlist = raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+  const allowlist = raw
+    .split(",")
+    .map((entry) => normalizeIp(entry))
+    .filter(Boolean);
   if (allowlist.length === 0) return false;
   const ip = getClientIp(ctx.request);
   if (!ip) return false;
