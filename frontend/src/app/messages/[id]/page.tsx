@@ -9,6 +9,12 @@ import type { ChatMessage, ChatThreadSummary, ChatRequestState } from "@/lib/typ
 
 type MessagePage = { items: ChatMessage[]; nextCursor: string | null };
 
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return [];
+}
+
 type WsMessage =
   | { type: "message_new"; message: WsChatMessage }
   | { type: "thread_updated"; thread: WsChatThread }
