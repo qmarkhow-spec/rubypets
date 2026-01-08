@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
@@ -15,15 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-
-const UserStatus = dynamic(() => import("@/components/user-status").then((mod) => mod.UserStatus), {
-  ssr: false
-});
+const UserStatus = nextDynamic(
+  () => import("@/components/user-status").then((mod) => mod.UserStatus),
+  { ssr: false }
+);
 export const metadata: Metadata = {
   title: "Rubypets",
-  description: "Rubypets web app"
+  description: "Rubypets web app",
 };
-
 
 export const dynamic = "force-dynamic";
 export default function RootLayout({
@@ -41,12 +40,18 @@ export default function RootLayout({
                 <Link href="/" className="text-lg font-semibold text-white drop-shadow">Rubypets</Link>
                 <div className="flex items-center gap-6 text-white">
                   <nav className="flex items-center gap-4 text-sm text-white/80">
-                    <Link href="/" className="hover:text-white">Home</Link>
-                    <Link href="/search" className="hover:text-white">Search</Link>
-                  <Link href="/login" className="hover:text-white">Login</Link>
-                  <Link href="/debug" className="hover:text-white">
-                    Debug
-                  </Link>
+                    <Link href="/" className="hover:text-white">
+                      Home
+                    </Link>
+                    <Link href="/search" className="hover:text-white">
+                      Search
+                    </Link>
+                    <Link href="/login" className="hover:text-white">
+                      Login
+                    </Link>
+                    <Link href="/debug" className="hover:text-white">
+                      Debug
+                    </Link>
                   </nav>
                   <UserStatus />
                 </div>
@@ -59,5 +64,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-
