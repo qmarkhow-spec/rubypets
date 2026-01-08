@@ -39,6 +39,11 @@ function getClientIps(request: Request): string[] {
   return Array.from(new Set(ips));
 }
 
+function getPrimaryClientIp(request: Request): string | null {
+  const ips = getClientIps(request);
+  return ips.length > 0 ? ips[0] : null;
+}
+
 function normalizeIp(value: string): string {
   const trimmed = value.trim().replace(/^"|"$/g, "");
   if (!trimmed) return "";
@@ -266,7 +271,12 @@ async function adminAccountIpAllowlistRoute(ctx: HandlerContext, params: Record<
   const auth = await requireAdmin(ctx);
   if (auth instanceof Response) return auth;
   const payload = (await ctx.request.json().catch(() => ({}))) as { ipAllowlist?: string | null };
-  const normalized = normalizeAllowlist(payload.ipAllowlist ?? "");
+  const entries = splitAllowlist(payload.ipAllowlist ?? "");
+  const currentIp = getPrimaryClientIp(ctx.request);
+  if (entries.length > 0 && currentIp) {
+    entries.push(currentIp);
+  }
+  const normalized = entries.length > 0 ? Array.from(new Set(entries)).join(",") : null;
   const updated = await ctx.db.updateAdminIpAllowlist(params.id, normalized);
   if (!updated) return errorJson("Not found", 404);
   return okJson({ adminId: params.id, ipAllowlist: normalized }, 200);
