@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rubypets_flutter/models/comment.dart';
 import 'package:rubypets_flutter/models/post.dart';
 import 'package:rubypets_flutter/providers/feed_provider.dart';
 import 'package:rubypets_flutter/providers/session_provider.dart';
