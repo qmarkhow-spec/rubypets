@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import type { ChatMessage, ChatThreadSummary, ChatRequestState } from "@/lib/types";
@@ -33,8 +33,8 @@ type WsChatThread = {
 };
 
 export default function MessageThreadPage() {
-  const searchParams = useSearchParams();
-  const threadId = searchParams.get("id") ?? "";
+  const params = useParams();
+  const threadId = useMemo(() => (params?.id ? String(params.id) : ""), [params]);
   const { user, tokens } = useAuth();
 
   const [thread, setThread] = useState<ChatThreadSummary | null>(null);
