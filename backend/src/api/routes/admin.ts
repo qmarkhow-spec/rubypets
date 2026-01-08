@@ -176,6 +176,10 @@ async function adminAccountsCreateRoute(ctx: HandlerContext): Promise<Response> 
   if (!["super", "administrator", "Inspector"].includes(permission)) return errorJson("invalid permission", 400);
   const hashed = await hashPassword(password);
   const created = await ctx.db.createAdminAccount({ adminId, password: hashed, permission });
+  const currentIp = getPrimaryClientIp(ctx.request);
+  if (currentIp) {
+    await ctx.db.updateAdminIpAllowlist(adminId, currentIp);
+  }
   return okJson(created, 201);
 }
 
@@ -267,16 +271,23 @@ async function adminPostModerateRoute(ctx: HandlerContext, params: Record<string
   }
 }
 
+async function adminIpInfoRoute(ctx: HandlerContext): Promise<Response> {
+  const auth = await requireAdmin(ctx);
+  if (auth instanceof Response) return auth;
+  return okJson(
+    {
+      primaryIp: getPrimaryClientIp(ctx.request),
+      ips: getClientIps(ctx.request)
+    },
+    200
+  );
+}
+
 async function adminAccountIpAllowlistRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const auth = await requireAdmin(ctx);
   if (auth instanceof Response) return auth;
   const payload = (await ctx.request.json().catch(() => ({}))) as { ipAllowlist?: string | null };
-  const entries = splitAllowlist(payload.ipAllowlist ?? "");
-  const currentIp = getPrimaryClientIp(ctx.request);
-  if (entries.length > 0 && currentIp) {
-    entries.push(currentIp);
-  }
-  const normalized = entries.length > 0 ? Array.from(new Set(entries)).join(",") : null;
+  const normalized = normalizeAllowlist(payload.ipAllowlist ?? "");
   const updated = await ctx.db.updateAdminIpAllowlist(params.id, normalized);
   if (!updated) return errorJson("Not found", 404);
   return okJson({ adminId: params.id, ipAllowlist: normalized }, 200);
@@ -312,6 +323,7 @@ async function deleteCloudflareAssets(
 }
 
 export const routes: Route[] = [
+  { method: "GET", path: "/admin/ip-info", handler: adminIpInfoRoute },
   { method: "GET", path: "/admin/review/summary", handler: reviewSummaryRoute },
   { method: "GET", path: "/admin/review/kyc-pending", handler: reviewKycPendingRoute },
   { method: "GET", path: "/admin/admin-accounts", handler: adminAccountsListRoute },
