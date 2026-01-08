@@ -158,3 +158,28 @@ export interface PetsCategoryClass {
 export interface PetsCategoryData {
   classes: PetsCategoryClass[];
 }
+
+export type ChatRequestState = "none" | "pending" | "accepted" | "rejected";
+
+export interface ChatThreadSummary {
+  threadId: string;
+  otherOwner: OwnerSearchResult;
+  requestState: ChatRequestState;
+  requestSenderId: string | null;
+  requestMessageId: string | null;
+  lastMessageId: string | null;
+  lastMessagePreview: string | null;
+  lastActivityAt: string | null;
+  unread: boolean;
+  archived: boolean;
+  deleted: boolean;
+  isFriend: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  bodyText: string;
+  createdAt: string;
+}

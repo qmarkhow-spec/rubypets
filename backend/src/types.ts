@@ -13,6 +13,9 @@ export interface Env {
   DB: D1Database;
   ENVIRONMENT?: string;
   ADMIN_IP_ALLOWLIST?: string;
+
+  // Chat
+  CHAT_THREAD_DO: DurableObjectNamespace;
 }
 
 export interface HandlerContext {

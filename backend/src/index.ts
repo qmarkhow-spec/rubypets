@@ -6,3 +6,5 @@ export default {
     return handleRequest(request, env, ctx);
   }
 };
+
+export { ChatThreadDO } from "./do/chat-thread-do";

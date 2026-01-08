@@ -138,3 +138,49 @@ export interface Pet {
   updatedAt: string;
   isActive: number;
 }
+
+export type ChatRequestState = "none" | "pending" | "accepted" | "rejected";
+
+export interface ChatThread {
+  id: string;
+  ownerAId: string;
+  ownerBId: string;
+  pairKey: string;
+  requestState: ChatRequestState;
+  requestSenderId?: string | null;
+  requestMessageId?: string | null;
+  lastMessageId?: string | null;
+  lastActivityAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ChatThreadParticipant {
+  threadId: string;
+  ownerId: string;
+  lastReadMessageId?: string | null;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  bodyText: string;
+  createdAt: string;
+}
+
+export interface ChatThreadListItem {
+  threadId: string;
+  requestState: ChatRequestState;
+  requestSenderId?: string | null;
+  requestMessageId?: string | null;
+  lastMessageId?: string | null;
+  lastActivityAt?: string | null;
+  lastMessagePreview?: string | null;
+  lastReadMessageId?: string | null;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
+  otherOwner: OwnerPublic;
+}
