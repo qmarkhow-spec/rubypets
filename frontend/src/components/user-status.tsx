@@ -27,7 +27,7 @@ export function UserStatus() {
         >
           {user.displayName || user.handle}
         </Link>
-        <span className="text-xs text-slate-500">{user.email ?? "未留 email"}</span>
+        <span className="text-xs text-slate-500">{user.email ?? "沒有 email"}</span>
       </div>
       <button
         type="button"

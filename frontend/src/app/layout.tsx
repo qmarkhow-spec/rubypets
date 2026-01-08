@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import nextDynamic from "next/dynamic";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
+import { UserStatus } from "@/components/user-status";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,10 +15,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const UserStatus = nextDynamic(
-  () => import("@/components/user-status").then((mod) => mod.UserStatus),
-  { ssr: false }
-);
 export const metadata: Metadata = {
   title: "Rubypets",
   description: "Rubypets web app",
