@@ -1,1 +1,2 @@
+name = "rubypets-frontend"
 pages_build_output_dir = "frontend/.vercel/output/static"
