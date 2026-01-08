@@ -33,27 +33,22 @@ export default function AdminOverviewPage() {
       <section className="card">
         <h3>總覽</h3>
         <p className="helper">建立管理員、調整權限與重設密碼。</p>
-      </section>
-
-      <section className="card" style={{ marginTop: 14 }}>
-        <div className="btn-row" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-          <h3>系統看到的 IP</h3>
-          <button className="btn ghost" onClick={loadIp}>
-            重新取得
-          </button>
-        </div>
-        {error ? <p className="helper" style={{ color: "#fecdd3" }}>{error}</p> : null}
-        <div className="form-grid" style={{ marginTop: 8 }}>
-          <div className="field">
-            <label>主要 IP</label>
-            <input value={ipInfo?.primaryIp ?? "--"} readOnly />
-          </div>
-          <div className="field">
-            <label>所有候選 IP</label>
-            <textarea value={ipInfo?.ips?.join(", ") || "--"} readOnly />
-          </div>
-        </div>
+        <p className="helper" style={{ marginTop: 8 }}>
+          目前IP:
+          {ipInfo
+            ? ` ${formatIpSummary(ipInfo)}`
+            : error
+              ? ` ${error}`
+              : " 載入中..."}
+        </p>
       </section>
     </AppShell>
   );
+}
+
+function formatIpSummary(info: IpInfo) {
+  if (!info.ips?.length) return info.primaryIp ? `${info.primaryIp}(主要)` : "--";
+  const primary = info.primaryIp ?? info.ips[0] ?? "";
+  const items = info.ips.map((ip) => (ip === primary ? `${ip}(主要)` : ip));
+  return items.join(",");
 }
