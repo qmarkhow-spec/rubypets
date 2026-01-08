@@ -3,18 +3,44 @@ import { asNumber, errorJson, okJson } from "../utils";
 import { hashPassword, verifyPassword } from "../../services/auth";
 import { DynamicRoute, Route } from "./types";
 
-function getClientIp(request: Request): string | null {
-  const cf = request.headers.get("CF-Connecting-IP");
-  if (cf) return normalizeIp(cf);
+function getClientIps(request: Request): string[] {
+  const ips: string[] = [];
+  const pushIp = (value: string | null | undefined) => {
+    if (!value) return;
+    const normalized = normalizeIp(value);
+    if (normalized) ips.push(normalized);
+  };
+
+  pushIp(request.headers.get("CF-Connecting-IP"));
+  pushIp(request.headers.get("True-Client-IP"));
+
   const forwarded = request.headers.get("X-Forwarded-For");
-  if (forwarded) return normalizeIp(forwarded.split(",")[0].trim());
-  const real = request.headers.get("X-Real-IP");
-  if (real) return normalizeIp(real);
-  return null;
+  if (forwarded) {
+    forwarded
+      .split(",")
+      .map((entry) => entry.trim())
+      .forEach((entry) => pushIp(entry));
+  }
+
+  const forwardedHeader = request.headers.get("Forwarded");
+  if (forwardedHeader) {
+    forwardedHeader
+      .split(",")
+      .map((entry) => entry.trim())
+      .forEach((entry) => {
+        const match = entry.match(/for=([^;]+)/i);
+        if (match?.[1]) {
+          pushIp(match[1].replace(/^"|"$/g, ""));
+        }
+      });
+  }
+
+  pushIp(request.headers.get("X-Real-IP"));
+  return Array.from(new Set(ips));
 }
 
 function normalizeIp(value: string): string {
-  const trimmed = value.trim();
+  const trimmed = value.trim().replace(/^"|"$/g, "");
   if (!trimmed) return "";
   if (trimmed.startsWith("::ffff:")) {
     return trimmed.slice("::ffff:".length);
@@ -29,7 +55,7 @@ function normalizeIp(value: string): string {
 
 function splitAllowlist(value: string): string[] {
   return value
-    .split(",")
+    .split(/[,\s，;]+/)
     .map((entry) => normalizeIp(entry))
     .filter(Boolean);
 }
@@ -56,8 +82,8 @@ async function requireAdmin(ctx: HandlerContext): Promise<{ adminId: string } | 
   if (!admin) return errorJson("Unauthorized", 401);
   const allowlist = splitAllowlist(admin.ipAllowlist ?? "");
   if (allowlist.length === 0) return { adminId };
-  const ip = getClientIp(ctx.request);
-  if (!ip || !allowlist.includes(ip)) return errorJson("Forbidden", 403);
+  const ips = getClientIps(ctx.request);
+  if (ips.length === 0 || !ips.some((ip) => allowlist.includes(ip))) return errorJson("Forbidden", 403);
   return { adminId };
 }
 
@@ -159,8 +185,8 @@ async function adminLoginRoute(ctx: HandlerContext): Promise<Response> {
   if (!ok) return errorJson("invalid credentials", 401);
   const allowlist = splitAllowlist(admin.ipAllowlist ?? "");
   if (allowlist.length > 0) {
-    const ip = getClientIp(ctx.request);
-    if (!ip || !allowlist.includes(ip)) return errorJson("Forbidden", 403);
+    const ips = getClientIps(ctx.request);
+    if (ips.length === 0 || !ips.some((ip) => allowlist.includes(ip))) return errorJson("Forbidden", 403);
   }
   const token = `admin:${admin.adminId}`;
   await ctx.db.updateAdminLastAt(admin.adminId, new Date().toISOString());
