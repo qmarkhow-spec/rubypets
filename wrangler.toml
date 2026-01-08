@@ -18,5 +18,13 @@ migrations_dir = "backend/migrations"
 binding = "R2_MEDIA"
 bucket_name = "rubypets-media-dev"
 
+[[durable_objects.bindings]]
+name = "CHAT_THREAD_DO"
+class_name = "ChatThreadDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatThreadDO"]
+
 [observability]
 enabled = true

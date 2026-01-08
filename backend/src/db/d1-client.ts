@@ -9,7 +9,12 @@ import {
   CommentThread,
   OwnerPublic,
   FriendshipRequestItem,
-  Pet
+  Pet,
+  ChatThread,
+  ChatThreadParticipant,
+  ChatThreadListItem,
+  ChatMessage,
+  ChatRequestState
 } from "./models";
 
 type PostRow = {
@@ -145,6 +150,53 @@ type AdminAccountRow = {
 type FriendshipRow = {
   status: string;
   requested_by: string;
+};
+
+type ChatThreadRow = {
+  id: string;
+  owner_a_id: string;
+  owner_b_id: string;
+  pair_key: string;
+  request_state: string;
+  request_sender_id: string | null;
+  request_message_id: string | null;
+  last_message_id: string | null;
+  last_activity_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type ChatThreadParticipantRow = {
+  thread_id: string;
+  owner_id: string;
+  last_read_message_id: string | null;
+  archived_at: string | null;
+  deleted_at: string | null;
+};
+
+type ChatMessageRow = {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  body_text: string;
+  created_at: string;
+};
+
+type ChatThreadListRow = {
+  thread_id: string;
+  request_state: string;
+  request_sender_id: string | null;
+  request_message_id: string | null;
+  last_message_id: string | null;
+  last_activity_at: string | null;
+  sort_activity: string | null;
+  last_read_message_id: string | null;
+  archived_at: string | null;
+  deleted_at: string | null;
+  other_uuid: string;
+  other_display_name: string;
+  other_avatar_url: string | null;
+  last_message_preview: string | null;
 };
 
 export class D1Client implements DBClient {
@@ -812,6 +864,434 @@ export class D1Client implements DBClient {
       .bind(ownerId, friendId, friendId, ownerId)
       .first();
     return !!row;
+  }
+
+  async getChatThreadById(threadId: string): Promise<ChatThread | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            id,
+            owner_a_id,
+            owner_b_id,
+            pair_key,
+            request_state,
+            request_sender_id,
+            request_message_id,
+            last_message_id,
+            last_activity_at,
+            created_at,
+            updated_at
+          from chat_threads
+          where id = ?
+        `
+      )
+      .bind(threadId)
+      .first<ChatThreadRow>();
+    return row ? mapChatThreadRow(row) : null;
+  }
+
+  async getChatThreadByPairKey(pairKey: string): Promise<ChatThread | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            id,
+            owner_a_id,
+            owner_b_id,
+            pair_key,
+            request_state,
+            request_sender_id,
+            request_message_id,
+            last_message_id,
+            last_activity_at,
+            created_at,
+            updated_at
+          from chat_threads
+          where pair_key = ?
+          limit 1
+        `
+      )
+      .bind(pairKey)
+      .first<ChatThreadRow>();
+    return row ? mapChatThreadRow(row) : null;
+  }
+
+  async createChatThread(input: {
+    threadId: string;
+    ownerAId: string;
+    ownerBId: string;
+    pairKey: string;
+    requestState: ChatRequestState;
+    requestSenderId?: string | null;
+    requestMessageId?: string | null;
+    lastMessageId?: string | null;
+    lastActivityAt?: string | null;
+  }): Promise<ChatThread> {
+    await this.db
+      .prepare(
+        `
+          insert into chat_threads (
+            id,
+            owner_a_id,
+            owner_b_id,
+            pair_key,
+            request_state,
+            request_sender_id,
+            request_message_id,
+            last_message_id,
+            last_activity_at,
+            created_at,
+            updated_at
+          )
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `
+      )
+      .bind(
+        input.threadId,
+        input.ownerAId,
+        input.ownerBId,
+        input.pairKey,
+        input.requestState,
+        input.requestSenderId ?? null,
+        input.requestMessageId ?? null,
+        input.lastMessageId ?? null,
+        input.lastActivityAt ?? null
+      )
+      .run();
+
+    const thread = await this.getChatThreadById(input.threadId);
+    if (!thread) {
+      throw new Error("chat thread insert failed");
+    }
+    return thread;
+  }
+
+  async upsertChatParticipants(threadId: string, ownerAId: string, ownerBId: string): Promise<void> {
+    await this.db
+      .prepare(
+        `
+          insert or ignore into chat_thread_participants (thread_id, owner_id)
+          values (?, ?), (?, ?)
+        `
+      )
+      .bind(threadId, ownerAId, threadId, ownerBId)
+      .run();
+  }
+
+  async getChatParticipant(threadId: string, ownerId: string): Promise<ChatThreadParticipant | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            thread_id,
+            owner_id,
+            last_read_message_id,
+            archived_at,
+            deleted_at
+          from chat_thread_participants
+          where thread_id = ? and owner_id = ?
+          limit 1
+        `
+      )
+      .bind(threadId, ownerId)
+      .first<ChatThreadParticipantRow>();
+    return row ? mapChatThreadParticipantRow(row) : null;
+  }
+
+  async setParticipantArchived(threadId: string, ownerId: string, archivedAt: string | null): Promise<void> {
+    if (archivedAt === null) {
+      await this.db
+        .prepare(`update chat_thread_participants set archived_at = null where thread_id = ? and owner_id = ?`)
+        .bind(threadId, ownerId)
+        .run();
+      return;
+    }
+    await this.db
+      .prepare(`update chat_thread_participants set archived_at = ? where thread_id = ? and owner_id = ?`)
+      .bind(archivedAt, threadId, ownerId)
+      .run();
+  }
+
+  async setParticipantDeleted(threadId: string, ownerId: string, deletedAt: string | null): Promise<void> {
+    if (deletedAt === null) {
+      await this.db
+        .prepare(`update chat_thread_participants set deleted_at = null where thread_id = ? and owner_id = ?`)
+        .bind(threadId, ownerId)
+        .run();
+      return;
+    }
+    await this.db
+      .prepare(`update chat_thread_participants set deleted_at = ? where thread_id = ? and owner_id = ?`)
+      .bind(deletedAt, threadId, ownerId)
+      .run();
+  }
+
+  async setParticipantLastRead(threadId: string, ownerId: string, messageId: string | null): Promise<void> {
+    await this.db
+      .prepare(`update chat_thread_participants set last_read_message_id = ? where thread_id = ? and owner_id = ?`)
+      .bind(messageId, threadId, ownerId)
+      .run();
+  }
+
+  async clearParticipantsArchiveDeleted(threadId: string): Promise<void> {
+    await this.db
+      .prepare(`update chat_thread_participants set archived_at = null, deleted_at = null where thread_id = ?`)
+      .bind(threadId)
+      .run();
+  }
+
+  async insertChatMessage(threadId: string, senderId: string, bodyText: string): Promise<ChatMessage> {
+    const id = crypto.randomUUID();
+    await this.db
+      .prepare(`insert into chat_messages (id, thread_id, sender_id, body_text) values (?, ?, ?, ?)`)
+      .bind(id, threadId, senderId, bodyText)
+      .run();
+    const row = await this.db
+      .prepare(
+        `
+          select
+            id,
+            thread_id,
+            sender_id,
+            body_text,
+            created_at
+          from chat_messages
+          where id = ?
+        `
+      )
+      .bind(id)
+      .first<ChatMessageRow>();
+    if (row) return mapChatMessageRow(row);
+    return { id, threadId, senderId, bodyText, createdAt: new Date().toISOString() };
+  }
+
+  async getChatMessageById(messageId: string): Promise<ChatMessage | null> {
+    const row = await this.db
+      .prepare(
+        `
+          select
+            id,
+            thread_id,
+            sender_id,
+            body_text,
+            created_at
+          from chat_messages
+          where id = ?
+          limit 1
+        `
+      )
+      .bind(messageId)
+      .first<ChatMessageRow>();
+    return row ? mapChatMessageRow(row) : null;
+  }
+
+  async listChatThreadsForOwner(
+    ownerId: string,
+    limit: number,
+    cursor?: string | null,
+    includeArchived?: boolean
+  ): Promise<{ items: ChatThreadListItem[]; nextCursor: string | null }> {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    let parsed = parseChatThreadCursor(cursor);
+    if (!parsed && cursor) {
+      const anchor = await this.getChatThreadById(cursor);
+      const activityAt = anchor?.lastActivityAt ?? anchor?.updatedAt ?? anchor?.createdAt;
+      if (activityAt) {
+        parsed = { activityAt, id: anchor.id };
+      }
+    }
+    const clauses: string[] = ["p.owner_id = ?"];
+    const params: Array<string> = [ownerId, ownerId];
+    if (!includeArchived) {
+      clauses.push("p.archived_at is null");
+    }
+    clauses.push("p.deleted_at is null");
+
+    const sortExpr = "coalesce(t.last_activity_at, t.updated_at, t.created_at)";
+
+    if (parsed) {
+      if (parsed.id) {
+        clauses.push(`(${sortExpr} < ? or (${sortExpr} = ? and t.id < ?))`);
+        params.push(parsed.activityAt, parsed.activityAt, parsed.id);
+      } else {
+        clauses.push(`${sortExpr} < ?`);
+        params.push(parsed.activityAt);
+      }
+    }
+
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            t.id as thread_id,
+            t.request_state,
+            t.request_sender_id,
+            t.request_message_id,
+            t.last_message_id,
+            t.last_activity_at,
+            ${sortExpr} as sort_activity,
+            p.last_read_message_id,
+            p.archived_at,
+            p.deleted_at,
+            o.uuid as other_uuid,
+            o.display_name as other_display_name,
+            o.avatar_url as other_avatar_url,
+            m.body_text as last_message_preview
+          from chat_thread_participants p
+          join chat_threads t on t.id = p.thread_id
+          join owners o on o.uuid = case when t.owner_a_id = ? then t.owner_b_id else t.owner_a_id end
+          left join chat_messages m on m.id = t.last_message_id
+          where ${clauses.join(" and ")}
+          order by sort_activity desc, t.id desc
+          limit ?
+        `
+      )
+      .bind(...params, safeLimit + 1)
+      .all<ChatThreadListRow>();
+
+    const rows = results ?? [];
+    const hasMore = rows.length > safeLimit;
+    const pageRows = hasMore ? rows.slice(0, safeLimit) : rows;
+    const nextCursor = hasMore && pageRows.length > 0 ? toChatThreadCursor(pageRows[pageRows.length - 1]) : null;
+
+    return { items: pageRows.map(mapChatThreadListRow), nextCursor };
+  }
+
+  async getChatThreadForOwner(threadId: string, ownerId: string): Promise<ChatThreadListItem | null> {
+    const sortExpr = "coalesce(t.last_activity_at, t.updated_at, t.created_at)";
+    const row = await this.db
+      .prepare(
+        `
+          select
+            t.id as thread_id,
+            t.request_state,
+            t.request_sender_id,
+            t.request_message_id,
+            t.last_message_id,
+            t.last_activity_at,
+            ${sortExpr} as sort_activity,
+            p.last_read_message_id,
+            p.archived_at,
+            p.deleted_at,
+            o.uuid as other_uuid,
+            o.display_name as other_display_name,
+            o.avatar_url as other_avatar_url,
+            m.body_text as last_message_preview
+          from chat_thread_participants p
+          join chat_threads t on t.id = p.thread_id
+          join owners o on o.uuid = case when t.owner_a_id = ? then t.owner_b_id else t.owner_a_id end
+          left join chat_messages m on m.id = t.last_message_id
+          where p.owner_id = ? and t.id = ?
+          limit 1
+        `
+      )
+      .bind(ownerId, ownerId, threadId)
+      .first<ChatThreadListRow>();
+    return row ? mapChatThreadListRow(row) : null;
+  }
+
+  async listChatMessages(
+    threadId: string,
+    limit: number,
+    beforeCursor?: string | null
+  ): Promise<{ items: ChatMessage[]; nextCursor: string | null }> {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    let parsed = parseChatMessageCursor(beforeCursor);
+    if (!parsed && beforeCursor) {
+      if (looksLikeTimestamp(beforeCursor)) {
+        parsed = { createdAt: beforeCursor };
+      } else {
+        const anchor = await this.db
+          .prepare(`select created_at from chat_messages where id = ?`)
+          .bind(beforeCursor)
+          .first<{ created_at: string }>();
+        if (anchor?.created_at) {
+          parsed = { createdAt: anchor.created_at, id: beforeCursor };
+        }
+      }
+    }
+    const clauses: string[] = ["thread_id = ?"];
+    const params: Array<string> = [threadId];
+
+    if (parsed) {
+      if (parsed.id) {
+        clauses.push("(created_at < ? or (created_at = ? and id < ?))");
+        params.push(parsed.createdAt, parsed.createdAt, parsed.id);
+      } else {
+        clauses.push("created_at < ?");
+        params.push(parsed.createdAt);
+      }
+    }
+
+    const { results } = await this.db
+      .prepare(
+        `
+          select
+            id,
+            thread_id,
+            sender_id,
+            body_text,
+            created_at
+          from chat_messages
+          where ${clauses.join(" and ")}
+          order by created_at desc, id desc
+          limit ?
+        `
+      )
+      .bind(...params, safeLimit + 1)
+      .all<ChatMessageRow>();
+
+    const rows = results ?? [];
+    const hasMore = rows.length > safeLimit;
+    const pageRows = hasMore ? rows.slice(0, safeLimit) : rows;
+    const nextCursor = hasMore && pageRows.length > 0 ? toChatMessageCursor(pageRows[pageRows.length - 1]) : null;
+    const items = pageRows.slice().reverse().map(mapChatMessageRow);
+
+    return { items, nextCursor };
+  }
+
+  async updateChatThreadOnNewMessage(
+    threadId: string,
+    lastMessageId: string,
+    options?: { requestMessageId?: string | null; requestSenderId?: string | null }
+  ): Promise<void> {
+    const updates: string[] = ["last_message_id = ?", "last_activity_at = datetime('now')", "updated_at = datetime('now')"];
+    const params: Array<string> = [lastMessageId];
+    if (options?.requestMessageId) {
+      updates.push("request_message_id = ?");
+      params.push(options.requestMessageId);
+    }
+    if (options?.requestSenderId) {
+      updates.push("request_sender_id = ?");
+      params.push(options.requestSenderId);
+    }
+    await this.db
+      .prepare(`update chat_threads set ${updates.join(", ")} where id = ?`)
+      .bind(...params, threadId)
+      .run();
+  }
+
+  async updateChatThreadRequestState(
+    threadId: string,
+    requestState: ChatRequestState,
+    requestSenderId?: string | null,
+    requestMessageId?: string | null
+  ): Promise<void> {
+    const updates: string[] = ["request_state = ?", "updated_at = datetime('now')"];
+    const params: Array<string | null> = [requestState];
+    if (requestSenderId !== undefined) {
+      updates.push("request_sender_id = ?");
+      params.push(requestSenderId ?? null);
+    }
+    if (requestMessageId !== undefined) {
+      updates.push("request_message_id = ?");
+      params.push(requestMessageId ?? null);
+    }
+    await this.db
+      .prepare(`update chat_threads set ${updates.join(", ")} where id = ?`)
+      .bind(...params, threadId)
+      .run();
   }
 
   private async populateOriginPosts(posts: Post[]): Promise<void> {
@@ -1797,6 +2277,35 @@ function toCommentCursor(row: CommentRow): string {
   return `${row.created_at}|${row.id}`;
 }
 
+function parseChatThreadCursor(cursor?: string | null): { activityAt: string; id?: string } | null {
+  if (!cursor) return null;
+  const [activityAt, id] = cursor.split("|");
+  if (activityAt && id) return { activityAt, id };
+  if (activityAt && looksLikeTimestamp(activityAt)) return { activityAt };
+  return null;
+}
+
+function toChatThreadCursor(row: ChatThreadListRow): string | null {
+  const activityAt = row.sort_activity ?? row.last_activity_at;
+  if (!activityAt) return null;
+  return `${activityAt}|${row.thread_id}`;
+}
+
+function parseChatMessageCursor(cursor?: string | null): { createdAt: string; id?: string } | null {
+  if (!cursor) return null;
+  const [createdAt, id] = cursor.split("|");
+  if (!createdAt || !id) return null;
+  return { createdAt, id };
+}
+
+function toChatMessageCursor(row: ChatMessageRow): string {
+  return `${row.created_at}|${row.id}`;
+}
+
+function looksLikeTimestamp(value: string): boolean {
+  return value.includes("-") && value.includes(":");
+}
+
 function mapOwnerPublicRow(row: OwnerPublicRow) {
   return {
     uuid: row.uuid,
@@ -1804,6 +2313,64 @@ function mapOwnerPublicRow(row: OwnerPublicRow) {
     avatarUrl: row.avatar_url,
     city: row.city,
     region: row.region
+  };
+}
+
+function mapChatThreadRow(row: ChatThreadRow): ChatThread {
+  return {
+    id: row.id,
+    ownerAId: row.owner_a_id,
+    ownerBId: row.owner_b_id,
+    pairKey: row.pair_key,
+    requestState: row.request_state as ChatRequestState,
+    requestSenderId: row.request_sender_id ?? null,
+    requestMessageId: row.request_message_id ?? null,
+    lastMessageId: row.last_message_id ?? null,
+    lastActivityAt: row.last_activity_at ?? null,
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null
+  };
+}
+
+function mapChatThreadParticipantRow(row: ChatThreadParticipantRow): ChatThreadParticipant {
+  return {
+    threadId: row.thread_id,
+    ownerId: row.owner_id,
+    lastReadMessageId: row.last_read_message_id ?? null,
+    archivedAt: row.archived_at ?? null,
+    deletedAt: row.deleted_at ?? null
+  };
+}
+
+function mapChatMessageRow(row: ChatMessageRow): ChatMessage {
+  return {
+    id: row.id,
+    threadId: row.thread_id,
+    senderId: row.sender_id,
+    bodyText: row.body_text,
+    createdAt: row.created_at
+  };
+}
+
+function mapChatThreadListRow(row: ChatThreadListRow): ChatThreadListItem {
+  return {
+    threadId: row.thread_id,
+    requestState: row.request_state as ChatRequestState,
+    requestSenderId: row.request_sender_id ?? null,
+    requestMessageId: row.request_message_id ?? null,
+    lastMessageId: row.last_message_id ?? null,
+    lastActivityAt: row.last_activity_at ?? null,
+    lastMessagePreview: row.last_message_preview ?? null,
+    lastReadMessageId: row.last_read_message_id ?? null,
+    archivedAt: row.archived_at ?? null,
+    deletedAt: row.deleted_at ?? null,
+    otherOwner: mapOwnerPublicRow({
+      uuid: row.other_uuid,
+      display_name: row.other_display_name,
+      avatar_url: row.other_avatar_url,
+      city: null,
+      region: null
+    })
   };
 }
 

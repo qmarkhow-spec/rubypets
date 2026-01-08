@@ -1,4 +1,13 @@
-import { Comment, CommentThread, Post } from "./models";
+import {
+  Comment,
+  CommentThread,
+  Post,
+  ChatThread,
+  ChatThreadParticipant,
+  ChatThreadListItem,
+  ChatMessage,
+  ChatRequestState
+} from "./models";
 
 export interface CreatePostInput {
   authorId: string; // owner uuid
@@ -153,4 +162,50 @@ export interface DBClient {
   listAdminAccounts(): Promise<import("./models").AdminAccount[]>;
   createAdminAccount(input: { adminId: string; password: string; permission: string }): Promise<import("./models").AdminAccount>;
   listAdminIpAllowlist(): Promise<string[]>;
+
+  // Chat
+  getChatThreadById(threadId: string): Promise<ChatThread | null>;
+  getChatThreadByPairKey(pairKey: string): Promise<ChatThread | null>;
+  createChatThread(input: {
+    threadId: string;
+    ownerAId: string;
+    ownerBId: string;
+    pairKey: string;
+    requestState: ChatRequestState;
+    requestSenderId?: string | null;
+    requestMessageId?: string | null;
+    lastMessageId?: string | null;
+    lastActivityAt?: string | null;
+  }): Promise<ChatThread>;
+  upsertChatParticipants(threadId: string, ownerAId: string, ownerBId: string): Promise<void>;
+  getChatParticipant(threadId: string, ownerId: string): Promise<ChatThreadParticipant | null>;
+  setParticipantArchived(threadId: string, ownerId: string, archivedAt: string | null): Promise<void>;
+  setParticipantDeleted(threadId: string, ownerId: string, deletedAt: string | null): Promise<void>;
+  setParticipantLastRead(threadId: string, ownerId: string, messageId: string | null): Promise<void>;
+  clearParticipantsArchiveDeleted(threadId: string): Promise<void>;
+  insertChatMessage(threadId: string, senderId: string, bodyText: string): Promise<ChatMessage>;
+  getChatMessageById(messageId: string): Promise<ChatMessage | null>;
+  listChatThreadsForOwner(
+    ownerId: string,
+    limit: number,
+    cursor?: string | null,
+    includeArchived?: boolean
+  ): Promise<{ items: ChatThreadListItem[]; nextCursor: string | null }>;
+  getChatThreadForOwner(threadId: string, ownerId: string): Promise<ChatThreadListItem | null>;
+  listChatMessages(
+    threadId: string,
+    limit: number,
+    beforeCursor?: string | null
+  ): Promise<{ items: ChatMessage[]; nextCursor: string | null }>;
+  updateChatThreadOnNewMessage(
+    threadId: string,
+    lastMessageId: string,
+    options?: { requestMessageId?: string | null; requestSenderId?: string | null }
+  ): Promise<void>;
+  updateChatThreadRequestState(
+    threadId: string,
+    requestState: ChatRequestState,
+    requestSenderId?: string | null,
+    requestMessageId?: string | null
+  ): Promise<void>;
 }
