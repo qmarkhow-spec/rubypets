@@ -20,8 +20,8 @@ const UserStatus = dynamic(() => import("@/components/user-status").then((mod) =
   ssr: false
 });
 export const metadata: Metadata = {
-  title: "Rubypets ?ç¼?§å¶??,
-  description: "?å?ç«?API ä¸²æ¥?æ¸¬è©¦é¢??,
+  title: "Rubypets",
+  description: "Rubypets web app"
 };
 
 
@@ -38,19 +38,12 @@ export default function RootLayout({
           <div className="min-h-screen hero-shell">
             <header className="border-b border-white/10 bg-white/5 backdrop-blur">
               <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-                <Link href="/" className="text-lg font-semibold text-white drop-shadow">
-                  Rubypets ?§å¶??                </Link>
+                <Link href="/" className="text-lg font-semibold text-white drop-shadow">Rubypets</Link>
                 <div className="flex items-center gap-6 text-white">
                   <nav className="flex items-center gap-4 text-sm text-white/80">
-                    <Link href="/" className="hover:text-white">
-                      é¦é?
-                    </Link>
-                    <Link href="/search" className="hover:text-white">
-                      ?å?
-                    </Link>
-                  <Link href="/login" className="hover:text-white">
-                    ?»å¥
-                  </Link>
+                    <Link href="/" className="hover:text-white">Home</Link>
+                    <Link href="/search" className="hover:text-white">Search</Link>
+                  <Link href="/login" className="hover:text-white">Login</Link>
                   <Link href="/debug" className="hover:text-white">
                     Debug
                   </Link>
@@ -66,4 +59,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 
