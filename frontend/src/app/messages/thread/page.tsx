@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import type { ChatMessage, ChatThreadSummary, ChatRequestState } from "@/lib/types";
@@ -31,7 +32,9 @@ type WsChatThread = {
   last_activity_at: string | null;
 };
 
-export default function MessageThreadClient({ threadId }: { threadId: string }) {
+export default function MessageThreadPage() {
+  const searchParams = useSearchParams();
+  const threadId = searchParams.get("id") ?? "";
   const { user, tokens } = useAuth();
 
   const [thread, setThread] = useState<ChatThreadSummary | null>(null);

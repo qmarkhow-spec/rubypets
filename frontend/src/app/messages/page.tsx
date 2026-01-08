@@ -80,7 +80,7 @@ export default function MessagesPage() {
             {threads.map((thread) => (
               <Link
                 key={thread.threadId}
-                href={`/messages/${thread.threadId}`}
+                href={`/messages/thread?id=${encodeURIComponent(thread.threadId)}`}
                 className="flex items-center gap-4 px-4 py-4 transition hover:bg-slate-50"
               >
                 <div className="h-12 w-12 overflow-hidden rounded-full bg-slate-200">
