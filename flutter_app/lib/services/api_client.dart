@@ -2,7 +2,9 @@
 
 import 'package:http/http.dart' as http;
 
+import '../models/chat.dart';
 import '../models/comment.dart';
+import '../models/owner.dart';
 import '../models/post.dart';
 import '../models/user.dart';
 
@@ -53,6 +55,9 @@ class ApiClient {
 
   final String _baseUrl;
   String? _token;
+
+  String get baseUrl => _baseUrl;
+  String? get token => _token;
 
   void setToken(String? token) {
     _token = token;
@@ -183,12 +188,132 @@ class ApiClient {
     return ApiRepostResult(post: post, originRepostCount: repostCount);
   }
 
-  Future<List<ApiUser>> searchUsers({required String query}) async {
+  Future<List<OwnerSummary>> searchOwners({required String query}) async {
     final encoded = Uri.encodeQueryComponent(query);
     final payload = _unwrapMap(await _request('/api/owners/search?display_name=$encoded'));
     final rawItems = payload['items'] as List<dynamic>? ?? [];
-    final items = rawItems.whereType<Map<String, dynamic>>().map(ApiUser.fromJson).toList();
+    final items = rawItems.whereType<Map<String, dynamic>>().map(OwnerSummary.fromJson).toList();
     return items;
+  }
+
+  Future<OwnerDetail> fetchOwner({required String ownerId}) async {
+    final payload = _unwrapMap(await _request('/api/owners/$ownerId'));
+    return OwnerDetail.fromJson(payload);
+  }
+
+  Future<FriendshipStatus> fetchFriendshipStatus({required String ownerId}) async {
+    final payload = _unwrapMap(await _request('/api/owners/$ownerId/friendship/status'));
+    return parseFriendshipStatus(payload['status']?.toString());
+  }
+
+  Future<FriendshipStatus> sendFriendRequest({required String ownerId}) async {
+    final payload = _unwrapMap(await _request(
+      '/api/owners/$ownerId/friend-request',
+      method: 'POST',
+    ));
+    return parseFriendshipStatus(payload['status']?.toString());
+  }
+
+  Future<FriendshipStatus> cancelFriendRequest({required String ownerId}) async {
+    final payload = _unwrapMap(await _request(
+      '/api/owners/$ownerId/friend-request',
+      method: 'DELETE',
+    ));
+    return parseFriendshipStatus(payload['status']?.toString());
+  }
+
+  Future<FriendshipStatus> acceptFriendRequest({required String ownerId}) async {
+    final payload = _unwrapMap(await _request(
+      '/api/owners/$ownerId/friend-request/accept',
+      method: 'POST',
+    ));
+    return parseFriendshipStatus(payload['status']?.toString());
+  }
+
+  Future<FriendshipStatus> rejectFriendRequest({required String ownerId}) async {
+    final payload = _unwrapMap(await _request(
+      '/api/owners/$ownerId/friend-request/reject',
+      method: 'DELETE',
+    ));
+    return parseFriendshipStatus(payload['status']?.toString());
+  }
+
+  Future<FriendshipStatus> unfriend({required String ownerId}) async {
+    final payload = _unwrapMap(await _request(
+      '/api/owners/$ownerId/friendship',
+      method: 'DELETE',
+    ));
+    return parseFriendshipStatus(payload['status']?.toString());
+  }
+
+  Future<ChatThreadsPage> listChatThreads({
+    int limit = 30,
+    String? cursor,
+    bool includeArchived = false,
+  }) async {
+    final buffer = StringBuffer('/api/chat/threads?limit=$limit');
+    if (cursor != null && cursor.isNotEmpty) {
+      buffer.write('&cursor=${Uri.encodeQueryComponent(cursor)}');
+    }
+    if (includeArchived) {
+      buffer.write('&archived=1');
+    }
+    final payload = _unwrapMap(await _request(buffer.toString()));
+    final rawItems = payload['items'] as List<dynamic>? ?? [];
+    final items = rawItems.whereType<Map<String, dynamic>>().map(ChatThread.fromJson).toList();
+    final nextCursor = payload['nextCursor']?.toString();
+    return ChatThreadsPage(items: items, nextCursor: nextCursor);
+  }
+
+  Future<ChatThread> getChatThread({required String threadId}) async {
+    final payload = _unwrapMap(await _request('/api/chat/threads/$threadId'));
+    return ChatThread.fromJson(payload);
+  }
+
+  Future<ChatThread> createChatThread({
+    required String otherOwnerId,
+    String? firstMessageText,
+  }) async {
+    final body = <String, dynamic>{'otherOwnerId': otherOwnerId};
+    if (firstMessageText != null && firstMessageText.trim().isNotEmpty) {
+      body['firstMessageText'] = firstMessageText.trim();
+    }
+    final payload = _unwrapMap(await _request(
+      '/api/chat/threads',
+      method: 'POST',
+      body: body,
+    ));
+    return ChatThread.fromJson(payload);
+  }
+
+  Future<ChatMessagesPage> listChatMessages({
+    required String threadId,
+    int limit = 30,
+    String? before,
+  }) async {
+    final buffer = StringBuffer('/api/chat/threads/$threadId/messages?limit=$limit');
+    if (before != null && before.isNotEmpty) {
+      buffer.write('&before=${Uri.encodeQueryComponent(before)}');
+    }
+    final payload = _unwrapMap(await _request(buffer.toString()));
+    final rawItems = payload['items'] as List<dynamic>? ?? [];
+    final items = rawItems.whereType<Map<String, dynamic>>().map(ChatMessage.fromJson).toList();
+    final nextCursor = payload['nextCursor']?.toString();
+    return ChatMessagesPage(items: items, nextCursor: nextCursor);
+  }
+
+  Future<void> archiveChatThread({required String threadId}) async {
+    await _request(
+      '/api/chat/threads/$threadId/archive',
+      method: 'POST',
+    );
+  }
+
+  Future<void> deleteChatThread({required String threadId}) async {
+    await _request(
+      '/api/chat/threads/$threadId/delete',
+      method: 'POST',
+    );
   }
 
   Future<Object?> _request(

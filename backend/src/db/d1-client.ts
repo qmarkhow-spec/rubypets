@@ -944,7 +944,7 @@ export class D1Client implements DBClient {
             created_at,
             updated_at
           )
-          values (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          values (?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), datetime('now'), datetime('now'))
         `
       )
       .bind(
