@@ -6,6 +6,7 @@ import { loadTokens } from "@/lib/auth-storage";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
+type FriendOption = { uuid: string; displayName: string };
 
 export default function DebugPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
@@ -35,6 +36,11 @@ export default function DebugPage() {
   const [selectedPostId, setSelectedPostId] = useState<string>("");
   const [commentLogs, setCommentLogs] = useState<string[]>([]);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [friendOptions, setFriendOptions] = useState<FriendOption[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState<string>("");
+  const [chatLogs, setChatLogs] = useState<string[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [friendLoading, setFriendLoading] = useState(false);
 
   const [method, setMethod] = useState<HttpMethod>("GET");
   const [path, setPath] = useState("/api/health");
@@ -104,6 +110,11 @@ export default function DebugPage() {
     setCommentLogs((prev) => [...prev, `[${ts}] ${message}`]);
   }
 
+  function appendChatLog(message: string) {
+    const ts = new Date().toISOString();
+    setChatLogs((prev) => [...prev, `[${ts}] ${message}`]);
+  }
+
   async function loadRecentPosts() {
     setRecentPostsError(null);
     appendLog("Loading recent posts (limit=5)");
@@ -117,6 +128,87 @@ export default function DebugPage() {
       const message = readError(err);
       setRecentPostsError(message);
       appendLog(`Failed to load posts: ${message}`);
+    }
+  }
+
+  async function loadFriendOptions() {
+    if (friendLoading) return;
+    setFriendLoading(true);
+    setFriendOptions([]);
+    setSelectedFriendId("");
+    appendChatLog("Loading friends from recent posts");
+    try {
+      const { data } = await apiFetch<Post[]>("/api/posts?limit=50");
+      const ids = Array.from(new Set(data.map((post) => post.authorId).filter(Boolean)));
+      appendChatLog(`Found ${ids.length} unique owners in recent posts`);
+      const options: FriendOption[] = [];
+      for (const ownerId of ids) {
+        try {
+          const [ownerResp, statusResp] = await Promise.all([
+            apiFetch(`/api/owners/${ownerId}`),
+            apiFetch<{ status: string }>(`/api/owners/${ownerId}/friendship/status`)
+          ]);
+          const status = (statusResp.data as { status?: string }).status;
+          if (status === "friends") {
+            const owner = ownerResp.data as { uuid?: string; displayName?: string };
+            const uuid = owner.uuid ?? ownerId;
+            const displayName = owner.displayName ?? ownerId;
+            options.push({ uuid, displayName });
+          }
+        } catch (err) {
+          appendChatLog(`Skip ${ownerId}: ${readError(err)}`);
+        }
+      }
+      setFriendOptions(options);
+      setSelectedFriendId(options[0]?.uuid ?? "");
+      appendChatLog(`Loaded ${options.length} friend(s)`);
+    } catch (err) {
+      appendChatLog(`Failed to load posts: ${readError(err)}`);
+    } finally {
+      setFriendLoading(false);
+    }
+  }
+
+  async function runChatTest() {
+    if (chatLoading) return;
+    if (!selectedFriendId) {
+      appendChatLog("No friend selected");
+      return;
+    }
+    setChatLoading(true);
+    const tokens = loadTokens();
+    const base = apiBase.replace(/\/$/, "");
+    const target = base.startsWith("http") ? `${base}/api/chat/threads` : "/api/chat/threads";
+    appendChatLog(tokens?.accessToken ? "Auth token found" : "Auth token missing");
+    appendChatLog(`API base: ${apiBase}`);
+    appendChatLog(`Request target: ${target}`);
+    appendChatLog(`Request payload: ${JSON.stringify({ otherOwnerId: selectedFriendId })}`);
+    try {
+      const headers = new Headers();
+      headers.set("content-type", "application/json");
+      if (tokens?.accessToken) {
+        headers.set("authorization", `Bearer ${tokens.accessToken}`);
+      }
+      const response = await fetch(target, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ otherOwnerId: selectedFriendId })
+      });
+      appendChatLog(`Response HTTP ${response.status}`);
+      appendChatLog(`Response redirected: ${response.redirected}`);
+      appendChatLog(`Response url: ${response.url}`);
+      const text = await response.text();
+      let parsed = text;
+      try {
+        parsed = JSON.stringify(JSON.parse(text));
+      } catch {
+        // keep raw text
+      }
+      appendChatLog(`Response body: ${parsed || "<empty>"}`);
+    } catch (err) {
+      appendChatLog(`Request failed: ${String(err)}`);
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -385,6 +477,61 @@ export default function DebugPage() {
           {commentLogs.length === 0 && <p className="text-slate-500">No logs yet.</p>}
           {commentLogs.length > 0 && (
             <pre className="whitespace-pre-wrap">{commentLogs.join("\n")}</pre>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-white/10 bg-white/90 p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Test Chat</h2>
+          <button
+            type="button"
+            onClick={loadFriendOptions}
+            className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
+            disabled={friendLoading}
+          >
+            {friendLoading ? "Loading..." : "Load friends"}
+          </button>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-sm text-slate-700">Friend accounts</label>
+            <select
+              className="w-full rounded border border-slate-200 p-2 text-sm"
+              value={selectedFriendId}
+              onChange={(e) => setSelectedFriendId(e.target.value)}
+            >
+              <option value="">Select a friend</option>
+              {friendOptions.map((friend) => (
+                <option key={friend.uuid} value={friend.uuid}>
+                  {friend.displayName} ({friend.uuid.slice(0, 8)})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={runChatTest}
+              className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+              disabled={chatLoading}
+            >
+              {chatLoading ? "Running..." : "Test chat"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatLogs([])}
+              className="rounded border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+              disabled={chatLoading}
+            >
+              Clear logs
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          {chatLogs.length === 0 && <p className="text-slate-500">No logs yet.</p>}
+          {chatLogs.length > 0 && (
+            <pre className="whitespace-pre-wrap">{chatLogs.join("\n")}</pre>
           )}
         </div>
       </section>

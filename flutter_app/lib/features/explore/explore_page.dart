@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rubypets_flutter/features/owners/owner_profile_page.dart';
 import 'package:rubypets_flutter/providers/user_search_provider.dart';
 
 class ExplorePage extends ConsumerStatefulWidget {
@@ -68,11 +69,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                       child: Text(_initials(user.displayName)),
                     ),
                     title: Text(user.displayName),
-                    subtitle: Text('@${user.handle}'),
+                    subtitle: Text(user.locationLabel.isEmpty ? '未設定地區' : user.locationLabel),
                     onTap: () {
-                      // TODO: Navigate to user profile page
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Tapped on ${user.displayName}')),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => OwnerProfilePage(
+                            ownerId: user.id,
+                            ownerName: user.displayName,
+                          ),
+                        ),
                       );
                     },
                   );
