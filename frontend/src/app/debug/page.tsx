@@ -1,6 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
