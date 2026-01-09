@@ -1,5 +1,7 @@
 ﻿'use client';
 
+export const runtime = 'edge';
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
