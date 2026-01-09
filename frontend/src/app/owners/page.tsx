@@ -97,7 +97,6 @@ function PageShell({
   onUpdated: (owner: OwnerDetail | null) => void;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [csvData, setCsvData] = useState<Array<{ city: string; region: string }>>([]);
   const [city, setCity] = useState("");
   const [region, setRegion] = useState("");
   const [saving, setSaving] = useState(false);
@@ -138,13 +137,6 @@ function PageShell({
   const [ownerPets, setOwnerPets] = useState<OwnerPetSummary[]>([]);
   const [ownerPetsLoading, setOwnerPetsLoading] = useState(false);
   const [ownerPetsError, setOwnerPetsError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!showForm || csvData.length > 0) return;
-    setCsvData(
-      TAIWAN_CITIES.flatMap((c) => c.regions.map((r) => ({ city: c.code, region: r.code })))
-    );
-  }, [showForm, csvData.length]);
 
   useEffect(() => {
     if (!ownerId || !user || isSelf) {

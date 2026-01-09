@@ -1,6 +1,4 @@
 'use client';
-
-
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { HealthStatus, Post } from "@/lib/types";
