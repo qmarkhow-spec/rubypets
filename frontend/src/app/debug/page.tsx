@@ -138,8 +138,15 @@ export default function DebugPage() {
     setSelectedFriendId("");
     appendChatLog("Loading friends from /api/friendships/friends");
     try {
-      const { data } = await apiFetch<{ items: FriendOption[] }>("/api/friendships/friends?limit=50");
-      const items = (data?.items ?? []).filter((item) => item.uuid && item.displayName);
+      const { data } = await apiFetch<{ items?: Array<Record<string, unknown>> }>("/api/friendships/friends?limit=50");
+      appendChatLog(`Raw response: ${JSON.stringify(data)}`);
+      const items = (data?.items ?? [])
+        .map((item) => {
+          const uuid = String(item.uuid ?? item.id ?? "");
+          const displayName = String(item.displayName ?? item.display_name ?? uuid ?? "");
+          return { uuid, displayName };
+        })
+        .filter((item) => item.uuid);
       setFriendOptions(items);
       setSelectedFriendId(items[0]?.uuid ?? "");
       appendChatLog(`Loaded ${items.length} friend(s)`);
