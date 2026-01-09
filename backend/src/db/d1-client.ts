@@ -1649,6 +1649,27 @@ export class D1Client implements DBClient {
     }));
   }
 
+  async listFriends(me: string, limit: number): Promise<OwnerPublic[]> {
+    const rows = await this.db
+      .prepare(
+        `
+        select
+          o.uuid, o.display_name, o.avatar_url, o.city, o.region
+        from owner_friendships f
+        join owners o
+          on o.uuid = (case when f.owner_id = ? then f.friend_id else f.owner_id end)
+        where f.status = 'accepted'
+          and (f.owner_id = ? or f.friend_id = ?)
+        order by f.updated_at desc
+        limit ?
+        `
+      )
+      .bind(me, me, me, limit)
+      .all<OwnerPublicRow>();
+
+    return (rows.results ?? []).map(mapOwnerPublicRow);
+  }
+
   async countActivePetsByOwner(ownerId: string): Promise<number> {
     const row = await this.db
       .prepare(`select count(*) as c from pets where owner_id = ? and is_active = 1`)
