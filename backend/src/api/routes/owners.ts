@@ -35,6 +35,14 @@ async function outgoingRequestsRoute(ctx: HandlerContext): Promise<Response> {
   return okJson({ items });
 }
 
+async function friendsListRoute(ctx: HandlerContext): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const url = new URL(ctx.request.url);
+  const limit = Math.min(100, Math.max(1, asNumber(url.searchParams.get("limit"), 50)));
+  const items = await ctx.db.listFriends(me.uuid, limit);
+  return okJson({ items });
+}
+
 async function friendshipStatusRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const me = await requireAuthOwner(ctx);
   const otherId = params.id;
@@ -237,7 +245,8 @@ export const routes: Route[] = [
   { method: "GET", path: "/owners/search", handler: ownersSearchRoute },
   { method: "GET", path: "/me/followed-pets", handler: followedPetsRoute },
   { method: "GET", path: "/friendships/incoming", handler: incomingRequestsRoute },
-  { method: "GET", path: "/friendships/outgoing", handler: outgoingRequestsRoute }
+  { method: "GET", path: "/friendships/outgoing", handler: outgoingRequestsRoute },
+  { method: "GET", path: "/friendships/friends", handler: friendsListRoute }
 ];
 
 export const dynamicRoutes: DynamicRoute[] = [

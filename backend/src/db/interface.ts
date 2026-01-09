@@ -47,6 +47,7 @@ export interface DBClient {
   deleteFriendship(pairKey: string): Promise<number>;
   listIncomingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
   listOutgoingRequests(me: string, limit: number): Promise<import("./models").FriendshipRequestItem[]>;
+  listFriends(me: string, limit: number): Promise<import("./models").OwnerPublic[]>;
   countActivePetsByOwner(ownerId: string): Promise<number>;
   listPetsByOwner(ownerId: string): Promise<Array<{ id: string; name: string; avatarUrl: string | null }>>;
   isPetOwnedByOwner(petId: string, ownerId: string): Promise<boolean>;

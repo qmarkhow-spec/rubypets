@@ -136,34 +136,15 @@ export default function DebugPage() {
     setFriendLoading(true);
     setFriendOptions([]);
     setSelectedFriendId("");
-    appendChatLog("Loading friends from recent posts");
+    appendChatLog("Loading friends from /api/friendships/friends");
     try {
-      const { data } = await apiFetch<Post[]>("/api/posts?limit=50");
-      const ids = Array.from(new Set(data.map((post) => post.authorId).filter(Boolean)));
-      appendChatLog(`Found ${ids.length} unique owners in recent posts`);
-      const options: FriendOption[] = [];
-      for (const ownerId of ids) {
-        try {
-          const [ownerResp, statusResp] = await Promise.all([
-            apiFetch(`/api/owners/${ownerId}`),
-            apiFetch<{ status: string }>(`/api/owners/${ownerId}/friendship/status`)
-          ]);
-          const status = (statusResp.data as { status?: string }).status;
-          if (status === "friends") {
-            const owner = ownerResp.data as { uuid?: string; displayName?: string };
-            const uuid = owner.uuid ?? ownerId;
-            const displayName = owner.displayName ?? ownerId;
-            options.push({ uuid, displayName });
-          }
-        } catch (err) {
-          appendChatLog(`Skip ${ownerId}: ${readError(err)}`);
-        }
-      }
-      setFriendOptions(options);
-      setSelectedFriendId(options[0]?.uuid ?? "");
-      appendChatLog(`Loaded ${options.length} friend(s)`);
+      const { data } = await apiFetch<{ items: FriendOption[] }>("/api/friendships/friends?limit=50");
+      const items = (data?.items ?? []).filter((item) => item.uuid && item.displayName);
+      setFriendOptions(items);
+      setSelectedFriendId(items[0]?.uuid ?? "");
+      appendChatLog(`Loaded ${items.length} friend(s)`);
     } catch (err) {
-      appendChatLog(`Failed to load posts: ${readError(err)}`);
+      appendChatLog(`Failed to load friends: ${readError(err)}`);
     } finally {
       setFriendLoading(false);
     }
