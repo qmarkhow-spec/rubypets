@@ -40,7 +40,14 @@ async function friendsListRoute(ctx: HandlerContext): Promise<Response> {
   const url = new URL(ctx.request.url);
   const limit = Math.min(100, Math.max(1, asNumber(url.searchParams.get("limit"), 50)));
   const items = await ctx.db.listFriends(me.uuid, limit);
-  return okJson({ items });
+  const payload = items.map((item) => ({
+    uuid: item.uuid,
+    display_name: item.displayName,
+    avatar_url: item.avatarUrl ?? null,
+    city: item.city ?? null,
+    region: item.region ?? null
+  }));
+  return okJson({ items: payload });
 }
 
 async function friendshipStatusRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
