@@ -26,7 +26,7 @@ export default function DebugPage() {
   const [loginResult, setLoginResult] = useState<Json | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  const [postsUserId, setPostsUserId] = useState("demo-user");
+  const [postsUserId, setPostsUserId] = useState("");
   const [postsLimit, setPostsLimit] = useState(10);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsError, setPostsError] = useState<string | null>(null);
@@ -143,10 +143,10 @@ export default function DebugPage() {
       const items = (data?.items ?? [])
         .map((item) => {
           const uuid = String(item.uuid ?? item.id ?? "");
-          const displayName = String(item.displayName ?? item.display_name ?? uuid ?? "");
+          const displayName = String(item.display_name ?? "");
           return { uuid, displayName };
         })
-        .filter((item) => item.uuid);
+        .filter((item) => item.uuid && item.displayName);
       setFriendOptions(items);
       setSelectedFriendId(items[0]?.uuid ?? "");
       appendChatLog(`Loaded ${items.length} friend(s)`);
@@ -382,7 +382,7 @@ export default function DebugPage() {
               className="w-full rounded border border-slate-200 p-2 text-sm"
               value={postsUserId}
               onChange={(e) => setPostsUserId(e.target.value)}
-              placeholder="demo-user 或留空取全部"
+              placeholder="留空取全部"
             />
           </div>
           <div className="space-y-1">
