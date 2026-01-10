@@ -6,7 +6,7 @@ import { loadTokens } from "@/lib/auth-storage";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
-type FriendOption = { uuid: string; displayName: string };
+type FriendOption = { uuid: string; display_name: string };
 
 export default function DebugPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com";
@@ -138,15 +138,9 @@ export default function DebugPage() {
     setSelectedFriendId("");
     appendChatLog("Loading friends from /api/friendships/friends");
     try {
-      const { data } = await apiFetch<{ items?: Array<Record<string, unknown>> }>("/api/friendships/friends?limit=50");
-      appendChatLog(`Raw response: ${JSON.stringify(data)}`);
-      const items = (data?.items ?? [])
-        .map((item) => {
-          const uuid = String(item.uuid ?? item.id ?? "");
-          const displayName = String(item.display_name ?? "");
-          return { uuid, displayName };
-        })
-        .filter((item) => item.uuid && item.displayName);
+      const { data } = await apiFetch<{ items?: FriendOption[] }>("/api/friendships/friends?limit=50");
+      appendChatLog(`Response items: ${JSON.stringify(data)}`);
+      const items = (data?.items ?? []).filter((item) => item.uuid && item.display_name);
       setFriendOptions(items);
       setSelectedFriendId(items[0]?.uuid ?? "");
       appendChatLog(`Loaded ${items.length} friend(s)`);
@@ -247,6 +241,7 @@ export default function DebugPage() {
 
   useEffect(() => {
     void loadRecentPosts();
+    void loadFriendOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -492,7 +487,7 @@ export default function DebugPage() {
               <option value="">Select a friend</option>
               {friendOptions.map((friend) => (
                 <option key={friend.uuid} value={friend.uuid}>
-                  {friend.displayName} ({friend.uuid.slice(0, 8)})
+                  {friend.display_name} ({friend.uuid.slice(0, 8)})
                 </option>
               ))}
             </select>
