@@ -66,7 +66,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
       final api = ref.read(apiClientProvider);
       final thread = widget.initialThread ?? await api.getChatThread(threadId: widget.threadId);
       final page = await api.listChatMessages(threadId: widget.threadId);
-      final items = page.items.reversed.toList();
+      final items = page.items;
       setState(() {
         _thread = thread;
         _messages = items;
@@ -91,7 +91,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     try {
       final api = ref.read(apiClientProvider);
       final page = await api.listChatMessages(threadId: widget.threadId, before: _nextCursor);
-      final items = page.items.reversed.toList();
+      final items = page.items;
       setState(() {
         _messages = [...items, ..._messages];
         _nextCursor = page.nextCursor;
@@ -362,7 +362,7 @@ String _buildWebSocketUrl(String baseUrl, String threadId, String token) {
   return uri
       .replace(
         scheme: scheme,
-        path: '/ws/threads/$threadId',
+        path: '/api/ws/threads/$threadId',
         queryParameters: {'token': token},
       )
       .toString();

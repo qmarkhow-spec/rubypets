@@ -8,6 +8,9 @@ const DEFAULT_CORS = {
 };
 
 export function withCors(response: Response, extraHeaders: Record<string, string> = {}): Response {
+  if (response.status === 101) {
+    return response;
+  }
   const headers = new Headers(response.headers);
   Object.entries({ ...DEFAULT_CORS, ...extraHeaders }).forEach(([key, value]) => headers.set(key, value));
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
