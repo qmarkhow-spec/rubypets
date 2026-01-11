@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rubypets_flutter/models/chat.dart';
 import 'package:rubypets_flutter/models/user.dart';
 import 'package:rubypets_flutter/providers/session_provider.dart';
 import 'package:rubypets_flutter/services/api_client.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'room_page.dart';
 
@@ -21,6 +25,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   String? _nextCursor;
   bool _loadingMore = false;
   ProviderSubscription<AsyncValue<ApiUser?>>? _sessionSub;
+  final Map<String, WebSocketChannel> _threadSockets = {};
+  final Map<String, StreamSubscription> _threadSocketSubs = {};
 
   @override
   void initState() {
@@ -41,6 +47,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   @override
   void dispose() {
     _sessionSub?.close();
+    _closeAllSockets();
     super.dispose();
   }
 
@@ -51,6 +58,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         _threads = [];
         _loading = false;
       });
+      _closeAllSockets();
       return;
     }
 
@@ -70,6 +78,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         _threads = append ? [..._threads, ...page.items] : page.items;
         _nextCursor = page.nextCursor;
       });
+      _syncSockets();
     } catch (err) {
       setState(() {
         _error = 'Failed to load threads: $err';
@@ -80,6 +89,147 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         _loadingMore = false;
       });
     }
+  }
+
+  void _closeAllSockets() {
+    for (final sub in _threadSocketSubs.values) {
+      sub.cancel();
+    }
+    for (final socket in _threadSockets.values) {
+      socket.sink.close();
+    }
+    _threadSocketSubs.clear();
+    _threadSockets.clear();
+  }
+
+  void _syncSockets() {
+    final session = ref.read(sessionProvider).value;
+    if (session == null) {
+      _closeAllSockets();
+      return;
+    }
+    final api = ref.read(apiClientProvider);
+    final token = api.token;
+    if (token == null || token.isEmpty) {
+      _closeAllSockets();
+      return;
+    }
+
+    final desiredIds = _threads.map((thread) => thread.threadId).toSet();
+    for (final existingId in _threadSockets.keys.toList()) {
+      if (!desiredIds.contains(existingId)) {
+        _threadSocketSubs.remove(existingId)?.cancel();
+        _threadSockets.remove(existingId)?.sink.close();
+      }
+    }
+
+    for (final thread in _threads) {
+      if (_threadSockets.containsKey(thread.threadId)) continue;
+      final wsUrl = _buildWebSocketUrl(api.baseUrl, thread.threadId, token);
+      final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      _threadSockets[thread.threadId] = channel;
+      _threadSocketSubs[thread.threadId] = channel.stream.listen(
+        (payload) => _handleThreadSocketMessage(thread.threadId, payload),
+        onError: (_) {},
+      );
+    }
+  }
+
+  void _handleThreadSocketMessage(String threadId, dynamic payload) {
+    final text = payload is String ? payload : utf8.decode(payload as List<int>);
+    final decoded = _safeJson(text);
+    if (decoded == null) return;
+    final type = decoded['type']?.toString();
+    if (type == 'message_new') {
+      final raw = decoded['message'];
+      if (raw is! Map<String, dynamic>) return;
+      _applyThreadMessage(threadId, ChatMessage.fromJson(raw));
+    } else if (type == 'thread_updated') {
+      final raw = decoded['thread'];
+      if (raw is! Map<String, dynamic>) return;
+      _applyThreadUpdate(ChatThreadUpdate.fromJson(raw));
+    }
+  }
+
+  Map<String, dynamic>? _safeJson(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _applyThreadMessage(String threadId, ChatMessage message) {
+    final isMe = _isMe(message.senderId);
+    setState(() {
+      _threads = _threads.map((thread) {
+        if (thread.threadId != threadId) return thread;
+        return ChatThread(
+          threadId: thread.threadId,
+          otherOwner: thread.otherOwner,
+          requestState: thread.requestState,
+          requestSenderId: thread.requestSenderId,
+          requestMessageId: thread.requestMessageId,
+          lastMessageId: message.id,
+          lastMessagePreview: message.bodyText,
+          lastActivityAt: message.createdAt,
+          unread: !isMe,
+          archived: thread.archived,
+          deleted: thread.deleted,
+          isFriend: thread.isFriend,
+        );
+      }).toList()
+        ..sort(_compareThreadActivity);
+    });
+  }
+
+  void _applyThreadUpdate(ChatThreadUpdate update) {
+    setState(() {
+      _threads = _threads.map((thread) {
+        if (thread.threadId != update.threadId) return thread;
+        return ChatThread(
+          threadId: thread.threadId,
+          otherOwner: thread.otherOwner,
+          requestState: update.requestState ?? thread.requestState,
+          requestSenderId: update.requestSenderId ?? thread.requestSenderId,
+          requestMessageId: update.requestMessageId ?? thread.requestMessageId,
+          lastMessageId: update.lastMessageId ?? thread.lastMessageId,
+          lastMessagePreview: thread.lastMessagePreview,
+          lastActivityAt: update.lastActivityAt ?? thread.lastActivityAt,
+          unread: thread.unread,
+          archived: thread.archived,
+          deleted: thread.deleted,
+          isFriend: thread.isFriend,
+        );
+      }).toList()
+        ..sort(_compareThreadActivity);
+    });
+  }
+
+  int _compareThreadActivity(ChatThread a, ChatThread b) {
+    final aTime =
+        DateTime.tryParse(a.lastActivityAt ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bTime =
+        DateTime.tryParse(b.lastActivityAt ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return bTime.compareTo(aTime);
+  }
+
+  bool _isMe(String senderId) {
+    final session = ref.read(sessionProvider).value;
+    return session != null && session.id == senderId;
+  }
+
+  String _buildWebSocketUrl(String baseUrl, String threadId, String token) {
+    final uri = Uri.parse(baseUrl);
+    final scheme = uri.scheme == 'https' ? 'wss' : 'ws';
+    return uri
+        .replace(
+          scheme: scheme,
+          path: '/api/ws/threads/$threadId',
+          queryParameters: {'token': token},
+        )
+        .toString();
   }
 
   @override
