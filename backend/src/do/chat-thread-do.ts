@@ -99,21 +99,26 @@ export class ChatThreadDO {
       return;
     }
 
-    switch (payload.type) {
-      case "send":
-        await this.handleSend(ws, info, payload);
-        return;
-      case "read":
-        await this.handleRead(ws, info, payload);
-        return;
-      case "accept_request":
-        await this.handleRequestDecision(ws, info, "accepted");
-        return;
-      case "reject_request":
-        await this.handleRequestDecision(ws, info, "rejected");
-        return;
-      default:
-        this.sendError(ws, "Unsupported message type");
+    try {
+      switch (payload.type) {
+        case "send":
+          await this.handleSend(ws, info, payload);
+          return;
+        case "read":
+          await this.handleRead(ws, info, payload);
+          return;
+        case "accept_request":
+          await this.handleRequestDecision(ws, info, "accepted");
+          return;
+        case "reject_request":
+          await this.handleRequestDecision(ws, info, "rejected");
+          return;
+        default:
+          this.sendError(ws, "Unsupported message type");
+      }
+    } catch (err) {
+      console.error("ChatThreadDO message failed", err);
+      this.sendError(ws, "Unexpected error");
     }
   }
 

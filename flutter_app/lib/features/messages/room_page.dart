@@ -30,6 +30,9 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   final _scrollController = ScrollController();
   WebSocketChannel? _channel;
   StreamSubscription? _channelSub;
+  Timer? _reconnectTimer;
+  bool _connecting = false;
+  int _reconnectAttempts = 0;
 
   ChatThread? _thread;
   List<ChatMessage> _messages = [];
@@ -52,6 +55,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   void dispose() {
     _channelSub?.cancel();
     _channel?.sink.close();
+    _reconnectTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -110,7 +114,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   }
 
   void _connectSocket() {
-    if (_channel != null) return;
+    if (_channel != null || _connecting) return;
     final api = ref.read(apiClientProvider);
     final token = api.token;
     if (token == null || token.isEmpty) {
@@ -118,23 +122,55 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
       return;
     }
 
+    _connecting = true;
     final wsUrl = _buildWebSocketUrl(api.baseUrl, widget.threadId, token);
-    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-    _channelSub = _channel!.stream.listen(
+    final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+    _channel = channel;
+    _channelSub = channel.stream.listen(
       _handleSocketMessage,
-      onError: (err) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Socket error: $err')),
-        );
-      },
+      onError: _handleSocketError,
+      onDone: _handleSocketDone,
     );
+    _connecting = false;
+  }
+
+  void _handleSocketError(Object err) {
+    if (!mounted) return;
+    _channelSub?.cancel();
+    _channel = null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Socket error: $err')),
+    );
+    _scheduleReconnect();
+  }
+
+  void _handleSocketDone() {
+    if (!mounted) return;
+    _channelSub?.cancel();
+    _channel = null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Chat disconnected. Reconnecting...')),
+    );
+    _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    if (!mounted) return;
+    if (_reconnectTimer != null) return;
+    if (_reconnectAttempts >= 3) return;
+    _reconnectAttempts += 1;
+    _reconnectTimer = Timer(Duration(seconds: 2 * _reconnectAttempts), () {
+      _reconnectTimer = null;
+      if (!mounted) return;
+      _connectSocket();
+    });
   }
 
   void _handleSocketMessage(dynamic payload) {
     final text = payload is String ? payload : utf8.decode(payload as List<int>);
     final decoded = _safeJson(text);
     if (decoded == null) return;
+    _reconnectAttempts = 0;
     final type = decoded['type']?.toString();
     if (type == 'message_new') {
       final raw = decoded['message'];
@@ -233,6 +269,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     if (_channel == null) {
+      _connectSocket();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chat not connected yet.')),
       );
@@ -251,6 +288,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   Future<void> _sendRequestAction(String action) async {
     if (_actionLoading) return;
     if (_channel == null) {
+      _connectSocket();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chat not connected yet.')),
       );
