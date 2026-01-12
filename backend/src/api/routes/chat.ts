@@ -202,7 +202,9 @@ async function notifyThreadUpdated(ctx: HandlerContext, threadId: string) {
 }
 
 function serializeThreadItem(item: ChatThreadListItem, isFriend: boolean) {
-  const unread = !!item.lastMessageId && item.lastMessageId !== item.lastReadMessageId;
+  const fallbackUnread = !!item.lastMessageId && item.lastMessageId !== item.lastReadMessageId;
+  const unreadCount = item.unreadCount ?? (fallbackUnread ? 1 : 0);
+  const unread = unreadCount > 0;
   return {
     threadId: item.threadId,
     otherOwner: item.otherOwner,
@@ -212,6 +214,7 @@ function serializeThreadItem(item: ChatThreadListItem, isFriend: boolean) {
     lastMessageId: item.lastMessageId ?? null,
     lastMessagePreview: item.lastMessagePreview ?? null,
     lastActivityAt: item.lastActivityAt ?? null,
+    unreadCount,
     unread,
     archived: !!item.archivedAt,
     deleted: !!item.deletedAt,
