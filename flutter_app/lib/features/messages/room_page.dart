@@ -7,7 +7,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'package:rubypets_flutter/models/chat.dart';
 import 'package:rubypets_flutter/providers/session_provider.dart';
-import 'package:rubypets_flutter/services/api_client.dart';
 
 class ChatRoomPage extends ConsumerStatefulWidget {
   const ChatRoomPage({
@@ -355,24 +354,8 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     _pingTimer = null;
   }
 
-  List<_ChatListEntry> _buildMessageEntries() {
-    final entries = <_ChatListEntry>[];
-    DateTime? lastDate;
-    for (final message in _messages) {
-      final localTime = _toTaipei(message.createdAt);
-      final dateKey = DateTime(localTime.year, localTime.month, localTime.day);
-      if (lastDate == null || !_isSameDay(lastDate, dateKey)) {
-        entries.add(_ChatListEntry.date(_formatChatDateLabel(localTime)));
-        lastDate = dateKey;
-      }
-      entries.add(_ChatListEntry.message(message));
-    }
-    return entries;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final entries = _buildMessageEntries();
     return Scaffold(
       appBar: AppBar(title: Text(widget.threadTitle)),
       body: _loading
@@ -395,7 +378,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
                       child: ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16),
-                        itemCount: entries.length + (_loadingMore ? 1 : 0),
+                        itemCount: _messages.length + (_loadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
                           if (_loadingMore && index == 0) {
                             return const Padding(
@@ -404,35 +387,12 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
                             );
                           }
                           final adjustedIndex = _loadingMore ? index - 1 : index;
-                          final entry = entries[adjustedIndex];
-                          if (entry.isDate) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    entry.label ?? '',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          final message = entry.message!;
+                          final message = _messages[adjustedIndex];
                           final isMe = _isMe(message.senderId);
                           final bubbleColor = isMe
                               ? Theme.of(context).colorScheme.primaryContainer
                               : Theme.of(context).colorScheme.surfaceContainerHighest;
                           final showRead = isMe && _otherLastReadId == message.id;
-                          final timeLabel = _formatChatTime(message.createdAt);
                           return Align(
                             alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                             child: Column(
@@ -447,21 +407,11 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
                                   ),
                                   child: Text(message.bodyText),
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment:
-                                        isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-                                    children: [
-                                      Text(timeLabel, style: const TextStyle(fontSize: 11)),
-                                      if (showRead) ...[
-                                        const SizedBox(width: 6),
-                                        const Text('已讀', style: TextStyle(fontSize: 11)),
-                                      ],
-                                    ],
+                                if (showRead)
+                                  const Padding(
+                                    padding: EdgeInsets.only(bottom: 8),
+                                    child: Text('Read', style: TextStyle(fontSize: 11)),
                                   ),
-                                ),
                               ],
                             ),
                           );
@@ -559,82 +509,5 @@ class _StatusBanner extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Text(text),
     );
-  }
-}
-
-class _ChatListEntry {
-  const _ChatListEntry.date(this.label) : message = null;
-  const _ChatListEntry.message(this.message) : label = null;
-
-  final ChatMessage? message;
-  final String? label;
-
-  bool get isDate => label != null;
-}
-
-DateTime _toTaipei(String raw) {
-  final utc = _parseUtcTimestamp(raw);
-  return utc.toUtc().add(const Duration(hours: 8));
-}
-
-DateTime _parseUtcTimestamp(String raw) {
-  final normalized = raw.trim().replaceFirst(' ', 'T');
-  final parsed = DateTime.tryParse(normalized);
-  if (parsed == null) return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-  return DateTime.utc(
-    parsed.year,
-    parsed.month,
-    parsed.day,
-    parsed.hour,
-    parsed.minute,
-    parsed.second,
-    parsed.millisecond,
-    parsed.microsecond,
-  );
-}
-
-bool _isSameDay(DateTime a, DateTime b) {
-  return a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-String _formatChatTime(String raw) {
-  final local = _toTaipei(raw);
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
-}
-
-String _formatChatDateLabel(DateTime local) {
-  final today = _toTaipei(DateTime.now().toUtc().toIso8601String());
-  final todayKey = DateTime(today.year, today.month, today.day);
-  final messageKey = DateTime(local.year, local.month, local.day);
-  final yesterdayKey = todayKey.subtract(const Duration(days: 1));
-  if (_isSameDay(messageKey, todayKey)) return '今日';
-  if (_isSameDay(messageKey, yesterdayKey)) return '昨日';
-  final weekday = _weekdayLabel(local.weekday);
-  if (local.year == today.year) {
-    return '${local.month}月${local.day}日 $weekday';
-  }
-  return '${local.year}年${local.month}月${local.day}日 $weekday';
-}
-
-String _weekdayLabel(int weekday) {
-  switch (weekday) {
-    case DateTime.monday:
-      return '星期一';
-    case DateTime.tuesday:
-      return '星期二';
-    case DateTime.wednesday:
-      return '星期三';
-    case DateTime.thursday:
-      return '星期四';
-    case DateTime.friday:
-      return '星期五';
-    case DateTime.saturday:
-      return '星期六';
-    case DateTime.sunday:
-      return '星期日';
-    default:
-      return '';
   }
 }
