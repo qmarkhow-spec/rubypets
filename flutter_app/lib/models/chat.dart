@@ -11,6 +11,7 @@ class ChatThread {
     this.lastMessagePreview,
     this.lastActivityAt,
     this.unread = false,
+    this.unreadCount = 0,
     this.archived = false,
     this.deleted = false,
     this.isFriend = false,
@@ -25,6 +26,7 @@ class ChatThread {
   final String? lastMessagePreview;
   final String? lastActivityAt;
   final bool unread;
+  final int unreadCount;
   final bool archived;
   final bool deleted;
   final bool isFriend;
@@ -41,6 +43,7 @@ class ChatThread {
       lastMessagePreview: lastMessagePreview,
       lastActivityAt: update.lastActivityAt ?? lastActivityAt,
       unread: unread,
+      unreadCount: unreadCount,
       archived: archived,
       deleted: deleted,
       isFriend: isFriend,
@@ -48,6 +51,8 @@ class ChatThread {
   }
 
   factory ChatThread.fromJson(Map<String, dynamic> json) {
+    final unreadCount = _asInt(json['unreadCount'] ?? json['unread_count']);
+    final hasUnread = json['unread'] == true || unreadCount > 0;
     final otherOwnerRaw = json['otherOwner'] ?? json['other_owner'];
     final otherOwnerMap = otherOwnerRaw is Map<String, dynamic> ? otherOwnerRaw : <String, dynamic>{};
     return ChatThread(
@@ -59,7 +64,8 @@ class ChatThread {
       lastMessageId: (json['lastMessageId'] ?? json['last_message_id'])?.toString(),
       lastMessagePreview: (json['lastMessagePreview'] ?? json['last_message_preview'])?.toString(),
       lastActivityAt: (json['lastActivityAt'] ?? json['last_activity_at'])?.toString(),
-      unread: json['unread'] == true,
+      unread: hasUnread,
+      unreadCount: unreadCount,
       archived: json['archived'] == true,
       deleted: json['deleted'] == true,
       isFriend: json['isFriend'] == true,
@@ -134,4 +140,12 @@ class ChatMessagesPage {
 
   final List<ChatMessage> items;
   final String? nextCursor;
+}
+
+int _asInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
 }

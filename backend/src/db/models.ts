@@ -180,6 +180,7 @@ export interface ChatThreadListItem {
   lastActivityAt?: string | null;
   lastMessagePreview?: string | null;
   lastReadMessageId?: string | null;
+  unreadCount?: number;
   archivedAt?: string | null;
   deletedAt?: string | null;
   otherOwner: OwnerPublic;

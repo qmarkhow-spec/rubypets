@@ -191,6 +191,7 @@ type ChatThreadListRow = {
   last_activity_at: string | null;
   sort_activity: string | null;
   last_read_message_id: string | null;
+  unread_count: number | null;
   archived_at: string | null;
   deleted_at: string | null;
   other_uuid: string;
@@ -1132,6 +1133,17 @@ export class D1Client implements DBClient {
             t.last_activity_at,
             ${sortExpr} as sort_activity,
             p.last_read_message_id,
+            (
+              select count(*)
+              from chat_messages cm
+              where cm.thread_id = t.id
+                and cm.sender_id <> p.owner_id
+                and (
+                  lr.created_at is null
+                  or cm.created_at > lr.created_at
+                  or (cm.created_at = lr.created_at and cm.id > lr.id)
+                )
+            ) as unread_count,
             p.archived_at,
             p.deleted_at,
             o.uuid as other_uuid,
@@ -1142,6 +1154,7 @@ export class D1Client implements DBClient {
           join chat_threads t on t.id = p.thread_id
           join owners o on o.uuid = case when t.owner_a_id = ? then t.owner_b_id else t.owner_a_id end
           left join chat_messages m on m.id = t.last_message_id
+          left join chat_messages lr on lr.id = p.last_read_message_id
           where ${clauses.join(" and ")}
           order by sort_activity desc, t.id desc
           limit ?
@@ -1172,6 +1185,17 @@ export class D1Client implements DBClient {
             t.last_activity_at,
             ${sortExpr} as sort_activity,
             p.last_read_message_id,
+            (
+              select count(*)
+              from chat_messages cm
+              where cm.thread_id = t.id
+                and cm.sender_id <> p.owner_id
+                and (
+                  lr.created_at is null
+                  or cm.created_at > lr.created_at
+                  or (cm.created_at = lr.created_at and cm.id > lr.id)
+                )
+            ) as unread_count,
             p.archived_at,
             p.deleted_at,
             o.uuid as other_uuid,
@@ -1182,6 +1206,7 @@ export class D1Client implements DBClient {
           join chat_threads t on t.id = p.thread_id
           join owners o on o.uuid = case when t.owner_a_id = ? then t.owner_b_id else t.owner_a_id end
           left join chat_messages m on m.id = t.last_message_id
+          left join chat_messages lr on lr.id = p.last_read_message_id
           where p.owner_id = ? and t.id = ?
           limit 1
         `
@@ -2383,6 +2408,7 @@ function mapChatThreadListRow(row: ChatThreadListRow): ChatThreadListItem {
     lastActivityAt: row.last_activity_at ?? null,
     lastMessagePreview: row.last_message_preview ?? null,
     lastReadMessageId: row.last_read_message_id ?? null,
+    unreadCount: row.unread_count ?? 0,
     archivedAt: row.archived_at ?? null,
     deletedAt: row.deleted_at ?? null,
     otherOwner: mapOwnerPublicRow({
