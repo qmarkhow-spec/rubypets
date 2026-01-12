@@ -8,17 +8,24 @@ type ClientInfo = {
   threadId: string;
 };
 
+type WebSocketWithAttachment = WebSocket & {
+  serializeAttachment?: (attachment: unknown) => void;
+  deserializeAttachment?: () => unknown;
+};
+
 type ClientMessage =
   | { type: "send"; body_text?: string }
   | { type: "read"; last_read_message_id?: string }
   | { type: "accept_request" }
-  | { type: "reject_request" };
+  | { type: "reject_request" }
+  | { type: "ping" };
 
 type ServerMessage =
   | { type: "message_new"; message: ChatMessagePayload }
   | { type: "thread_updated"; thread: ChatThreadPayload }
   | { type: "read_updated"; owner_id: string; last_read_message_id: string }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "pong" };
 
 type ChatMessagePayload = {
   id: string;
@@ -47,6 +54,14 @@ export class ChatThreadDO {
     this.state = state;
     this.env = env;
     this.db = new D1Client(env.DB);
+    for (const socket of this.state.getWebSockets()) {
+      const restored = this.restoreClientInfo(socket);
+      if (restored) {
+        this.sockets.set(socket, restored);
+      } else {
+        socket.close(1011, "Missing session");
+      }
+    }
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -80,13 +95,21 @@ export class ChatThreadDO {
     const client = pair[0];
     const server = pair[1];
     this.state.acceptWebSocket(server);
+    (server as WebSocketWithAttachment).serializeAttachment?.({ ownerId, threadId });
     this.sockets.set(server, { ownerId, threadId });
 
     return new Response(null, { status: 101, webSocket: client });
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    const info = this.sockets.get(ws);
+    let info = this.sockets.get(ws);
+    if (!info) {
+      const restored = this.restoreClientInfo(ws);
+      if (restored) {
+        this.sockets.set(ws, restored);
+        info = restored;
+      }
+    }
     if (!info) {
       ws.close(1008, "Unknown session");
       return;
@@ -112,6 +135,9 @@ export class ChatThreadDO {
           return;
         case "reject_request":
           await this.handleRequestDecision(ws, info, "rejected");
+          return;
+        case "ping":
+          ws.send(JSON.stringify({ type: "pong" }));
           return;
         default:
           this.sendError(ws, "Unsupported message type");
@@ -325,6 +351,15 @@ export class ChatThreadDO {
         : url.searchParams.get("token")?.trim();
     if (!token) return null;
     return parseUserIdFromToken(token);
+  }
+
+  private restoreClientInfo(ws: WebSocket): ClientInfo | null {
+    const attachment = (ws as WebSocketWithAttachment).deserializeAttachment?.();
+    if (!attachment || typeof attachment !== "object") return null;
+    const ownerId = (attachment as { ownerId?: unknown }).ownerId;
+    const threadId = (attachment as { threadId?: unknown }).threadId;
+    if (typeof ownerId !== "string" || typeof threadId !== "string") return null;
+    return { ownerId, threadId };
   }
 }
 

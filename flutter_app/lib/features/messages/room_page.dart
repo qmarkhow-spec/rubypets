@@ -31,8 +31,10 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   WebSocketChannel? _channel;
   StreamSubscription? _channelSub;
   Timer? _reconnectTimer;
+  Timer? _pingTimer;
   bool _connecting = false;
   int _reconnectAttempts = 0;
+  DateTime _lastPongAt = DateTime.now();
 
   ChatThread? _thread;
   List<ChatMessage> _messages = [];
@@ -56,6 +58,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     _channelSub?.cancel();
     _channel?.sink.close();
     _reconnectTimer?.cancel();
+    _pingTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -132,12 +135,16 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
       onDone: _handleSocketDone,
     );
     _connecting = false;
+    _reconnectAttempts = 0;
+    _lastPongAt = DateTime.now();
+    _startPing();
   }
 
   void _handleSocketError(Object err) {
     if (!mounted) return;
     _channelSub?.cancel();
     _channel = null;
+    _stopPing();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Socket error: $err')),
     );
@@ -148,6 +155,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     if (!mounted) return;
     _channelSub?.cancel();
     _channel = null;
+    _stopPing();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Chat disconnected. Reconnecting...')),
     );
@@ -199,6 +207,9 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
           _otherLastReadId = decoded['last_read_message_id']?.toString();
         });
       }
+    } else if (type == 'pong') {
+      _lastPongAt = DateTime.now();
+      return;
     } else if (type == 'error') {
       final message = decoded['message']?.toString() ?? 'Unknown error';
       if (!mounted) return;
@@ -228,10 +239,14 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     final lastId = _messages.last.id;
     if (lastId == _lastReadSent) return;
     _lastReadSent = lastId;
-    _channel?.sink.add(jsonEncode({
-      'type': 'read',
-      'last_read_message_id': lastId,
-    }));
+    try {
+      _channel?.sink.add(jsonEncode({
+        'type': 'read',
+        'last_read_message_id': lastId,
+      }));
+    } catch (_) {
+      _handleSocketError(Exception('Read update failed'));
+    }
   }
 
   bool _isAtBottom() {
@@ -281,7 +296,15 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
       );
       return;
     }
-    _channel?.sink.add(jsonEncode({'type': 'send', 'body_text': text}));
+    try {
+      _channel?.sink.add(jsonEncode({'type': 'send', 'body_text': text}));
+    } catch (err) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Send failed: $err')),
+      );
+      _handleSocketError(err);
+      return;
+    }
     _controller.clear();
   }
 
@@ -295,9 +318,41 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
       return;
     }
     setState(() => _actionLoading = true);
-    _channel?.sink.add(jsonEncode({'type': action}));
+    try {
+      _channel?.sink.add(jsonEncode({'type': action}));
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Action failed: $err')),
+        );
+      }
+      _handleSocketError(err);
+    }
     await Future<void>.delayed(const Duration(milliseconds: 250));
     if (mounted) setState(() => _actionLoading = false);
+  }
+
+  void _startPing() {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (_channel == null) return;
+      final now = DateTime.now();
+      if (now.difference(_lastPongAt).inSeconds > 40) {
+        _channel?.sink.close();
+        _handleSocketDone();
+        return;
+      }
+      try {
+        _channel?.sink.add(jsonEncode({'type': 'ping'}));
+      } catch (err) {
+        _handleSocketError(err);
+      }
+    });
+  }
+
+  void _stopPing() {
+    _pingTimer?.cancel();
+    _pingTimer = null;
   }
 
   @override
