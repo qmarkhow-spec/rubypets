@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rubypets_flutter/models/chat.dart';
 import 'package:rubypets_flutter/models/user.dart';
 import 'package:rubypets_flutter/providers/session_provider.dart';
-import 'package:rubypets_flutter/services/api_client.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'room_page.dart';
@@ -165,7 +164,6 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     setState(() {
       _threads = _threads.map((thread) {
         if (thread.threadId != threadId) return thread;
-        final nextUnreadCount = isMe ? 0 : (thread.unreadCount + 1);
         return ChatThread(
           threadId: thread.threadId,
           otherOwner: thread.otherOwner,
@@ -175,8 +173,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           lastMessageId: message.id,
           lastMessagePreview: message.bodyText,
           lastActivityAt: message.createdAt,
-          unread: nextUnreadCount > 0,
-          unreadCount: nextUnreadCount,
+          unread: !isMe,
           archived: thread.archived,
           deleted: thread.deleted,
           isFriend: thread.isFriend,
@@ -200,7 +197,6 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           lastMessagePreview: thread.lastMessagePreview,
           lastActivityAt: update.lastActivityAt ?? thread.lastActivityAt,
           unread: thread.unread,
-          unreadCount: thread.unreadCount,
           archived: thread.archived,
           deleted: thread.deleted,
           isFriend: thread.isFriend,
@@ -285,7 +281,6 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                     : thread.requestState == 'rejected'
                         ? 'Rejected'
                         : null;
-                final unreadCount = thread.unreadCount;
                 return ListTile(
                   tileColor: Theme.of(context).colorScheme.surface,
                   shape: RoundedRectangleBorder(
@@ -315,20 +310,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                             style: const TextStyle(fontSize: 11),
                           ),
                         ),
-                      if (unreadCount > 0)
+                      if (thread.unread)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          width: 8,
+                          height: 8,
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _formatUnreadCount(unreadCount),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
+                            shape: BoxShape.circle,
                           ),
                         ),
                     ],
@@ -367,12 +355,6 @@ String _formatTime(String? iso) {
   if (diff.inHours < 24) return '${diff.inHours}h';
   if (diff.inDays < 7) return '${diff.inDays}d';
   return '${parsed.month}/${parsed.day}';
-}
-
-String _formatUnreadCount(int count) {
-  if (count <= 0) return '';
-  if (count > 99) return '99+';
-  return count.toString();
 }
 
 String _initials(String value) {
