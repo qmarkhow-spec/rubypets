@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -24,7 +24,7 @@ class ChatRoomPage extends ConsumerStatefulWidget {
   ConsumerState<ChatRoomPage> createState() => _ChatRoomPageState();
 }
 
-class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
+class _ChatRoomPageState extends ConsumerState<ChatRoomPage> with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   WebSocketChannel? _channel;
@@ -34,6 +34,9 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   bool _connecting = false;
   int _reconnectAttempts = 0;
   DateTime _lastPongAt = DateTime.now();
+  bool _isForeground = true;
+  DateTime? _lastSocketNoticeAt;
+  bool _syncing = false;
 
   ChatThread? _thread;
   List<ChatMessage> _messages = [];
@@ -48,6 +51,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadThread();
     _scrollController.addListener(_handleScroll);
   }
@@ -58,9 +62,23 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     _channel?.sink.close();
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isResumed = state == AppLifecycleState.resumed;
+    _isForeground = isResumed;
+    if (isResumed) {
+      _connectSocket();
+      _syncLatestMessages();
+      _sendReadIfNeeded();
+    } else {
+      _teardownSocket();
+    }
   }
 
   Future<void> _loadThread() async {
@@ -115,6 +133,47 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     }
   }
 
+  Future<void> _syncLatestMessages({bool showErrors = false}) async {
+    if (!_isForeground) return;
+    if (_syncing) return;
+    if (_loading) return;
+    _syncing = true;
+    try {
+      final api = ref.read(apiClientProvider);
+      final page = await api.listChatMessages(threadId: widget.threadId);
+      final items = page.items;
+      if (items.isEmpty) return;
+      final wasAtBottom = _isAtBottom();
+      final byId = <String, ChatMessage>{
+        for (final message in _messages) message.id: message,
+      };
+      for (final message in items) {
+        byId.putIfAbsent(message.id, () => message);
+      }
+      final merged = byId.values.toList()
+        ..sort(
+          (a, b) => _parseUtcTimestamp(a.createdAt).compareTo(
+            _parseUtcTimestamp(b.createdAt),
+          ),
+        );
+      setState(() {
+        _messages = merged;
+        _nextCursor = _nextCursor ?? page.nextCursor;
+      });
+      if (wasAtBottom) {
+        _scrollToBottom();
+      }
+    } catch (err) {
+      if (showErrors && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sync failed: $err')),
+        );
+      }
+    } finally {
+      _syncing = false;
+    }
+  }
+
   void _connectSocket() {
     if (_channel != null || _connecting) return;
     final api = ref.read(apiClientProvider);
@@ -137,32 +196,30 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
     _reconnectAttempts = 0;
     _lastPongAt = DateTime.now();
     _startPing();
+    _syncLatestMessages();
   }
 
   void _handleSocketError(Object err) {
     if (!mounted) return;
-    _channelSub?.cancel();
-    _channel = null;
-    _stopPing();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Socket error: $err')),
-    );
-    _scheduleReconnect();
+    _teardownSocket();
+    if (_isForeground) {
+      _showSocketNotice('Socket error: $err');
+      _scheduleReconnect();
+    }
   }
 
   void _handleSocketDone() {
     if (!mounted) return;
-    _channelSub?.cancel();
-    _channel = null;
-    _stopPing();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Chat disconnected. Reconnecting...')),
-    );
-    _scheduleReconnect();
+    _teardownSocket();
+    if (_isForeground) {
+      _showSocketNotice('Chat disconnected. Reconnecting...');
+      _scheduleReconnect();
+    }
   }
 
   void _scheduleReconnect() {
     if (!mounted) return;
+    if (!_isForeground) return;
     if (_reconnectTimer != null) return;
     if (_reconnectAttempts >= 3) return;
     _reconnectAttempts += 1;
@@ -171,6 +228,26 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
       if (!mounted) return;
       _connectSocket();
     });
+  }
+
+  void _teardownSocket() {
+    _channelSub?.cancel();
+    _channelSub = null;
+    _channel?.sink.close();
+    _channel = null;
+    _stopPing();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _connecting = false;
+  }
+
+  void _showSocketNotice(String message) {
+    final now = DateTime.now();
+    if (_lastSocketNoticeAt != null && now.difference(_lastSocketNoticeAt!).inSeconds < 3) {
+      return;
+    }
+    _lastSocketNoticeAt = now;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _handleSocketMessage(dynamic payload) {
@@ -233,6 +310,7 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
   }
 
   void _sendReadIfNeeded() {
+    if (!_isForeground) return;
     if (!_isAtBottom()) return;
     if (_messages.isEmpty) return;
     final lastId = _messages.last.id;
@@ -637,3 +715,4 @@ String _weekdayLabel(int weekday) {
       return '';
   }
 }
+

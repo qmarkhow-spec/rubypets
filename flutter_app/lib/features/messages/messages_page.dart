@@ -217,6 +217,61 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     return bTime.compareTo(aTime);
   }
 
+  Future<void> _openThread(ChatThread thread) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatRoomPage(
+          threadId: thread.threadId,
+          threadTitle: thread.otherOwner.displayName,
+          initialThread: thread,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _markThreadRead(thread.threadId);
+    await _refreshThreadsAfterRead();
+  }
+
+  void _markThreadRead(String threadId) {
+    setState(() {
+      _threads = _threads.map((thread) {
+        if (thread.threadId != threadId) return thread;
+        return ChatThread(
+          threadId: thread.threadId,
+          otherOwner: thread.otherOwner,
+          requestState: thread.requestState,
+          requestSenderId: thread.requestSenderId,
+          requestMessageId: thread.requestMessageId,
+          lastMessageId: thread.lastMessageId,
+          lastMessagePreview: thread.lastMessagePreview,
+          lastActivityAt: thread.lastActivityAt,
+          unread: false,
+          unreadCount: 0,
+          archived: thread.archived,
+          deleted: thread.deleted,
+          isFriend: thread.isFriend,
+        );
+      }).toList();
+    });
+  }
+
+  Future<void> _refreshThreadsAfterRead() async {
+    final session = ref.read(sessionProvider).value;
+    if (session == null) return;
+    try {
+      final api = ref.read(apiClientProvider);
+      final page = await api.listChatThreads(limit: 30);
+      if (!mounted) return;
+      setState(() {
+        _threads = page.items;
+        _nextCursor = page.nextCursor;
+      });
+      _syncSockets();
+    } catch (_) {
+      // Ignore refresh errors; local read state is already updated.
+    }
+  }
+
   bool _isMe(String senderId) {
     final session = ref.read(sessionProvider).value;
     return session != null && session.id == senderId;
@@ -334,17 +389,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                   ),
                   subtitle: Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: Text(_formatTime(thread.lastActivityAt)),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ChatRoomPage(
-                          threadId: thread.threadId,
-                          threadTitle: thread.otherOwner.displayName,
-                          initialThread: thread,
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => _openThread(thread),
                 );
               },
             ),

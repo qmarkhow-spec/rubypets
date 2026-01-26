@@ -318,3 +318,73 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
+
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  platform TEXT NOT NULL CHECK (platform IN ('ios','android')),
+  fcm_token TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
+  last_seen_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_push_tokens_owner FOREIGN KEY (owner_id) REFERENCES owners(uuid) ON DELETE CASCADE,
+  UNIQUE (fcm_token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_tokens_owner_id ON push_tokens(owner_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_owner_active ON push_tokens(owner_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_platform ON push_tokens(platform);
+
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  recipient_owner_id TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('post_like','post_comment','comment_like','comment_reply','friend_request')),
+  group_key TEXT,
+  post_id TEXT,
+  comment_id TEXT,
+  friendship_id INTEGER,
+  actor_count INTEGER NOT NULL DEFAULT 0 CHECK (actor_count >= 0),
+  latest_actor_owner_id TEXT,
+  latest_action_at TEXT,
+  is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0,1)),
+  read_at TEXT,
+  is_hidden INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0,1)),
+  hidden_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_notifications_recipient FOREIGN KEY (recipient_owner_id) REFERENCES owners(uuid) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_comment FOREIGN KEY (comment_id) REFERENCES post_comments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_friendship FOREIGN KEY (friendship_id) REFERENCES owner_friendships(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_group_key
+  ON notifications(group_key)
+  WHERE group_key IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_owner_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_hidden_sort
+  ON notifications(recipient_owner_id, is_hidden, latest_action_at, created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread
+  ON notifications(recipient_owner_id, is_hidden, is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
+CREATE INDEX IF NOT EXISTS idx_notifications_post_id ON notifications(post_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_comment_id ON notifications(comment_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_friendship_id ON notifications(friendship_id);
+
+
+CREATE TABLE IF NOT EXISTS notification_actors (
+  notification_id TEXT NOT NULL,
+  actor_owner_id TEXT NOT NULL,
+  first_action_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_action_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CONSTRAINT fk_notification_actors_notification FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+  CONSTRAINT fk_notification_actors_actor FOREIGN KEY (actor_owner_id) REFERENCES owners(uuid) ON DELETE CASCADE,
+  PRIMARY KEY (notification_id, actor_owner_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_actors_actor_owner_id ON notification_actors(actor_owner_id);
+CREATE INDEX IF NOT EXISTS idx_notification_actors_notification_last_action
+  ON notification_actors(notification_id, last_action_at);
