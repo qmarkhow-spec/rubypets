@@ -1,5 +1,4 @@
-'use client';
-
+﻿'use client';
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
@@ -32,8 +31,8 @@ export default function LoginPage() {
   return (
     <div className="mx-auto max-w-md space-y-6 rounded-xl border bg-white p-6 shadow-sm">
       <div>
-        <h1 className="text-xl font-semibold">登入</h1>
-        <p className="text-sm text-slate-600">輸入 Email / 密碼以登入。</p>
+        <h1 className="text-xl font-semibold">Login</h1>
+        <p className="text-sm text-slate-600">Use your email and password.</p>
       </div>
 
       <form className="space-y-4" onSubmit={onSubmit}>
@@ -49,7 +48,7 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-1">
-          <label className="text-sm text-slate-700">密碼</label>
+          <label className="text-sm text-slate-700">Password</label>
           <input
             type="password"
             required
@@ -65,13 +64,13 @@ export default function LoginPage() {
             disabled={loading}
             className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            {loading ? "登入中..." : "登入"}
+            {loading ? "Logging in..." : "Login"}
           </button>
           <Link
             href="/register"
             className="rounded border border-slate-200 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
           >
-            前往註冊
+            Register
           </Link>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -81,11 +80,11 @@ export default function LoginPage() {
 }
 
 function readError(err: unknown): string {
-  if (!err) return "未知錯誤";
+  if (!err) return "Unexpected error";
   const status = (err as { status?: number }).status;
   const details = (err as { details?: unknown }).details;
   if (details && typeof details === "object" && "error" in details) {
-    return `${status ?? ""} ${(details as { error?: string }).error ?? "伺服器錯誤"}`;
+    return `${status ?? ""} ${(details as { error?: string }).error ?? "Request failed"}`;
   }
-  return status ? `HTTP ${status}` : "伺服器錯誤";
+  return status ? `HTTP ${status}` : "Request failed";
 }

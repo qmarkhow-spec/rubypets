@@ -1,10 +1,13 @@
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "https://api.rubypets.com").replace(/\/$/, "");
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const normalizedPath = normalizeApiPath(path);
+  const url = path.startsWith("http") ? path : `${API_BASE}${normalizedPath}`;
   const headers = new Headers(init.headers ?? {});
-  const pathname = getPathname(path);
-  if (pathname.startsWith("/admin") && pathname !== "/admin/auth/login") {
+  const pathname = getPathname(normalizedPath);
+  const isAdminPath = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+  const isAdminLogin = pathname === "/admin/auth/login" || pathname === "/api/admin/auth/login";
+  if (isAdminPath && !isAdminLogin) {
     const token = getAdminToken();
     if (token && !headers.has("authorization")) {
       headers.set("authorization", `Bearer ${token}`);
@@ -45,6 +48,12 @@ function getPathname(path: string) {
   } catch {
     return "/";
   }
+}
+
+function normalizeApiPath(path: string) {
+  if (path.startsWith("http")) return path;
+  const withSlash = path.startsWith("/") ? path : `/${path}`;
+  return withSlash.startsWith("/api") ? withSlash : `/api${withSlash}`;
 }
 
 function unwrapOkPayload(payload: unknown) {

@@ -1,5 +1,4 @@
-'use client';
-
+﻿'use client';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -90,7 +89,7 @@ export default function PetCreateStepTwoPage() {
 
     const allowed = ["image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(file.type)) {
-      setError("只支援 JPG、PNG、WEBP 圖片");
+      setError("Only JPG, PNG, or WEBP files are supported.");
       return;
     }
 
@@ -105,7 +104,7 @@ export default function PetCreateStepTwoPage() {
       setAvatarPreview(previewUrl);
       setAvatarFile(finalFile);
     } catch (err) {
-      setError(`裁切失敗：${String(err)}`);
+      setError(`Image processing failed: ${String(err)}`);
     }
   }
 
@@ -146,48 +145,48 @@ export default function PetCreateStepTwoPage() {
       router.push(`/pets?id=${encodeURIComponent(created.data.id)}`);
     } catch (err) {
       const status = (err as { status?: number }).status;
-      setError(`建立失敗（${status ?? "?"}）`);
+      setError(`Create pet failed (HTTP ${status ?? "?"}).`);
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <div className="text-sm text-white/70">載入中...</div>;
+  if (loading) return <div className="text-sm text-white/70">Loading...</div>;
   if (!draft) return null;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-white">建立寵物資料</h1>
-        <p className="text-sm text-white/70">Step 2：填寫寵物資訊</p>
+        <h1 className="text-xl font-semibold text-white">Create a pet profile</h1>
+        <p className="text-sm text-white/70">Step 2: add details.</p>
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-sm text-white/80">名字</label>
+            <label className="text-sm text-white/80">Name</label>
             <input
               className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="輸入寵物名字"
+              placeholder="Enter a name"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm text-white/80">性別</label>
+            <label className="text-sm text-white/80">Gender</label>
             <select
               className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white"
               value={gender}
               onChange={(e) => setGender(e.target.value as "male" | "female" | "unknown" | "")}
             >
-              <option value="">請選擇</option>
-              <option value="male">公</option>
-              <option value="female">母</option>
-              <option value="unknown">不詳</option>
+              <option value="">Select...</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="unknown">Unknown</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-sm text-white/80">生日</label>
+            <label className="text-sm text-white/80">Birthday</label>
             <input
               type="date"
               className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white disabled:opacity-50"
@@ -202,11 +201,11 @@ export default function PetCreateStepTwoPage() {
                 checked={birthdayUnknown}
                 onChange={(e) => setBirthdayUnknown(e.target.checked)}
               />
-              生日不詳
+              Birthday unknown
             </label>
           </div>
           <div className="space-y-1">
-            <label className="text-sm text-white/80">頭像</label>
+            <label className="text-sm text-white/80">Avatar</label>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -216,7 +215,7 @@ export default function PetCreateStepTwoPage() {
             {avatarPreview && (
               <img
                 src={avatarPreview}
-                alt="寵物頭像預覽"
+                alt="Pet avatar preview"
                 className="mt-2 h-32 w-32 rounded-full object-cover ring-2 ring-white/10"
               />
             )}
@@ -224,15 +223,17 @@ export default function PetCreateStepTwoPage() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm text-white/80">簡介（可留空）</label>
+          <label className="text-sm text-white/80">Bio (max 200 characters)</label>
           <textarea
             className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white"
             rows={3}
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder="介紹一下你的寵物"
+            placeholder="Write something about your pet"
           />
-          <p className={`text-xs ${bioRemaining < 0 ? "text-red-300" : "text-white/60"}`}>剩餘字數：{bioRemaining}</p>
+          <p className={`text-xs ${bioRemaining < 0 ? "text-red-300" : "text-white/60"}`}>
+            Remaining: {bioRemaining}
+          </p>
         </div>
       </section>
 
@@ -244,7 +245,7 @@ export default function PetCreateStepTwoPage() {
           onClick={() => router.back()}
           className="rounded border border-white/20 px-4 py-2 text-sm text-white/80 hover:text-white"
         >
-          返回
+          Back
         </button>
         <button
           type="button"
@@ -252,7 +253,7 @@ export default function PetCreateStepTwoPage() {
           disabled={!canSubmit}
           className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
         >
-          {saving ? "建立中..." : "完成"}
+          {saving ? "Saving..." : "Create"}
         </button>
       </div>
     </div>

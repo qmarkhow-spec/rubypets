@@ -1,5 +1,4 @@
-'use client';
-
+﻿'use client';
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -33,7 +32,7 @@ export default function PetCreateStepOnePage() {
       .then(({ data }) => setCategories(data))
       .catch((err) => {
         const status = (err as { status?: number }).status;
-        setError(`載入分類失敗（${status ?? "?"}）`);
+        setError(`Failed to load categories (HTTP ${status ?? "?"}).`);
       })
       .finally(() => setLoadingCategories(false));
   }, []);
@@ -75,28 +74,28 @@ export default function PetCreateStepOnePage() {
     router.push("/pets/new/details");
   }
 
-  if (loading) return <div className="text-sm text-white/70">載入中...</div>;
+  if (loading) return <div className="text-sm text-white/70">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-white">建立寵物資料</h1>
-        <p className="text-sm text-white/70">Step 1：選擇寵物分類</p>
+        <h1 className="text-xl font-semibold text-white">Create a pet profile</h1>
+        <p className="text-sm text-white/70">Step 1: choose category.</p>
       </div>
 
       <section className="rounded-xl border border-white/10 bg-white/5 p-4">
         {error && <p className="text-sm text-red-300">{error}</p>}
-        {loadingCategories && <p className="text-sm text-white/70">分類載入中...</p>}
+        {loadingCategories && <p className="text-sm text-white/70">Loading categories...</p>}
         {!loadingCategories && categories && (
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm text-white/80">生物類</label>
+              <label className="text-sm text-white/80">Class</label>
               <select
                 className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white"
                 value={classKey}
                 onChange={(e) => setClassKey(e.target.value)}
               >
-                <option value="">請選擇</option>
+                <option value="">Select...</option>
                 {categories.classes.map((c) => (
                   <option key={c.key} value={c.key}>
                     {c.label}
@@ -105,14 +104,14 @@ export default function PetCreateStepOnePage() {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-sm text-white/80">物種</label>
+              <label className="text-sm text-white/80">Species</label>
               <select
                 className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white disabled:opacity-50"
                 value={speciesKey}
                 onChange={(e) => setSpeciesKey(e.target.value)}
                 disabled={!classKey}
               >
-                <option value="">請選擇</option>
+                <option value="">Select...</option>
                 {speciesOptions.map((s) => (
                   <option key={s.key} value={s.key}>
                     {s.label}
@@ -122,13 +121,13 @@ export default function PetCreateStepOnePage() {
             </div>
             {selectedSpecies && hasBreed && (
               <div className="space-y-1">
-                <label className="text-sm text-white/80">品種</label>
+                <label className="text-sm text-white/80">Breed</label>
                 <select
                   className="w-full rounded border border-white/10 bg-black/20 px-3 py-2 text-white"
                   value={breedKey}
                   onChange={(e) => setBreedKey(e.target.value)}
                 >
-                  <option value="">請選擇</option>
+                  <option value="">Select...</option>
                   {breedOptions.map((b) => (
                     <option key={b.key} value={b.key}>
                       {b.label}
@@ -148,7 +147,7 @@ export default function PetCreateStepOnePage() {
           disabled={!canNext}
           className="rounded bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
         >
-          下一步
+          Next
         </button>
       </div>
     </div>

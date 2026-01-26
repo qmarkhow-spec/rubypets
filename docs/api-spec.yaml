@@ -1,10 +1,11 @@
-openapi: 3.1.0
+﻿openapi: 3.1.0
 info:
   title: Rubypets API
-  version: "0.1.0"
-  description: >
-    Draft API spec for Rubypets. Base URL: `https://api.rubypets.com`.
-    Auth uses Bearer JWT (HTTP-only cookie recommended for browser clients).
+  version: "0.2.0"
+  description: |
+    API spec aligned to current backend routes.
+    All JSON responses are wrapped as { ok: true, data: ... } on success
+    and { ok: false, error: { message, code?, details? } } on errors.
 servers:
   - url: https://api.rubypets.com
     description: Production
@@ -12,65 +13,241 @@ servers:
     description: Local dev (wrangler dev)
 security:
   - bearerAuth: []
-tags:
-  - name: health
-  - name: auth
-  - name: users
-  - name: pets
-  - name: posts
-  - name: social
-  - name: chat
-  - name: notifications
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+
+  schemas:
+    OkEnvelope:
+      type: object
+      required: [ok, data]
+      properties:
+        ok:
+          const: true
+        data: {}
+
+    ErrorEnvelope:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          const: false
+        error:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            details: {}
+
+    AuthTokens:
+      type: object
+      required: [accessToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        handle: { type: string }
+        displayName: { type: string }
+        email: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        maxPets: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        isActive: { type: integer }
+
+    Post:
+      type: object
+      properties:
+        id: { type: string }
+        authorId: { type: string }
+        body: { type: string, nullable: true }
+        content: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        authorHandle: { type: string, nullable: true }
+        authorDisplayName: { type: string, nullable: true }
+        visibility: { type: string, nullable: true }
+        postType: { type: string, nullable: true }
+        mediaCount: { type: integer, nullable: true }
+        mediaUrls:
+          type: array
+          items: { type: string }
+        likeCount: { type: integer, nullable: true }
+        commentCount: { type: integer, nullable: true }
+        repostCount: { type: integer, nullable: true }
+        originPostId: { type: string, nullable: true }
+        originPost:
+          $ref: '#/components/schemas/Post'
+        isLiked: { type: boolean }
+        isDeleted: { type: integer }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: string }
+        postId: { type: string }
+        ownerId: { type: string }
+        ownerDisplayName: { type: string, nullable: true }
+        content: { type: string }
+        parentCommentId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        likeCount: { type: integer, nullable: true }
+        isLiked: { type: boolean }
+
+    CommentThread:
+      allOf:
+        - $ref: '#/components/schemas/Comment'
+        - type: object
+          properties:
+            replies:
+              type: array
+              items: { $ref: '#/components/schemas/Comment' }
+
+    Pet:
+      type: object
+      properties:
+        id: { type: string }
+        ownerId: { type: string }
+        name: { type: string }
+        class: { type: string, nullable: true }
+        species: { type: string, nullable: true }
+        breed: { type: string, nullable: true }
+        gender: { type: string }
+        birthday: { type: string, nullable: true }
+        avatarAssetId: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        bio: { type: string, nullable: true }
+        followersCount: { type: integer }
+        isFollowing: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        isActive: { type: integer }
+
+    PetsCategoryData:
+      type: object
+      properties:
+        classes:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              label: { type: string }
+              species:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key: { type: string }
+                    label: { type: string }
+                    hasBreed: { type: boolean }
+                    breeds:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          key: { type: string }
+                          label: { type: string }
+
+    OwnerPublic:
+      type: object
+      properties:
+        uuid: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+
+    OwnerDetail:
+      type: object
+      properties:
+        accountId: { type: string }
+        uuid: { type: string }
+        email: { type: string, nullable: true }
+        displayName: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        maxPets: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        isActive: { type: integer }
+        city: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+        isVerified: { type: integer, nullable: true }
+        idLicenseFrontUrl: { type: string, nullable: true }
+        idLicenseBackUrl: { type: string, nullable: true }
+        faceWithLicenseUrl: { type: string, nullable: true }
+
+    FriendshipStatus:
+      type: string
+      enum: [none, pending_outgoing, pending_incoming, friends]
+
+    ChatThreadSummary:
+      type: object
+      properties:
+        threadId: { type: string }
+        otherOwner: { $ref: '#/components/schemas/OwnerPublic' }
+        requestState: { type: string }
+        requestSenderId: { type: string, nullable: true }
+        requestMessageId: { type: string, nullable: true }
+        lastMessageId: { type: string, nullable: true }
+        lastMessagePreview: { type: string, nullable: true }
+        lastActivityAt: { type: string, nullable: true }
+        unreadCount: { type: integer, nullable: true }
+        unread: { type: boolean }
+        archived: { type: boolean }
+        deleted: { type: boolean }
+        isFriend: { type: boolean }
+
+    ChatMessage:
+      type: object
+      properties:
+        id: { type: string }
+        threadId: { type: string }
+        senderId: { type: string }
+        bodyText: { type: string }
+        createdAt: { type: string, format: date-time }
 
 paths:
   /api/health:
     get:
-      summary: Health check (no auth)
-      tags: [health]
+      summary: Health check
+      security: []
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          ok: { type: boolean }
+                          environment: { type: string }
+                          d1: { type: boolean }
+                          r2: { type: boolean }
+                          cfMedia: { type: boolean }
+                          ts: { type: string, format: date-time }
 
   /api/auth/register:
     post:
-      summary: Create account
-      tags: [auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password, handle]
-              properties:
-                email:
-                  type: string
-                  format: email
-                password:
-                  type: string
-                  minLength: 8
-                handle:
-                  type: string
-                displayName:
-                  type: string
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-
-  /api/auth/login:
-    post:
-      summary: Login with email/password
-      tags: [auth]
+      summary: Register account + owner
+      security: []
       requestBody:
         required: true
         content:
@@ -79,555 +256,1129 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email:
-                  type: string
-                  format: email
-                password:
-                  type: string
+                email: { type: string, format: email }
+                password: { type: string }
+                displayName: { type: string }
+                phoneNumber: { type: string }
+                realName: { type: string }
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthTokens"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user: { $ref: '#/components/schemas/User' }
+                          accessToken: { type: string }
+                          expiresIn: { type: integer }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
-  /api/auth/logout:
+  /api/auth/register/account:
     post:
-      summary: Logout and revoke tokens
-      tags: [auth]
-      security:
-        - bearerAuth: []
-      responses:
-        "204":
-          description: No content
-
-  /api/auth/refresh:
-    post:
-      summary: Refresh access token
-      tags: [auth]
+      summary: Register account only
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [email, password]
               properties:
-                refreshToken:
-                  type: string
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/auth/register/owner:
+    post:
+      summary: Create owner for existing account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountId, displayName]
+              properties:
+                accountId: { type: string }
+                displayName: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/auth/login:
+    post:
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
       responses:
         "200":
           description: OK
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
         "401":
-          $ref: "#/components/responses/Unauthorized"
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /api/me:
     get:
-      summary: Get current user profile
-      tags: [users]
-      security:
-        - bearerAuth: []
+      summary: Current user profile
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/User' }
         "401":
-          $ref: "#/components/responses/Unauthorized"
-    put:
-      summary: Update current user profile
-      tags: [users]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                displayName:
-                  type: string
-                avatarUrl:
-                  type: string
-                bio:
-                  type: string
-      responses:
-        "200":
-          description: Updated
+          description: Unauthorized
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-
-  /api/pets:
-    get:
-      summary: List pets owned by current user
-      tags: [pets]
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Pet"
-    post:
-      summary: Create a pet
-      tags: [pets]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PetCreateInput"
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Pet"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-
-  /api/pets/{petId}:
-    get:
-      summary: Get pet detail
-      tags: [pets]
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/PetId"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Pet"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    put:
-      summary: Update a pet
-      tags: [pets]
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/PetId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PetUpdateInput"
-      responses:
-        "200":
-          description: Updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Pet"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      summary: Delete a pet
-      tags: [pets]
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/PetId"
-      responses:
-        "204":
-          description: Deleted
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /api/posts:
     get:
-      summary: List posts by user
-      tags: [posts]
-      security:
-        - bearerAuth: []
+      summary: List posts
       parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
         - in: query
           name: userId
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Post' }
+    post:
+      summary: Create post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                post_type: { type: string }
+                visibility: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Post' }
+
+  /api/posts/{postId}/like:
+    post:
+      summary: Like a post
+      parameters:
+        - in: path
+          name: postId
           required: true
-          schema:
-            type: string
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+    delete:
+      summary: Unlike a post
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/posts/{postId}/repost:
+    post:
+      summary: Repost
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content: { type: string, nullable: true }
+                visibility: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/posts/{postId}/comments:
+    get:
+      summary: Get latest comment
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+    post:
+      summary: Create comment
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                parent_comment_id: { type: string, nullable: true }
+                reply_to_comment_id: { type: string, nullable: true }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/posts/{postId}/comments/list:
+    get:
+      summary: List comments
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
         - in: query
           name: limit
-          schema:
-            type: integer
-            default: 20
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Post"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-    post:
-      summary: Create a post
-      tags: [posts]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [content]
-              properties:
-                content:
-                  type: string
-                mediaKey:
-                  type: string
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Post"
-
-  /api/feed/recommended:
-    get:
-      summary: Recommended pets/people
-      tags: [social]
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Pet"
-
-  /api/matches/like:
-    post:
-      summary: Like a profile/pet
-      tags: [social]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [targetId]
-              properties:
-                targetId:
-                  type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  matched:
-                    type: boolean
-                  matchId:
-                    type: string
-                    nullable: true
-
-  /api/matches/skip:
-    post:
-      summary: Skip a profile/pet
-      tags: [social]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [targetId]
-              properties:
-                targetId:
-                  type: string
-      responses:
-        "200":
-          description: OK
-
-  /api/matches:
-    get:
-      summary: List matches
-      tags: [social]
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Match"
-
-  /api/chats/{roomId}/messages:
-    get:
-      summary: List chat messages
-      tags: [chat]
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/RoomId"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Message"
-    post:
-      summary: Send a message
-      tags: [chat]
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/RoomId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [content]
-              properties:
-                content:
-                  type: string
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Message"
-
-  /api/notifications:
-    get:
-      summary: List notifications
-      tags: [notifications]
-      security:
-        - bearerAuth: []
-      parameters:
+          schema: { type: integer, default: 20 }
         - in: query
           name: cursor
-          schema:
-            type: string
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 20
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/comments/{commentId}/like:
+    post:
+      summary: Like a comment
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/pets/categories:
+    get:
+      summary: Pets categories
+      security: []
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Notification"
-                  nextCursor:
-                    type: string
-                    nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/PetsCategoryData' }
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  parameters:
-    PetId:
-      in: path
-      name: petId
-      required: true
-      schema:
-        type: string
-    RoomId:
-      in: path
-      name: roomId
-      required: true
-      schema:
-        type: string
-  responses:
-    BadRequest:
-      description: Invalid request
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    Unauthorized:
-      description: Unauthorized
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-    NotFound:
-      description: Not found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-  schemas:
-    HealthStatus:
-      type: object
-      properties:
-        ok:
-          type: boolean
-        environment:
-          type: string
-        d1:
-          type: boolean
-        r2:
-          type: boolean
-        ts:
-          type: string
-          format: date-time
-    AuthTokens:
-      type: object
-      properties:
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
-        expiresIn:
-          type: integer
-          description: Seconds until access token expires
-    User:
-      type: object
-      properties:
-        id:
-          type: string
-        handle:
-          type: string
-        displayName:
-          type: string
-        email:
-          type: string
-          nullable: true
-        avatarUrl:
-          type: string
-          nullable: true
-        bio:
-          type: string
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-    Pet:
-      type: object
-      properties:
-        id: { type: string }
-        name: { type: string }
-        species: { type: string }
-        breed: { type: string, nullable: true }
-        age: { type: integer, nullable: true }
-        avatarUrl: { type: string, nullable: true }
-        ownerId: { type: string }
-        createdAt: { type: string, format: date-time }
-    PetCreateInput:
-      type: object
-      required: [name, species]
-      properties:
-        name: { type: string }
-        species: { type: string }
-        breed: { type: string }
-        age: { type: integer }
-        avatarUrl: { type: string }
-    PetUpdateInput:
-      type: object
-      properties:
-        name: { type: string }
-        species: { type: string }
-        breed: { type: string }
-        age: { type: integer }
-        avatarUrl: { type: string }
-    Post:
-      type: object
-      properties:
-        id: { type: string }
-        authorId: { type: string }
-        content: { type: string }
-        mediaKey: { type: string, nullable: true }
-        createdAt: { type: string, format: date-time }
-        authorHandle: { type: string, nullable: true }
-        authorDisplayName: { type: string, nullable: true }
-    Match:
-      type: object
-      properties:
-        id: { type: string }
-        targetId: { type: string }
-        matched: { type: boolean }
-        createdAt: { type: string, format: date-time }
-    Message:
-      type: object
-      properties:
-        id: { type: string }
-        roomId: { type: string }
-        senderId: { type: string }
-        content: { type: string }
-        createdAt: { type: string, format: date-time }
-    Notification:
-      type: object
-      properties:
-        id: { type: string }
-        type: { type: string }
-        title: { type: string }
-        body: { type: string }
-        createdAt: { type: string, format: date-time }
-        read: { type: boolean }
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
+  /api/r2/pets/avatar/upload:
+    post:
+      summary: Upload pet avatar to R2
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [pet_id, file]
+              properties:
+                pet_id: { type: string }
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/create-pets:
+    post:
+      summary: Create pet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Pet' }
+
+  /api/pets/{petId}:
+    get:
+      summary: Pet detail
+      parameters:
+        - in: path
+          name: petId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Pet' }
+
+  /api/pets/{petId}/follow:
+    post:
+      summary: Follow pet
+      parameters:
+        - in: path
+          name: petId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+    delete:
+      summary: Unfollow pet
+      parameters:
+        - in: path
+          name: petId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/pets/{petId}/followers:
+    get:
+      summary: List pet followers
+      parameters:
+        - in: path
+          name: petId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/search:
+    get:
+      summary: Search owners
+      parameters:
+        - in: query
+          name: display_name
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/OwnerPublic' }
+
+  /api/owners/{ownerId}:
+    get:
+      summary: Owner detail
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/OwnerDetail' }
+
+  /api/owners/{ownerId}/pets:
+    get:
+      summary: Owner pets
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/friendship/status:
+    get:
+      summary: Friendship status
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/friend-request:
+    post:
+      summary: Send friend request
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+    delete:
+      summary: Cancel friend request
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/friend-request/accept:
+    post:
+      summary: Accept friend request
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/friend-request/reject:
+    delete:
+      summary: Reject friend request
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/friendship:
+    delete:
+      summary: Remove friendship
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/me/followed-pets:
+    get:
+      summary: List followed pets
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads:
+    get:
+      summary: List chat threads
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 30 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: archived
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+    post:
+      summary: Create chat thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otherOwnerId]
+              properties:
+                otherOwnerId: { type: string }
+                firstMessageText: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads/{threadId}:
+    get:
+      summary: Chat thread detail
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads/{threadId}/messages:
+    get:
+      summary: List chat messages
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 30 }
+        - in: query
+          name: before
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads/{threadId}/request/accept:
+    post:
+      summary: Accept chat request
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads/{threadId}/request/reject:
+    post:
+      summary: Reject chat request
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads/{threadId}/archive:
+    post:
+      summary: Archive thread
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/chat/threads/{threadId}/delete:
+    post:
+      summary: Delete thread (client side)
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/auth/login:
+    post:
+      summary: Admin login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [adminId, password]
+              properties:
+                adminId: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/review/summary:
+    get:
+      summary: KYC summary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/review/kyc-pending:
+    get:
+      summary: KYC pending list
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/review/kyc/{accountId}:
+    get:
+      summary: KYC detail
+      parameters:
+        - in: path
+          name: accountId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/review/kyc/{accountId}/decision:
+    post:
+      summary: KYC decision
+      parameters:
+        - in: path
+          name: accountId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: integer, enum: [1, 3] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/posts:
+    get:
+      summary: Admin list posts
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/posts/{postId}:
+    get:
+      summary: Admin post detail
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/posts/{postId}/moderate:
+    post:
+      summary: Moderate post
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [disable, disable_delete_media, delete_all]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/posts/{postId}/media/attach:
+    post:
+      summary: Attach media assets to a post
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [post_type, asset_ids]
+              properties:
+                post_type: { type: string, enum: [image_set, video] }
+                asset_ids:
+                  type: array
+                  items: { type: string }
+                pet_tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/media/images/init:
+    post:
+      summary: Init Cloudflare Images direct upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usage, file]
+              properties:
+                usage: { type: string }
+                file:
+                  type: object
+                  required: [filename, mime_type, size_bytes]
+                  properties:
+                    filename: { type: string }
+                    mime_type: { type: string }
+                    size_bytes: { type: integer }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/media/videos/init:
+    post:
+      summary: Init Cloudflare Stream direct upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usage, file]
+              properties:
+                usage: { type: string }
+                file:
+                  type: object
+                  required: [filename, mime_type, size_bytes]
+                  properties:
+                    filename: { type: string }
+                    mime_type: { type: string }
+                    size_bytes: { type: integer }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/media/upload/{assetId}:
+    post:
+      summary: Upload stub (dev only)
+      parameters:
+        - in: path
+          name: assetId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/location:
+    post:
+      summary: Update owner location
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [city, region]
+              properties:
+                city: { type: string }
+                region: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/owners/{ownerId}/verification-docs:
+    post:
+      summary: Upload KYC documents
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [id_license_front, id_license_back, face_with_license]
+              properties:
+                id_license_front:
+                  type: string
+                  format: binary
+                id_license_back:
+                  type: string
+                  format: binary
+                face_with_license:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/friendships/incoming:
+    get:
+      summary: Incoming friend requests
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/friendships/outgoing:
+    get:
+      summary: Outgoing friend requests
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/friendships/friends:
+    get:
+      summary: Friends list
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/ip-info:
+    get:
+      summary: Admin IP info
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/admin-accounts:
+    get:
+      summary: List admin accounts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+    post:
+      summary: Create admin account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [adminId, password]
+              properties:
+                adminId: { type: string }
+                password: { type: string }
+                permission: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/admin-accounts/{adminId}/roll:
+    post:
+      summary: Rotate admin password
+      parameters:
+        - in: path
+          name: adminId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/admin/admin-accounts/{adminId}/ip-allowlist:
+    post:
+      summary: Update admin IP allowlist
+      parameters:
+        - in: path
+          name: adminId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ipAllowlist: { type: string, nullable: true }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }

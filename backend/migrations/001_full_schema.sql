@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   real_name TEXT,
   id_number TEXT,
   phone_number TEXT,
-  is_verified INTEGER NOT NULL DEFAULT 0 CHECK (is_verified IN (0,1)),
+  is_verified INTEGER NOT NULL DEFAULT 0 CHECK (is_verified IN (0,1,2,3)),
   id_license_front_asset_id TEXT,
   id_license_back_asset_id  TEXT,
   face_with_license_asset_id TEXT,
