@@ -40,6 +40,8 @@ class PushNotificationsService {
           ?.requestNotificationsPermission();
     }
 
+    await syncTokenWithBackend();
+
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       NotificationRouter.handleMessageData(message.data);
@@ -51,6 +53,19 @@ class PushNotificationsService {
     }
 
     FirebaseMessaging.instance.onTokenRefresh.listen(registerTokenForCurrentUser);
+  }
+
+  static Future<void> syncTokenWithBackend({int retries = 2}) async {
+    for (var attempt = 0; attempt <= retries; attempt += 1) {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null && token.isNotEmpty) {
+        await registerTokenForCurrentUser(token);
+        return;
+      }
+      if (attempt < retries) {
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
   }
 
   static Future<void> registerTokenForCurrentUser(String token) async {

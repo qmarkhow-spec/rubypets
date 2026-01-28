@@ -1,6 +1,5 @@
 ﻿import 'dart:async';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,10 +19,7 @@ class SessionNotifier extends AsyncNotifier<ApiUser?> {
       ref.read(apiClientProvider).setToken(token);
       try {
         final user = await ref.read(apiClientProvider).fetchMe();
-        final fcmToken = await FirebaseMessaging.instance.getToken();
-        if (fcmToken != null && fcmToken.isNotEmpty) {
-          await PushNotificationsService.registerTokenForCurrentUser(fcmToken);
-        }
+        await PushNotificationsService.syncTokenWithBackend();
         return user;
       } catch (_) {
         await prefs.remove('access_token');
@@ -42,10 +38,7 @@ class SessionNotifier extends AsyncNotifier<ApiUser?> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('access_token', result.accessToken);
       ref.read(apiClientProvider).setToken(result.accessToken);
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken != null && fcmToken.isNotEmpty) {
-        await PushNotificationsService.registerTokenForCurrentUser(fcmToken);
-      }
+      await PushNotificationsService.syncTokenWithBackend();
       return result.user;
     });
   }
