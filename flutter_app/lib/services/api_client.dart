@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/chat.dart';
 import '../models/comment.dart';
+import '../models/notification.dart';
 import '../models/owner.dart';
 import '../models/post.dart';
 import '../models/user.dart';
@@ -335,6 +336,17 @@ class ApiClient {
         'fcm_token': fcmToken,
       },
     );
+  }
+
+  Future<NotificationsPage> listNotifications({int limit = 20, String? cursor}) async {
+    final buffer = StringBuffer('/api/notifications?limit=$limit');
+    if (cursor != null && cursor.isNotEmpty) {
+      buffer.write('&cursor=${Uri.encodeQueryComponent(cursor)}');
+    }
+    final payload = _unwrapMap(await _request(buffer.toString()));
+    final rawItems = payload['items'] as List<dynamic>? ?? [];
+    final items = rawItems.whereType<Map<String, dynamic>>().map(AppNotification.fromJson).toList();
+    return NotificationsPage(items: items, nextCursor: payload['nextCursor']?.toString());
   }
 
   Future<Object?> _request(

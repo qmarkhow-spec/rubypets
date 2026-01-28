@@ -9,7 +9,7 @@ type FcmEnv = {
 
 type PushTokenRow = { fcm_token: string; platform: string };
 
-type NotificationRow = {
+export type NotificationRow = {
   id: string;
   type: NotificationType;
   recipient_owner_id: string;
@@ -33,11 +33,12 @@ export async function registerPushToken(
   fcmToken: string
 ): Promise<void> {
   const ts = nowIso();
+  const id = crypto.randomUUID();
   await db
     .prepare(
       `
-      insert into push_tokens (owner_id, platform, fcm_token, is_active, last_seen_at, created_at, updated_at)
-      values (?, ?, ?, 1, ?, ?, ?)
+      insert into push_tokens (id, owner_id, platform, fcm_token, is_active, last_seen_at, created_at, updated_at)
+      values (?, ?, ?, ?, 1, ?, ?, ?)
       on conflict(fcm_token) do update set
         owner_id = excluded.owner_id,
         platform = excluded.platform,
@@ -46,7 +47,7 @@ export async function registerPushToken(
         updated_at = excluded.updated_at
       `
     )
-    .bind(ownerId, platform, fcmToken, ts, ts, ts)
+    .bind(id, ownerId, platform, fcmToken, ts, ts, ts)
     .run();
 }
 
@@ -84,12 +85,14 @@ export async function notifyPostLike(args: {
   actorId: string;
   postId: string;
 }): Promise<void> {
-  await notifyAggregated({
-    ...args,
-    type: "post_like",
-    groupKey: `post_like:${args.recipientId}:${args.postId}`,
+  const row = await recordPostLike({
+    db: args.db,
+    recipientId: args.recipientId,
+    actorId: args.actorId,
     postId: args.postId
   });
+  if (!row) return;
+  await sendPushNotification(args.env, args.db, row);
 }
 
 export async function notifyCommentLike(args: {
@@ -100,13 +103,15 @@ export async function notifyCommentLike(args: {
   postId: string;
   commentId: string;
 }): Promise<void> {
-  await notifyAggregated({
-    ...args,
-    type: "comment_like",
-    groupKey: `comment_like:${args.recipientId}:${args.commentId}`,
+  const row = await recordCommentLike({
+    db: args.db,
+    recipientId: args.recipientId,
+    actorId: args.actorId,
     postId: args.postId,
     commentId: args.commentId
   });
+  if (!row) return;
+  await sendPushNotification(args.env, args.db, row);
 }
 
 export async function notifyPostComment(args: {
@@ -116,11 +121,14 @@ export async function notifyPostComment(args: {
   actorId: string;
   postId: string;
 }): Promise<void> {
-  await notifySingle({
-    ...args,
-    type: "post_comment",
+  const row = await recordPostComment({
+    db: args.db,
+    recipientId: args.recipientId,
+    actorId: args.actorId,
     postId: args.postId
   });
+  if (!row) return;
+  await sendPushNotification(args.env, args.db, row);
 }
 
 export async function notifyCommentReply(args: {
@@ -131,12 +139,15 @@ export async function notifyCommentReply(args: {
   postId: string;
   commentId: string;
 }): Promise<void> {
-  await notifySingle({
-    ...args,
-    type: "comment_reply",
+  const row = await recordCommentReply({
+    db: args.db,
+    recipientId: args.recipientId,
+    actorId: args.actorId,
     postId: args.postId,
     commentId: args.commentId
   });
+  if (!row) return;
+  await sendPushNotification(args.env, args.db, row);
 }
 
 export async function notifyFriendRequest(args: {
@@ -146,15 +157,17 @@ export async function notifyFriendRequest(args: {
   actorId: string;
   friendshipId: number;
 }): Promise<void> {
-  await notifySingle({
-    ...args,
-    type: "friend_request",
+  const row = await recordFriendRequest({
+    db: args.db,
+    recipientId: args.recipientId,
+    actorId: args.actorId,
     friendshipId: args.friendshipId
   });
+  if (!row) return;
+  await sendPushNotification(args.env, args.db, row);
 }
 
 type AggregatedArgs = {
-  env: FcmEnv;
   db: D1Database;
   type: NotificationType;
   recipientId: string;
@@ -165,7 +178,6 @@ type AggregatedArgs = {
 };
 
 type SingleArgs = {
-  env: FcmEnv;
   db: D1Database;
   type: NotificationType;
   recipientId: string;
@@ -175,7 +187,7 @@ type SingleArgs = {
   friendshipId?: number;
 };
 
-async function notifyAggregated(args: AggregatedArgs): Promise<void> {
+async function recordAggregated(args: AggregatedArgs): Promise<NotificationRow | null> {
   const { db } = args;
   const ts = nowIso();
   const id = crypto.randomUUID();
@@ -255,11 +267,10 @@ async function notifyAggregated(args: AggregatedArgs): Promise<void> {
     .bind(notificationId)
     .first<NotificationRow>();
 
-  if (!row) return;
-  await pushNotification(args.env, db, row);
+  return row ?? null;
 }
 
-async function notifySingle(args: SingleArgs): Promise<void> {
+async function recordSingle(args: SingleArgs): Promise<NotificationRow> {
   const { db } = args;
   const ts = nowIso();
   const id = crypto.randomUUID();
@@ -314,7 +325,96 @@ async function notifySingle(args: SingleArgs): Promise<void> {
     created_at: ts
   };
 
-  await pushNotification(args.env, db, row);
+  return row;
+}
+
+export async function recordPostLike(args: {
+  db: D1Database;
+  recipientId: string;
+  actorId: string;
+  postId: string;
+}): Promise<NotificationRow | null> {
+  return recordAggregated({
+    db: args.db,
+    type: "post_like",
+    recipientId: args.recipientId,
+    actorId: args.actorId,
+    groupKey: `post_like:${args.recipientId}:${args.postId}`,
+    postId: args.postId
+  });
+}
+
+export async function recordCommentLike(args: {
+  db: D1Database;
+  recipientId: string;
+  actorId: string;
+  postId: string;
+  commentId: string;
+}): Promise<NotificationRow | null> {
+  return recordAggregated({
+    db: args.db,
+    type: "comment_like",
+    recipientId: args.recipientId,
+    actorId: args.actorId,
+    groupKey: `comment_like:${args.recipientId}:${args.commentId}`,
+    postId: args.postId,
+    commentId: args.commentId
+  });
+}
+
+export async function recordPostComment(args: {
+  db: D1Database;
+  recipientId: string;
+  actorId: string;
+  postId: string;
+}): Promise<NotificationRow> {
+  return recordSingle({
+    db: args.db,
+    type: "post_comment",
+    recipientId: args.recipientId,
+    actorId: args.actorId,
+    postId: args.postId
+  });
+}
+
+export async function recordCommentReply(args: {
+  db: D1Database;
+  recipientId: string;
+  actorId: string;
+  postId: string;
+  commentId: string;
+}): Promise<NotificationRow> {
+  return recordSingle({
+    db: args.db,
+    type: "comment_reply",
+    recipientId: args.recipientId,
+    actorId: args.actorId,
+    postId: args.postId,
+    commentId: args.commentId
+  });
+}
+
+export async function recordFriendRequest(args: {
+  db: D1Database;
+  recipientId: string;
+  actorId: string;
+  friendshipId: number;
+}): Promise<NotificationRow> {
+  return recordSingle({
+    db: args.db,
+    type: "friend_request",
+    recipientId: args.recipientId,
+    actorId: args.actorId,
+    friendshipId: args.friendshipId
+  });
+}
+
+export async function sendPushNotification(
+  env: FcmEnv,
+  db: D1Database,
+  notif: NotificationRow
+): Promise<void> {
+  await pushNotification(env, db, notif);
 }
 
 async function pushNotification(env: FcmEnv, db: D1Database, notif: NotificationRow): Promise<void> {

@@ -3,10 +3,11 @@ import { asNumber, errorJson, okJson } from "../utils";
 import { getUserFromAuthHeader } from "../../services/auth";
 import { createPost, getPostsByOwner, listRecentPosts } from "../../services/posts";
 import {
-  notifyCommentLike,
-  notifyCommentReply,
-  notifyPostComment,
-  notifyPostLike
+  recordCommentLike,
+  recordCommentReply,
+  recordPostComment,
+  recordPostLike,
+  sendPushNotification
 } from "../../services/notifications";
 import { DynamicRoute, Route } from "./types";
 import { requireAuthOwner } from "./shared";
@@ -151,15 +152,19 @@ async function likeRoute(ctx: HandlerContext, params: Record<string, string>): P
 
   const result = await ctx.db.toggleLike(postId, user.uuid);
   if (result.isLiked && post.authorId !== user.uuid) {
-    ctx.ctx.waitUntil(
-      notifyPostLike({
-        env: ctx.env,
+    try {
+      const notif = await recordPostLike({
         db: ctx.env.DB,
         recipientId: post.authorId,
         actorId: user.uuid,
         postId
-      })
-    );
+      });
+      if (notif) {
+        ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
+      }
+    } catch (err) {
+      console.error("notifyPostLike failed", err);
+    }
   }
   return okJson({ isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
@@ -265,49 +270,57 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
 
   if (replyRecipientId && replyCommentId) {
     if (replyRecipientId === postAuthorId) {
-      ctx.ctx.waitUntil(
-        notifyCommentReply({
-          env: ctx.env,
+      try {
+        const notif = await recordCommentReply({
           db: ctx.env.DB,
           recipientId: replyRecipientId,
           actorId,
           postId,
           commentId: replyCommentId
-        })
-      );
+        });
+        ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
+      } catch (err) {
+        console.error("notifyCommentReply failed", err);
+      }
     } else {
       if (postAuthorId !== actorId) {
-        ctx.ctx.waitUntil(
-          notifyPostComment({
-            env: ctx.env,
+        try {
+          const postNotif = await recordPostComment({
             db: ctx.env.DB,
             recipientId: postAuthorId,
             actorId,
             postId
-          })
-        );
+          });
+          ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, postNotif));
+        } catch (err) {
+          console.error("notifyPostComment failed", err);
+        }
       }
-      ctx.ctx.waitUntil(
-        notifyCommentReply({
-          env: ctx.env,
+      try {
+        const replyNotif = await recordCommentReply({
           db: ctx.env.DB,
           recipientId: replyRecipientId,
           actorId,
           postId,
           commentId: replyCommentId
-        })
-      );
+        });
+        ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, replyNotif));
+      } catch (err) {
+        console.error("notifyCommentReply failed", err);
+      }
     }
   } else if (postAuthorId !== actorId) {
-    ctx.ctx.waitUntil(
-      notifyPostComment({
-        env: ctx.env,
+    try {
+      const notif = await recordPostComment({
         db: ctx.env.DB,
         recipientId: postAuthorId,
         actorId,
         postId
-      })
-    );
+      });
+      ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
+    } catch (err) {
+      console.error("notifyPostComment failed", err);
+    }
   }
 
   return okJson({ comment: created, comment_count: updated?.commentCount ?? (access.post.commentCount ?? 0) + 1 }, 201);
@@ -335,16 +348,20 @@ async function toggleCommentLikeRoute(ctx: HandlerContext, params: Record<string
 
   const result = await ctx.db.toggleCommentLike(comment.id, user.uuid);
   if (result.isLiked && comment.ownerId !== user.uuid) {
-    ctx.ctx.waitUntil(
-      notifyCommentLike({
-        env: ctx.env,
+    try {
+      const notif = await recordCommentLike({
         db: ctx.env.DB,
         recipientId: comment.ownerId,
         actorId: user.uuid,
         postId: comment.postId,
         commentId: comment.id
-      })
-    );
+      });
+      if (notif) {
+        ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
+      }
+    } catch (err) {
+      console.error("notifyCommentLike failed", err);
+    }
   }
   return okJson({ isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }

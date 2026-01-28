@@ -37,7 +37,7 @@ class PushNotificationsService {
     if (Platform.isAndroid) {
       await _localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestPermission();
+          ?.requestNotificationsPermission();
     }
 
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
