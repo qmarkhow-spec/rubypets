@@ -3,6 +3,7 @@ import { asNumber, errorJson, okJson } from "../utils";
 import { getUserFromAuthHeader } from "../../services/auth";
 import { requireAuthOwner } from "./shared";
 import { DynamicRoute, Route } from "./types";
+import { notifyFriendRequest } from "../../services/notifications";
 
 function canonicalPair(a: string, b: string) {
   if (a === b) return null;
@@ -79,12 +80,23 @@ async function sendFriendRequestRoute(ctx: HandlerContext, params: Record<string
   }
 
   try {
-    await ctx.db.createFriendRequest({
+    const friendshipId = await ctx.db.createFriendRequest({
       ownerA: pair.ownerA,
       ownerB: pair.ownerB,
       requestedBy: me.uuid,
       pairKey: pair.pairKey
     });
+    if (friendshipId > 0 && otherId !== me.uuid) {
+      ctx.ctx.waitUntil(
+        notifyFriendRequest({
+          env: ctx.env,
+          db: ctx.env.DB,
+          recipientId: otherId,
+          actorId: me.uuid,
+          friendshipId
+        })
+      );
+    }
   } catch (err) {
     return errorJson("Failed to create request", 500);
   }

@@ -1553,8 +1553,8 @@ export class D1Client implements DBClient {
     ownerB: string;
     requestedBy: string;
     pairKey: string;
-  }): Promise<void> {
-    await this.db
+  }): Promise<number> {
+    const res = await this.db
       .prepare(
         `
         insert into owner_friendships (owner_id, friend_id, status, requested_by, pair_key)
@@ -1563,6 +1563,7 @@ export class D1Client implements DBClient {
       )
       .bind(input.ownerA, input.ownerB, input.requestedBy, input.pairKey)
       .run();
+    return ((res as { meta?: { last_row_id?: number } })?.meta?.last_row_id ?? 0) as number;
   }
 
   async deletePendingRequest(pairKey: string, requestedBy: string): Promise<number> {

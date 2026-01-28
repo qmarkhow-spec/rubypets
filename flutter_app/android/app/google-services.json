@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "992950226798",
+    "project_id": "rubypets-fcm",
+    "storage_bucket": "rubypets-fcm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:992950226798:android:87988986ec4db6a343bb7f",
+        "android_client_info": {
+          "package_name": "com.example.rubypets_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIKSHWmqPj65dsASPKA_DADzUeasLrvNE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1382,3 +1382,99 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/push-tokens/register:
+    post:
+      summary: Register push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, fcm_token]
+              properties:
+                platform: { type: string, enum: [ios, android] }
+                fcm_token: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/push-tokens/unregister:
+    post:
+      summary: Unregister push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fcm_token]
+              properties:
+                fcm_token: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/notifications:
+    get:
+      summary: List notifications
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/notifications/mark-all-read:
+    post:
+      summary: Mark all notifications read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/notifications/{notificationId}/read:
+    post:
+      summary: Mark notification read
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+
+  /api/notifications/{notificationId}:
+    delete:
+      summary: Hide notification
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }

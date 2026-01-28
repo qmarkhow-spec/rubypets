@@ -316,6 +316,27 @@ class ApiClient {
     );
   }
 
+  Future<void> registerPushToken({required String platform, required String fcmToken}) async {
+    await _request(
+      '/api/push-tokens/register',
+      method: 'POST',
+      body: {
+        'platform': platform,
+        'fcm_token': fcmToken,
+      },
+    );
+  }
+
+  Future<void> unregisterPushToken({required String fcmToken}) async {
+    await _request(
+      '/api/push-tokens/unregister',
+      method: 'POST',
+      body: {
+        'fcm_token': fcmToken,
+      },
+    );
+  }
+
   Future<Object?> _request(
     String path, {
     String method = 'GET',

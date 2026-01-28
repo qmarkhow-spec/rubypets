@@ -40,7 +40,7 @@ export interface DBClient {
     ownerB: string;
     requestedBy: string;
     pairKey: string;
-  }): Promise<void>;
+  }): Promise<number>;
   deletePendingRequest(pairKey: string, requestedBy: string): Promise<number>;
   deletePendingIncoming(pairKey: string, me: string): Promise<number>;
   acceptPendingIncoming(pairKey: string, me: string): Promise<number>;

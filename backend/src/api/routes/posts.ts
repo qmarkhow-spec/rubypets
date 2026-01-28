@@ -2,6 +2,12 @@ import { HandlerContext } from "../../types";
 import { asNumber, errorJson, okJson } from "../utils";
 import { getUserFromAuthHeader } from "../../services/auth";
 import { createPost, getPostsByOwner, listRecentPosts } from "../../services/posts";
+import {
+  notifyCommentLike,
+  notifyCommentReply,
+  notifyPostComment,
+  notifyPostLike
+} from "../../services/notifications";
 import { DynamicRoute, Route } from "./types";
 import { requireAuthOwner } from "./shared";
 
@@ -144,6 +150,17 @@ async function likeRoute(ctx: HandlerContext, params: Record<string, string>): P
   if (!post) return errorJson("post not found", 404);
 
   const result = await ctx.db.toggleLike(postId, user.uuid);
+  if (result.isLiked && post.authorId !== user.uuid) {
+    ctx.ctx.waitUntil(
+      notifyPostLike({
+        env: ctx.env,
+        db: ctx.env.DB,
+        recipientId: post.authorId,
+        actorId: user.uuid,
+        postId
+      })
+    );
+  }
   return okJson({ isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
 
@@ -205,18 +222,24 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
 
   let finalParentId: string | null = null;
   let finalContent = content;
+  let replyTargetOwnerId: string | null = null;
+  let replyTargetCommentId: string | null = null;
 
   if (replyToId) {
     const target = await ctx.db.getCommentById(replyToId);
     if (!target) return errorJson("comment not found", 404);
     if (target.postId !== postId) return errorJson("comment not in post", 400);
     finalParentId = target.parentCommentId ?? target.id;
+    replyTargetOwnerId = target.ownerId;
+    replyTargetCommentId = target.id;
   } else if (parentId) {
     const parent = await ctx.db.getCommentById(parentId);
     if (!parent) return errorJson("comment not found", 404);
     if (parent.postId !== postId) return errorJson("comment not in post", 400);
     if (parent.parentCommentId) return errorJson("invalid parent_comment_id", 400);
     finalParentId = parent.id;
+    replyTargetOwnerId = parent.ownerId;
+    replyTargetCommentId = parent.id;
   }
 
   const created = await ctx.db.createComment({
@@ -234,6 +257,58 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
   }
 
   const updated = await ctx.db.getPostById(postId);
+
+  const actorId = user.uuid;
+  const postAuthorId = access.post.authorId;
+  const replyRecipientId = replyTargetOwnerId && replyTargetOwnerId !== actorId ? replyTargetOwnerId : null;
+  const replyCommentId = replyTargetCommentId ?? "";
+
+  if (replyRecipientId && replyCommentId) {
+    if (replyRecipientId === postAuthorId) {
+      ctx.ctx.waitUntil(
+        notifyCommentReply({
+          env: ctx.env,
+          db: ctx.env.DB,
+          recipientId: replyRecipientId,
+          actorId,
+          postId,
+          commentId: replyCommentId
+        })
+      );
+    } else {
+      if (postAuthorId !== actorId) {
+        ctx.ctx.waitUntil(
+          notifyPostComment({
+            env: ctx.env,
+            db: ctx.env.DB,
+            recipientId: postAuthorId,
+            actorId,
+            postId
+          })
+        );
+      }
+      ctx.ctx.waitUntil(
+        notifyCommentReply({
+          env: ctx.env,
+          db: ctx.env.DB,
+          recipientId: replyRecipientId,
+          actorId,
+          postId,
+          commentId: replyCommentId
+        })
+      );
+    }
+  } else if (postAuthorId !== actorId) {
+    ctx.ctx.waitUntil(
+      notifyPostComment({
+        env: ctx.env,
+        db: ctx.env.DB,
+        recipientId: postAuthorId,
+        actorId,
+        postId
+      })
+    );
+  }
 
   return okJson({ comment: created, comment_count: updated?.commentCount ?? (access.post.commentCount ?? 0) + 1 }, 201);
 }
@@ -259,6 +334,18 @@ async function toggleCommentLikeRoute(ctx: HandlerContext, params: Record<string
   if (access instanceof Response) return access;
 
   const result = await ctx.db.toggleCommentLike(comment.id, user.uuid);
+  if (result.isLiked && comment.ownerId !== user.uuid) {
+    ctx.ctx.waitUntil(
+      notifyCommentLike({
+        env: ctx.env,
+        db: ctx.env.DB,
+        recipientId: comment.ownerId,
+        actorId: user.uuid,
+        postId: comment.postId,
+        commentId: comment.id
+      })
+    );
+  }
   return okJson({ isLiked: result.isLiked, like_count: result.likeCount }, 200);
 }
 

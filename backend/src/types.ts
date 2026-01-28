@@ -16,6 +16,10 @@ export interface Env {
 
   // Chat
   CHAT_THREAD_DO: DurableObjectNamespace;
+
+  // Push / FCM
+  FCM_SERVICE_ACCOUNT_JSON?: string;
+  FCM_PROJECT_ID?: string;
 }
 
 export interface HandlerContext {

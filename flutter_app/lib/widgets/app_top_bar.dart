@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopBar({
@@ -21,7 +21,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       leadingWidth: 64,
       leading: IconButton(
         icon: const Icon(Icons.add_circle_outlined),
-        tooltip: '新增貼文',
+        tooltip: 'Create post',
         onPressed: onAddPost,
       ),
       title: InkWell(
@@ -43,7 +43,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.message_outlined),
-          tooltip: '訊息',
+          tooltip: 'Messages',
           onPressed: onMessages,
         ),
       ],

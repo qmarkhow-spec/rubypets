@@ -9,6 +9,7 @@ import { routes as adminRoutes, dynamicRoutes as adminDynamicRoutes } from "./ro
 import { routes as petsRoutes, dynamicRoutes as petsDynamicRoutes } from "./routes/pets";
 import { routes as ownerRoutes, dynamicRoutes as ownerDynamicRoutes } from "./routes/owners";
 import { routes as chatRoutes, dynamicRoutes as chatDynamicRoutes } from "./routes/chat";
+import { routes as notifRoutes, dynamicRoutes as notifDynamicRoutes } from "./routes/notifications";
 import { DynamicRoute, Route } from "./routes/types";
 
 const routes: Route[] = [
@@ -19,7 +20,8 @@ const routes: Route[] = [
   ...ownerRoutes,
   ...mediaRoutes,
   ...adminRoutes,
-  ...chatRoutes
+  ...chatRoutes,
+  ...notifRoutes
 ];
 
 const dynamicRoutes: DynamicRoute[] = [
@@ -28,7 +30,8 @@ const dynamicRoutes: DynamicRoute[] = [
   ...adminDynamicRoutes,
   ...postsDynamicRoutes,
   ...mediaDynamicRoutes,
-  ...chatDynamicRoutes
+  ...chatDynamicRoutes,
+  ...notifDynamicRoutes
 ];
 
 export async function handleRequest(request: Request, env: HandlerContext["env"], ctx: ExecutionContext): Promise<Response> {

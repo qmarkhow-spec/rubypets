@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
@@ -47,26 +47,26 @@ class NotificationItem {
 
 const _mockNotifications = [
   NotificationItem(
-    title: 'Luna 新增了一則貼文',
-    subtitle: '照片：Luna 在公園奔跑',
+    title: 'Luna liked your post',
+    subtitle: 'A moment ago',
     time: '3m',
     icon: Icons.photo,
   ),
   NotificationItem(
-    title: 'Ben 按讚了你的貼文',
-    subtitle: '「今晚的宵夜饅頭」',
+    title: 'Ben liked your comment',
+    subtitle: 'Just now',
     time: '25m',
     icon: Icons.favorite,
   ),
   NotificationItem(
-    title: '新的追蹤者',
-    subtitle: 'Sophie 追蹤了你',
+    title: 'New friend request',
+    subtitle: 'Sophie sent you a request',
     time: '1h',
     icon: Icons.person_add_alt_1,
   ),
   NotificationItem(
-    title: '系統通知',
-    subtitle: '影片區即將上線，敬請期待！',
+    title: 'Daily summary',
+    subtitle: 'Your pets gained new followers',
     time: '1d',
     icon: Icons.notifications_active_outlined,
   ),
