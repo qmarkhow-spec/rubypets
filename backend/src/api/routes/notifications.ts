@@ -111,6 +111,21 @@ async function markAllReadRoute(ctx: HandlerContext): Promise<Response> {
   return okJson({ ok: true }, 200);
 }
 
+async function unreadCountRoute(ctx: HandlerContext): Promise<Response> {
+  const me = await requireAuthOwner(ctx);
+  const row = await ctx.env.DB
+    .prepare(
+      `
+      select count(*) as c
+      from notifications
+      where recipient_owner_id = ? and is_hidden = 0 and is_read = 0
+      `
+    )
+    .bind(me.uuid)
+    .first<{ c: number }>();
+  return okJson({ count: row?.c ?? 0 }, 200);
+}
+
 async function hideNotificationRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
   const me = await requireAuthOwner(ctx);
   const id = params.id;
@@ -202,7 +217,8 @@ export const routes: Route[] = [
   { method: "POST", path: "/push-tokens/register", handler: registerPushTokenRoute },
   { method: "POST", path: "/push-tokens/unregister", handler: unregisterPushTokenRoute },
   { method: "GET", path: "/notifications", handler: listNotificationsRoute },
-  { method: "POST", path: "/notifications/mark-all-read", handler: markAllReadRoute }
+  { method: "POST", path: "/notifications/mark-all-read", handler: markAllReadRoute },
+  { method: "GET", path: "/notifications/unread-count", handler: unreadCountRoute }
 ];
 
 export const dynamicRoutes: DynamicRoute[] = [

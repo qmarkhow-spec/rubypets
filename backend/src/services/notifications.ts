@@ -591,6 +591,10 @@ function buildFcmMessage(token: string, title: string, body: string, data: Recor
     apns: {
       payload: {
         aps: {
+          alert: {
+            title,
+            body
+          },
           sound: "default"
         }
       }

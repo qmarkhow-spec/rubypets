@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/notification.dart';
 import '../../models/user.dart';
 import '../../providers/notifications_provider.dart';
+import '../../providers/notifications_unread_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../services/notification_router.dart';
+import '../../services/api_client.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -47,6 +49,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Center(child: Text('Failed to load: $err')),
           data: (page) {
+            final unread = ref.watch(notificationsUnreadCountProvider).valueOrNull ?? 0;
+            final canMarkAll = unread > 0 && page.items.isNotEmpty;
             if (page.items.isEmpty) {
               return RefreshIndicator(
                 onRefresh: () => ref.refresh(notificationsProvider.future),
@@ -70,11 +74,21 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               child: ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemBuilder: (context, index) {
-                  final item = page.items[index];
-                  return _NotificationTile(item: item);
+                  if (index == 0) {
+                    return _HeaderRow(
+                      unreadCount: unread,
+                      onMarkAll: canMarkAll ? _markAllRead : null,
+                    );
+                  }
+                  final item = page.items[index - 1];
+                  return _NotificationTile(
+                    item: item,
+                    onMarkRead: _markRead,
+                    onDelete: _deleteNotification,
+                  );
                 },
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemCount: page.items.length,
+                itemCount: page.items.length + 1,
               ),
             );
           },
@@ -82,12 +96,76 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       },
     );
   }
+
+  Future<void> _markRead(AppNotification item) async {
+    if (item.isRead) return;
+    try {
+      await ref.read(apiClientProvider).markNotificationRead(item.id);
+    } catch (_) {
+      return;
+    }
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(notificationsUnreadCountProvider);
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await ref.read(apiClientProvider).markAllNotificationsRead();
+    } catch (_) {
+      return;
+    }
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(notificationsUnreadCountProvider);
+  }
+
+  Future<void> _deleteNotification(AppNotification item) async {
+    try {
+      await ref.read(apiClientProvider).deleteNotification(item.id);
+    } catch (_) {
+      return;
+    }
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(notificationsUnreadCountProvider);
+  }
+}
+
+class _HeaderRow extends StatelessWidget {
+  const _HeaderRow({required this.unreadCount, required this.onMarkAll});
+
+  final int unreadCount;
+  final VoidCallback? onMarkAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Text(
+            unreadCount > 0 ? 'Unread: $unreadCount' : 'All caught up',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: onMarkAll,
+            child: const Text('Mark all read'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.item});
+  const _NotificationTile({
+    required this.item,
+    required this.onMarkRead,
+    required this.onDelete,
+  });
 
   final AppNotification item;
+  final void Function(AppNotification item) onMarkRead;
+  final void Function(AppNotification item) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -96,32 +174,44 @@ class _NotificationTile extends StatelessWidget {
     final icon = _iconForType(item.type);
     final isUnread = !item.isRead;
 
-    return ListTile(
-      tileColor: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+    return Dismissible(
+      key: ValueKey(item.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        color: Theme.of(context).colorScheme.errorContainer,
+        child: const Icon(Icons.delete),
       ),
-      leading: Icon(
-        icon,
-        color: Theme.of(context).colorScheme.primary,
+      onDismissed: (_) => onDelete(item),
+      child: ListTile(
+        tileColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        leading: Icon(
+          icon,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500),
+        ),
+        subtitle: Text(time),
+        trailing: isUnread
+            ? Icon(Icons.circle, size: 10, color: Theme.of(context).colorScheme.primary)
+            : null,
+        onTap: () {
+          onMarkRead(item);
+          NotificationRouter.handleMessageData({
+            'type': item.type,
+            'post_id': item.postId,
+            'comment_id': item.commentId,
+            'friendship_id': item.friendshipId,
+            'notif_id': item.id,
+          });
+        },
       ),
-      title: Text(
-        title,
-        style: TextStyle(fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500),
-      ),
-      subtitle: Text(time),
-      trailing: isUnread
-          ? Icon(Icons.circle, size: 10, color: Theme.of(context).colorScheme.primary)
-          : null,
-      onTap: () {
-        NotificationRouter.handleMessageData({
-          'type': item.type,
-          'post_id': item.postId,
-          'comment_id': item.commentId,
-          'friendship_id': item.friendshipId,
-          'notif_id': item.id,
-        });
-      },
     );
   }
 }

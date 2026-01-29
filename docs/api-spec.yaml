@@ -1508,3 +1508,20 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OkEnvelope' }
+  /api/notifications/unread-count:
+    get:
+      summary: Get unread notifications count
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          count: { type: integer }

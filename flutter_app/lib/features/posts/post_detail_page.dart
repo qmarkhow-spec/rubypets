@@ -5,7 +5,6 @@ import '../../models/comment.dart';
 import '../../models/post.dart';
 import '../../providers/comments_provider.dart';
 import '../../providers/session_provider.dart';
-import '../../services/api_client.dart';
 import '../../widgets/feed_post_card.dart';
 
 class PostDetailPage extends ConsumerStatefulWidget {

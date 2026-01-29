@@ -354,6 +354,23 @@ class ApiClient {
     return NotificationsPage(items: items, nextCursor: payload['nextCursor']?.toString());
   }
 
+  Future<int> getUnreadNotificationCount() async {
+    final payload = _unwrapMap(await _request('/api/notifications/unread-count'));
+    return (payload['count'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _request('/api/notifications/$id/read', method: 'POST');
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await _request('/api/notifications/mark-all-read', method: 'POST');
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await _request('/api/notifications/$id', method: 'DELETE');
+  }
+
   Future<Object?> _request(
     String path, {
     String method = 'GET',

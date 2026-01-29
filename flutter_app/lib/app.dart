@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/create_post/create_post_page.dart';
 import 'features/explore/explore_page.dart';
@@ -7,11 +8,12 @@ import 'features/messages/messages_page.dart';
 import 'features/notifications/notifications_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/video/video_page.dart';
+import 'providers/notifications_unread_provider.dart';
 import 'services/notification_router.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_top_bar.dart';
 
-class RubyPetsApp extends StatelessWidget {
+class RubyPetsApp extends ConsumerWidget {
   const RubyPetsApp({super.key});
 
   List<Widget> get _pages => const [
@@ -39,7 +41,8 @@ class RubyPetsApp extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(notificationsUnreadCountProvider).valueOrNull ?? 0;
     return MaterialApp(
       title: 'RubyPets',
       debugShowCheckedModeBanner: false,
@@ -63,28 +66,28 @@ class RubyPetsApp extends StatelessWidget {
               onDestinationSelected: (value) {
                 NotificationRouter.tabIndex.value = value;
               },
-              destinations: const [
-                NavigationDestination(
+              destinations: [
+                const NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home),
                   label: 'Feed',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.play_circle_outline),
                   selectedIcon: Icon(Icons.play_circle),
                   label: 'Video',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.notifications_none),
-                  selectedIcon: Icon(Icons.notifications),
+                  icon: _NotificationsIcon(showBadge: unread > 0, count: unread),
+                  selectedIcon: _NotificationsIcon(showBadge: unread > 0, count: unread, filled: true),
                   label: 'Notifications',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.explore_outlined),
                   selectedIcon: Icon(Icons.explore),
                   label: 'Explore',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.person_outline),
                   selectedIcon: Icon(Icons.person),
                   label: 'Profile',
@@ -94,6 +97,28 @@ class RubyPetsApp extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _NotificationsIcon extends StatelessWidget {
+  const _NotificationsIcon({
+    required this.showBadge,
+    required this.count,
+    this.filled = false,
+  });
+
+  final bool showBadge;
+  final int count;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = filled ? Icons.notifications : Icons.notifications_none;
+    if (!showBadge) return Icon(icon);
+    return Badge(
+      label: Text(count > 99 ? '99+' : count.toString()),
+      child: Icon(icon),
     );
   }
 }
