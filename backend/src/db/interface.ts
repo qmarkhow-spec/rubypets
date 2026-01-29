@@ -183,6 +183,7 @@ export interface DBClient {
   setParticipantArchived(threadId: string, ownerId: string, archivedAt: string | null): Promise<void>;
   setParticipantDeleted(threadId: string, ownerId: string, deletedAt: string | null): Promise<void>;
   setParticipantLastRead(threadId: string, ownerId: string, messageId: string | null): Promise<void>;
+  listChatParticipantOwnerIds(threadId: string): Promise<string[]>;
   clearParticipantsArchiveDeleted(threadId: string): Promise<void>;
   insertChatMessage(threadId: string, senderId: string, bodyText: string): Promise<ChatMessage>;
   getChatMessageById(messageId: string): Promise<ChatMessage | null>;

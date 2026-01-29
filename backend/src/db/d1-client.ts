@@ -1035,6 +1035,20 @@ export class D1Client implements DBClient {
       .run();
   }
 
+  async listChatParticipantOwnerIds(threadId: string): Promise<string[]> {
+    const { results } = await this.db
+      .prepare(
+        `
+          select owner_id
+          from chat_thread_participants
+          where thread_id = ? and deleted_at is null
+        `
+      )
+      .bind(threadId)
+      .all<{ owner_id: string }>();
+    return (results ?? []).map((row) => row.owner_id);
+  }
+
   async clearParticipantsArchiveDeleted(threadId: string): Promise<void> {
     await this.db
       .prepare(`update chat_thread_participants set archived_at = null, deleted_at = null where thread_id = ?`)

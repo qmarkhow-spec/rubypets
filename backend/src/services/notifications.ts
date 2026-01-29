@@ -417,6 +417,55 @@ export async function sendPushNotification(
   await pushNotification(env, db, notif);
 }
 
+export async function sendChatMessagePush(args: {
+  env: FcmEnv;
+  db: D1Database;
+  recipientId: string;
+  actorId: string;
+  threadId: string;
+  preview: string;
+}): Promise<void> {
+  try {
+    const fcmEnv = requireFcmEnv(args.env);
+    const tokens = await listActivePushTokens(args.db, args.recipientId);
+    if (tokens.length === 0) return;
+
+    const actorName = await getOwnerDisplayName(args.db, args.actorId);
+    const title = actorName || "New message";
+    const body = args.preview || "Sent you a message";
+
+    const data = {
+      type: "chat_message",
+      thread_id: args.threadId,
+      sender_id: args.actorId
+    };
+
+    for (const tokenRow of tokens) {
+      const message = buildFcmMessage(tokenRow.fcm_token, title, body, data);
+
+      let resp: Response | null = null;
+      let text = "";
+      try {
+        resp = await fcmSend(fcmEnv, message);
+        text = await resp.text();
+      } catch (err) {
+        console.error("FCM send failed", err);
+        continue;
+      }
+
+      if (!resp.ok) {
+        const shouldDisable = resp.status === 404 || text.includes("UNREGISTERED");
+        if (shouldDisable) {
+          await unregisterPushToken(args.db, tokenRow.fcm_token);
+        }
+        console.warn("FCM response not ok", resp.status, text);
+      }
+    }
+  } catch (err) {
+    console.error("sendChatMessagePush failed", err);
+  }
+}
+
 async function pushNotification(env: FcmEnv, db: D1Database, notif: NotificationRow): Promise<void> {
   try {
     const fcmEnv = requireFcmEnv(env);
@@ -435,14 +484,7 @@ async function pushNotification(env: FcmEnv, db: D1Database, notif: Notification
     };
 
     for (const tokenRow of tokens) {
-      const message = {
-        token: tokenRow.fcm_token,
-        notification: {
-          title: "Rubypets",
-          body
-        },
-        data
-      };
+      const message = buildFcmMessage(tokenRow.fcm_token, "Rubypets", body, data);
 
       let resp: Response | null = null;
       let text = "";
@@ -475,6 +517,14 @@ function requireFcmEnv(env: FcmEnv): { FCM_SERVICE_ACCOUNT_JSON: string; FCM_PRO
     FCM_SERVICE_ACCOUNT_JSON: env.FCM_SERVICE_ACCOUNT_JSON,
     FCM_PROJECT_ID: env.FCM_PROJECT_ID
   };
+}
+
+async function getOwnerDisplayName(db: D1Database, ownerId: string): Promise<string> {
+  const row = await db
+    .prepare(`select display_name from owners where uuid = ?`)
+    .bind(ownerId)
+    .first<{ display_name: string | null }>();
+  return row?.display_name ?? "";
 }
 
 async function listTopActors(db: D1Database, notificationId: string, limit: number): Promise<string[]> {
@@ -520,4 +570,30 @@ function buildAggregatedBody(nameA: string, nameB: string, count: number, action
   if (count === 2) return `${nameA} and ${nameB} ${action}`;
   const others = Math.max(0, count - 2);
   return `${nameA}, ${nameB}, and ${others} others ${action}`;
+}
+
+function buildFcmMessage(token: string, title: string, body: string, data: Record<string, string>) {
+  return {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data,
+    android: {
+      priority: "high",
+      notification: {
+        channel_id: "rubypets_notifications",
+        visibility: "PUBLIC",
+        default_sound: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default"
+        }
+      }
+    }
+  };
 }

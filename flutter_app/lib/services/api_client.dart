@@ -106,6 +106,11 @@ class ApiClient {
     return FeedPost.fromJson(payload);
   }
 
+  Future<FeedPost> getPostById({required String postId}) async {
+    final payload = _unwrapMap(await _request('/api/posts/$postId'));
+    return FeedPost.fromJson(payload);
+  }
+
   Future<PostLikeResult> togglePostLike({required String postId, required bool shouldLike}) async {
     final payload = _unwrapMap(await _request(
       '/api/posts/$postId/like',

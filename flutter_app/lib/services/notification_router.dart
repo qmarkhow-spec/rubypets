@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
+import '../features/messages/room_page.dart';
 import '../features/notifications/friend_requests_page.dart';
-import '../features/notifications/notification_target_page.dart';
+import '../features/posts/post_detail_page.dart';
 
 class NotificationRouter {
   static final navigatorKey = GlobalKey<NavigatorState>();
@@ -12,6 +13,7 @@ class NotificationRouter {
     final postId = (data['post_id'] ?? '').toString();
     final commentId = (data['comment_id'] ?? '').toString();
     final friendshipId = (data['friendship_id'] ?? '').toString();
+    final threadId = (data['thread_id'] ?? '').toString();
 
     if (type == 'friend_request') {
       tabIndex.value = 2;
@@ -21,15 +23,25 @@ class NotificationRouter {
       return;
     }
 
+    if (type == 'chat_message' && threadId.isNotEmpty) {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => ChatRoomPage(
+            threadId: threadId,
+            threadTitle: 'Chat',
+          ),
+        ),
+      );
+      return;
+    }
+
     if (postId.isNotEmpty) {
       tabIndex.value = 0;
       navigatorKey.currentState?.push(
         MaterialPageRoute(
-          builder: (_) => NotificationTargetPage(
-            type: type,
+          builder: (_) => PostDetailPage(
             postId: postId,
-            commentId: commentId,
-            friendshipId: friendshipId,
+            highlightCommentId: commentId.isNotEmpty ? commentId : null,
           ),
         ),
       );

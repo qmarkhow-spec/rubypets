@@ -1,6 +1,7 @@
 import { D1Client } from "../db/d1-client";
 import { parseUserIdFromToken } from "../services/auth";
 import { Env } from "../types";
+import { sendChatMessagePush } from "../services/notifications";
 import type { ChatRequestState } from "../db/models";
 
 type ClientInfo = {
@@ -254,6 +255,24 @@ export class ChatThreadDO {
         created_at: message.createdAt
       }
     });
+
+    const participants = await this.db.listChatParticipantOwnerIds(info.threadId);
+    const recipients = participants.filter((ownerId) => ownerId !== info.ownerId);
+    if (recipients.length > 0) {
+      const preview = message.bodyText.length > 120 ? `${message.bodyText.slice(0, 120)}...` : message.bodyText;
+      for (const recipientId of recipients) {
+        this.state.waitUntil(
+          sendChatMessagePush({
+            env: this.env,
+            db: this.env.DB,
+            recipientId,
+            actorId: info.ownerId,
+            threadId: info.threadId,
+            preview
+          })
+        );
+      }
+    }
 
     if (updated) {
       this.broadcast({

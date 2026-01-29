@@ -25,6 +25,31 @@ async function postsListRoute(ctx: HandlerContext): Promise<Response> {
   return okJson(posts, 200);
 }
 
+async function getPostRoute(ctx: HandlerContext, params: Record<string, string>): Promise<Response> {
+  const postId = params.id;
+  const post = await ctx.db.getPostById(postId);
+  if (!post) return errorJson("post not found", 404);
+  if (post.isDeleted === 1) return errorJson("post deleted", 404);
+
+  const currentUser = await getUserFromAuthHeader(ctx.db, ctx.request).catch(() => null);
+  const visibility = post.visibility ?? "public";
+  if (visibility === "private") {
+    if (!currentUser || currentUser.uuid !== post.authorId) {
+      return errorJson("forbidden", 403);
+    }
+  }
+  if (visibility === "friends") {
+    if (!currentUser) return errorJson("forbidden", 403);
+    if (currentUser.uuid !== post.authorId) {
+      const ok = await ctx.db.isFriends(post.authorId, currentUser.uuid);
+      if (!ok) return errorJson("forbidden", 403);
+    }
+  }
+
+  const isLiked = currentUser ? await ctx.db.hasLiked(postId, currentUser.uuid) : false;
+  return okJson({ ...post, isLiked }, 200);
+}
+
 async function createPostRoute(ctx: HandlerContext): Promise<Response> {
   const payload = (await ctx.request.json()) as {
     content?: string;
@@ -372,6 +397,7 @@ export const routes: Route[] = [
 ];
 
 export const dynamicRoutes: DynamicRoute[] = [
+  { method: "GET", pattern: /^\/posts\/([^/]+)$/, handler: getPostRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/media\/attach$/, handler: attachMediaRoute },
   { method: "POST", pattern: /^\/posts\/([^/]+)\/like$/, handler: likeRoute },
   { method: "DELETE", pattern: /^\/posts\/([^/]+)\/like$/, handler: unlikeRoute },

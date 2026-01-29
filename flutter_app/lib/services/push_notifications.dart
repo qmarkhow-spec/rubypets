@@ -35,6 +35,18 @@ class PushNotificationsService {
     await FirebaseMessaging.instance.requestPermission();
 
     if (Platform.isAndroid) {
+      const channel = AndroidNotificationChannel(
+        'rubypets_notifications',
+        'Rubypets notifications',
+        description: 'Rubypets notification channel',
+        importance: Importance.max,
+        enableVibration: true,
+        playSound: true,
+        showBadge: true,
+      );
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
       await _localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
