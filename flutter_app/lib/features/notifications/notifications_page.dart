@@ -7,7 +7,6 @@ import '../../providers/notifications_provider.dart';
 import '../../providers/notifications_unread_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../services/notification_router.dart';
-import '../../services/api_client.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});

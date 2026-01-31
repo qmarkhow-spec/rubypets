@@ -37,11 +37,13 @@ class NotificationRouter {
 
     if (postId.isNotEmpty) {
       tabIndex.value = 0;
+      final openComments = type == 'post_comment' || type == 'comment_reply' || type == 'comment_like';
       navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (_) => PostDetailPage(
             postId: postId,
             highlightCommentId: commentId.isNotEmpty ? commentId : null,
+            openComments: openComments,
           ),
         ),
       );
