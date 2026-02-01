@@ -120,12 +120,14 @@ export async function notifyPostComment(args: {
   recipientId: string;
   actorId: string;
   postId: string;
+  commentId?: string;
 }): Promise<void> {
   const row = await recordPostComment({
     db: args.db,
     recipientId: args.recipientId,
     actorId: args.actorId,
-    postId: args.postId
+    postId: args.postId,
+    commentId: args.commentId
   });
   if (!row) return;
   await sendPushNotification(args.env, args.db, row);
@@ -367,13 +369,15 @@ export async function recordPostComment(args: {
   recipientId: string;
   actorId: string;
   postId: string;
+  commentId?: string;
 }): Promise<NotificationRow> {
   return recordSingle({
     db: args.db,
     type: "post_comment",
     recipientId: args.recipientId,
     actorId: args.actorId,
-    postId: args.postId
+    postId: args.postId,
+    commentId: args.commentId ?? null
   });
 }
 

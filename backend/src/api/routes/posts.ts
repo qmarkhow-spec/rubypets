@@ -292,19 +292,20 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
   const postAuthorId = access.post.authorId;
   const replyRecipientId = replyTargetOwnerId && replyTargetOwnerId !== actorId ? replyTargetOwnerId : null;
   const replyCommentId = replyTargetCommentId ?? "";
+  const createdCommentId = created.id;
 
   if (replyRecipientId && replyCommentId) {
     if (replyRecipientId === postAuthorId) {
       try {
-        const notif = await recordCommentReply({
-          db: ctx.env.DB,
-          recipientId: replyRecipientId,
-          actorId,
-          postId,
-          commentId: replyCommentId
-        });
-        ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
-      } catch (err) {
+          const notif = await recordCommentReply({
+            db: ctx.env.DB,
+            recipientId: replyRecipientId,
+            actorId,
+            postId,
+            commentId: createdCommentId
+          });
+          ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
+        } catch (err) {
         console.error("notifyCommentReply failed", err);
       }
     } else {
@@ -314,7 +315,8 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
             db: ctx.env.DB,
             recipientId: postAuthorId,
             actorId,
-            postId
+            postId,
+            commentId: createdCommentId
           });
           ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, postNotif));
         } catch (err) {
@@ -327,7 +329,7 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
           recipientId: replyRecipientId,
           actorId,
           postId,
-          commentId: replyCommentId
+          commentId: createdCommentId
         });
         ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, replyNotif));
       } catch (err) {
@@ -340,7 +342,8 @@ async function createCommentRoute(ctx: HandlerContext, params: Record<string, st
         db: ctx.env.DB,
         recipientId: postAuthorId,
         actorId,
-        postId
+        postId,
+        commentId: createdCommentId
       });
       ctx.ctx.waitUntil(sendPushNotification(ctx.env, ctx.env.DB, notif));
     } catch (err) {
